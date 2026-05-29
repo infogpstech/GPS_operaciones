@@ -190,3 +190,36 @@ El Corte Recomendado no carga su imagen porque `renderCutContent` le asigna `dat
 - Eliminar el `oninput` redundante en `index.html`.
 - Implementar la excepción de zoom por lightbox en `add_cortes.html`.
 - Refactorizar `mostrarModelos` para usar `previousState` en su botón de regreso.
+
+--------------------------------------------------
+**AUDITORÍA TÉCNICA - SOPORTE DE IMÁGENES .PNG (07/02/2026)**
+
+**Archivo: services/write/write.js**
+- L122: Extensión .jpg harcodeada en el nombre del archivo para imágenes de corte (vehículo existente).
+- L170: Extensión .jpg harcodeada en el nombre del archivo para imagen de vehículo (vehículo nuevo).
+- L175: Extensión .jpg harcodeada en el nombre del archivo para imagen de corte (vehículo nuevo).
+- L288: Extensión .jpg harcodeada en el nombre del archivo para imagen de apertura.
+- L293: Extensión .jpg harcodeada en el nombre del archivo para imagen de alimentación.
+- L425: La función `uploadImageToDrive` extrae el mimeType correctamente (`const mimeType = parts[0].match(/:(.*?);/)[1];`) pero no lo utiliza para determinar la extensión del archivo, ya que el `filename` se recibe como parámetro con la extensión ya incluida.
+
+**Hallazgos:**
+1. El sistema fuerza la extensión .jpg independientemente del formato real de la imagen subida (PNG, WebP, etc.).
+2. Aunque Google Drive maneja el contenido correctamente por su tipo MIME, el nombre del archivo en Drive es engañoso y podría causar problemas si se descargan o procesan externamente.
+3. La función `uploadImageToDrive` ya tiene lógica para detectar el MIME type de la data base64.
+
+**Acciones:**
+- Implementar una función helper `getExtensionFromMimeType(mimeType)`.
+- Modificar `uploadImageToDrive` para que, si recibe un `filename` sin extensión o si se decide refactorizar, asigne la extensión correcta.
+- La mejor aproximación es que `uploadImageToDrive` se encargue de la extensión si es data base64, o que las funciones que la llaman detecten el MIME type antes de construir el `filename`.
+
+--------------------------------------------------
+**AUDITORÍA POST-CODE REVIEW - SOPORTE MULTIFORMATO (07/02/2026)**
+
+**Hallazgo del Code Review:**
+- La refactorización inicial rompía la extensión de los archivos cuando se obtenían vía URL (UrlFetchApp).
+- Se incluyeron archivos de respaldo (.bak) y scripts de prueba externos en el commit propuesto.
+
+**Acciones de Corrección:**
+- Se modificó `uploadImageToDrive` en `services/write/write.js` para que también detecte el tipo MIME y asigne la extensión correcta a las imágenes descargadas por URL.
+- Se eliminaron `services/write/write.js.bak` y `test_mime.js`.
+- Se verificó que el flujo tanto para base64 como para URLs sea consistente.

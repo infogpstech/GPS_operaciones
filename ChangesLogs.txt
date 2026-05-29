@@ -271,3 +271,18 @@
   - Sistema de verificación anti-duplicado en 3 etapas.
 
 **Versión:** Consolidación final v2.0 (Full Features).
+
+**CHANGES LOG - 07/02/2026**
+
+**Archivo: services/write/write.js**
+- **Líneas 122, 170, 175, 288, 293:** Se eliminó la extensión ".jpg" harcodeada en la construcción de los nombres de archivo para permitir la asignación dinámica según el formato original.
+- **Líneas 428, 443-447:** Se refactorizó la función "uploadImageToDrive" para extraer el tipo MIME de la data base64 y concatenar la extensión correcta al nombre del archivo antes de crear el archivo en Drive.
+- **Líneas 460-476:** Se implementó la función helper "getExtensionFromMimeType" para mapear tipos MIME (JPEG, PNG, WebP, GIF, etc.) a sus respectivas extensiones de archivo.
+
+**Versión:** Incremento técnico para soporte de múltiples formatos de imagen.
+
+**CORRECCIÓN POST-CODE REVIEW - 07/02/2026**
+
+**Archivo: services/write/write.js**
+- **Líneas 432-438:** Se añadió lógica para obtener el tipo MIME de la respuesta de `UrlFetchApp` y asignar la extensión dinámica al nombre del archivo descargado desde una URL externa.
+- **General:** Se aseguró que el contrato de nombres de archivos sin extensión harcodeada se cumpla en todos los puntos de entrada de la función `uploadImageToDrive`.

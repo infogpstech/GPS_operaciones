@@ -258,3 +258,8 @@ Cualquier cambio en estas zonas invalidará el commit.
 7. TÍTULO: Funcionalidad de Edición 'In-Modal' (PENDIENTE)
 8. TÍTULO: Lógica de Backend para Feedback Inbox (PENDIENTE)
 9. TÍTULO: Expansión de Rango de Años por Feedback (PENDIENTE)
+
+12. **TÍTULO: Soporte para subida de imágenes PNG y múltiples formatos**
+   - **ESTADO:** PENDIENTE REVISIÓN POR EL MP
+   - **ALCANCE:** services/write/write.js
+   - **DESCRIPCIÓN DETALLADA:** Refactorización de la lógica de guardado de imágenes para detectar el tipo MIME de la data base64 y asignar la extensión de archivo correcta (.png, .webp, .jpg, etc.), eliminando la restricción de solo JPEG.
