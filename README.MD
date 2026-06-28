@@ -1,4 +1,4 @@
-##GPS Operations Suite (GOS)
+## GPS Operations Suite (GOS)
 
 **Documento de Requerimientos del Proyecto**
 
@@ -44,7 +44,7 @@ La única integración será mediante los microservicios existentes de GPSpedia 
 
 ---
 
-#Spreadsheet principal
+# Spreadsheet principal
 
 Utilizar exclusivamente el siguiente Spreadsheet.
 
