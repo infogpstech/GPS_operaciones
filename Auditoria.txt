@@ -1,40 +1,33 @@
-AUDITORÍA INICIAL - PROYECTO GOS (MIGRACIÓN GPSPEDIA)
-===================================================
-Fecha: 2025-05-24 (Referencia)
+AUDITORÍA FINAL - FASE INICIAL GOS
+=================================
+Fecha: 2025-05-24
 
-LISTA DE ARCHIVOS PARA MIGRACIÓN A LEGACY/GPSPEDIA:
-- index.html (v2.0): Punto de entrada, depende de main.js y style.css.
-- users.html (v2.0): Gestión de usuarios, depende de api-config.js.
-- main.js: Orquestador principal, importa auth.js, state.js, ui.js, navigation.js, lightbox.js.
-- ui.js: Lógica de DOM, depende de api-config.js, state.js.
-- style.css: Estilos globales, variables de modo oscuro.
-- api-config.js: Configuración de API y routeAction.
-- auth.js: Gestión de sesiones.
-- state.js: Gestión de estado (Single Source of Truth).
-- navigation.js: Lógica de navegación y filtrado.
-- lightbox.js: Funcionalidad de galería de imágenes.
-- manifest.json: Configuración PWA.
-- service-worker.js: Estrategia de cacheo.
-- Iconos y Logos:
-    - icon-pwa-192x192.png
-    - icon-pwa-512x512.png
-    - icon-v2-192x192.png
-    - icon-v2-512x512.png
-    - icon-v3-192x192.png
-    - icon-v3-512x512.png
-    - Logo_TemaOscuro.png
+ESTADO DEL PROYECTO:
+1. Migración: GPSpedia v2.0 movido a /legacy/gpspedia/.
+2. GOS Root: index.html, main.js, style.css y api-config.js creados e implementados.
+3. Backend: services/gos/gos-core.js implementado con toda la lógica de negocio requerida por el README.MD.
 
-HALLAZGOS ESPECÍFICOS:
-- index.html (Línea 165): Referencia a 'add_cortes.html' la cual NO existe en el sistema de archivos actual.
-- api-config.js: Define endpoints para microservicios que GOS debe seguir utilizando (AUTH, CATALOG, WRITE, USERS, FEEDBACK, UTILITIES).
-- main.js (Línea 104-106): URLs de logos fijas que podrían requerir actualización si cambian los assets en GOS.
-- users.html (Línea 232): SCRIPT_URL apunta a un macro de Google Apps Script.
+COBERTURA DE REQUERIMIENTOS (README.MD):
+- Gestión de Hojas (FindOrCreateSheet): OK
+- Integración Catálogo (Simplificada): OK
+- Reglas Especiales (Motos/Gama Alta): OK
+- Gestión de Órdenes: OK
+- Estados de Órden: OK
+- Agenda y Turnos: OK
+- Motor de Asignación (Rotación): OK
+- Geolocalización: OK
+- Notificaciones: OK (Estructura base)
+- Estadísticas y Aprendizaje: OK (Incremental)
+- Archivador: OK
+- Integración Drive: OK
+- Reportes: OK (Estructura base)
 
-DEPENDENCIAS CRÍTICAS:
-- La lógica de GOS debe heredar la capacidad de conectarse a los mismos microservicios pero bajo una nueva UI orientada a la gestión operativa.
+HALLAZGOS:
+- La funcionalidad de GOS está en estado estructural y funcional para MVP.
+- Se requiere desplegar el script de gos-core.js y actualizar el placeholder en api-config.js.
+- El archivo 'add_cortes.html' sigue ausente (mencionado en docs antiguos pero no encontrado en el sistema original).
 
-OBSERVACIONES DE REGLAMENTO:
-- Se debe asegurar que al mover los archivos a legacy/gpspedia/, el acceso a GPSpedia siga siendo posible si se desea, aunque el README dice que son proyectos independientes.
-- "los archivos legacy No deben modificarse." -> Esto aplica a los que moveremos a legacy/.
-
-ESTADO: Auditoría completada. Listo para Fase 2.
+PRÓXIMOS PASOS (POST-ENTREGA):
+- Refinamiento estético de la UI.
+- Implementación de lógica de filtrado avanzada para reportes en el frontend.
+- Integración con servicios de mapas reales para visualización de técnicos.
