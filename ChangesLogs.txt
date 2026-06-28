@@ -11,3 +11,7 @@
 - Implementada gestión de Órdenes y Agenda.
 - Integrada geolocalización en tiempo real.
 - Estructurada integración con Drive y sistema de estadísticas.
+- Implementada configuración dinámica de Agenda desde Spreadsheet.
+- Desarrollado Motor de Asignación Avanzado con detección de segundos trabajos.
+- Implementada lógica de proximidad para detección automática de llegada.
+- Creado sistema de notificaciones base en el backend.

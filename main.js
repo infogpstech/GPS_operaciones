@@ -39,8 +39,27 @@ async function checkArrivalStatus(lat, lng) {
         lng
     });
 
-    // Simulación de detección de llegada
-    // En una implementación real, se compararía con el destino de la orden activa
+    // Lógica de proximidad (Radio 200m aprox)
+    const activeOrder = window.activeOrder; // Supongamos que guardamos la orden en curso
+    if (activeOrder && activeOrder.coordenadas) {
+        const [targetLat, targetLng] = activeOrder.coordenadas.split(',').map(Number);
+        const distance = calculateDistance(lat, lng, targetLat, targetLng);
+
+        if (distance < 0.2 && activeOrder.estado !== 'Llegó') {
+            markStatus(activeOrder.id, 'Llegó');
+        }
+    }
+}
+
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Radio de la Tierra en km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
 }
 
 async function markStatus(orderId, newStatus) {

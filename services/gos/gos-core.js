@@ -135,14 +135,23 @@ function handleGetAgendaConfig() {
   const sheet = findOrCreateSheet("Configuracion");
   const data = sheet.getDataRange().getValues();
 
-  // Valores por defecto si la hoja está vacía
   let config = {
     turnos: ["08:00", "10:00", "13:00", "15:00"],
     cantidadTecnicos: 4
   };
 
   if (data.length > 1) {
-    // Lógica para leer configuración desde spreadsheet
+    data.forEach(row => {
+      if (row[0] === "Turnos") {
+        config.turnos = row[1].toString().split(',').map(t => t.trim());
+      } else if (row[0] === "CantidadTecnicos") {
+        config.cantidadTecnicos = parseInt(row[1]) || 4;
+      }
+    });
+  } else {
+    // Inicializar hoja con valores por defecto
+    sheet.appendRow(["Turnos", "08:00, 10:00, 13:00, 15:00"]);
+    sheet.appendRow(["CantidadTecnicos", 4]);
   }
 
   return { status: 'success', data: config };
@@ -184,6 +193,17 @@ function handleAutoAssignTechnical(payload) {
   const nextIndex = (lastIndex + 1) % tecnicos.length;
   const tecnicoAsignado = tecnicos[nextIndex][1]; // Columna 2: Nombre
 
+  // Verificar si es segundo trabajo o si el técnico está cerca (Lógica avanzada)
+  const ordersSheet = findOrCreateSheet("Ordenes");
+  const ordersData = ordersSheet.getDataRange().getValues();
+
+  let jobsCount = 0;
+  ordersData.forEach(row => {
+    if (row[19] === tecnicoAsignado && row[20] === "Asignada") jobsCount++;
+  });
+
+  const requiresConfirmation = jobsCount > 0; // Si ya tiene uno, el segundo requiere confirmación
+
   // Actualizar puntero
   configSheet.getRange(lastIndexRow, 2).setValue(nextIndex);
 
@@ -205,9 +225,9 @@ function handleAutoAssignTechnical(payload) {
 
   return {
     status: 'success',
-    message: 'Técnico asignado automáticamente',
+    message: requiresConfirmation ? 'Asignación pendiente de confirmación' : 'Técnico asignado automáticamente',
     tecnico: tecnicoAsignado,
-    requiresConfirmation: false // Para primer trabajo no requiere
+    requiresConfirmation: requiresConfirmation
   };
 }
 
@@ -241,16 +261,16 @@ function handleUpdateTechnicianLocation(payload) {
  * Estadísticas y Aprendizaje
  */
 function handleUpdateStatistics(payload) {
-  const { marca, modelo, tecnico, tiempoMinutos, tipoTrabajo } = payload;
+  const { marca, modelo, tecnico, tiempoMinutos, tipoTrabajo, zona, servicio } = payload;
   const sheet = findOrCreateSheet("Estadisticas");
   const data = sheet.getDataRange().getValues();
 
   // Buscar entrada existente para actualizar promedio
   let entryRow = -1;
-  const key = `${marca}|${modelo}|${tecnico}|${tipoTrabajo}`;
+  const key = `${marca}|${modelo}|${tecnico}|${tipoTrabajo}|${zona || ''}|${servicio || ''}`;
 
   for(let i=1; i<data.length; i++) {
-    const sheetKey = `${data[i][0]}|${data[i][1]}|${data[i][2]}|${data[i][3]}`;
+    const sheetKey = `${data[i][0]}|${data[i][1]}|${data[i][2]}|${data[i][3]}|${data[i][7] || ''}|${data[i][8] || ''}`;
     if(sheetKey === key) {
       entryRow = i + 1;
       break;
@@ -267,8 +287,8 @@ function handleUpdateStatistics(payload) {
     sheet.getRange(entryRow, 6).setValue(newAvg);   // Col F: Promedio
     sheet.getRange(entryRow, 7).setValue(new Date().toISOString()); // Col G: Última actualización
   } else {
-    // Nueva entrada
-    sheet.appendRow([marca, modelo, tecnico, tipoTrabajo, 1, tiempoMinutos, new Date().toISOString()]);
+    // Nueva entrada: Marca, Modelo, Tecnico, TipoTrabajo, Cantidad, Promedio, UltimaAct, Zona, Servicio
+    sheet.appendRow([marca, modelo, tecnico, tipoTrabajo, 1, tiempoMinutos, new Date().toISOString(), zona || "", servicio || ""]);
   }
 
   return { status: 'success' };
@@ -333,6 +353,17 @@ function handleGenerateReport(payload) {
   return { status: 'success', reportData: data };
 }
 
+/**
+ * Sistema de Notificaciones
+ */
+function handleSendNotification(payload) {
+  const { recipient, message, type } = payload;
+  const sheet = findOrCreateSheet("Notificaciones");
+  sheet.appendRow([new Date().toISOString(), recipient, type, message, "Pendiente"]);
+
+  return { status: 'success' };
+}
+
 function doPost(e) {
   try {
     const request = JSON.parse(e.postData.contents);
@@ -371,6 +402,9 @@ function doPost(e) {
         break;
       case 'updateOrderStatus':
         response = handleUpdateOrderStatus(request.payload);
+        break;
+      case 'sendNotification':
+        response = handleSendNotification(request.payload);
         break;
       default:
         response = { status: 'error', message: 'Acción no soportada' };
