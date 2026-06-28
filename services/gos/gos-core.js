@@ -364,6 +364,46 @@ function handleSendNotification(payload) {
   return { status: 'success' };
 }
 
+/**
+ * Gestión de Clientes
+ */
+function handleGetClients() {
+  const sheet = findOrCreateSheet("Clientes");
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return { status: 'success', data: [] };
+  const headers = data.shift();
+
+  const clients = data.map(row => {
+    let obj = {};
+    headers.forEach((header, index) => {
+      obj[header.toLowerCase().replace(/\s+/g, '')] = row[index];
+    });
+    return obj;
+  });
+
+  return { status: 'success', data: clients };
+}
+
+/**
+ * Gestión de Técnicos
+ */
+function handleGetTechnicians() {
+  const sheet = findOrCreateSheet("Tecnicos");
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return { status: 'success', data: [] };
+  const headers = data.shift();
+
+  const techs = data.map(row => {
+    let obj = {};
+    headers.forEach((header, index) => {
+      obj[header.toLowerCase().replace(/\s+/g, '')] = row[index];
+    });
+    return obj;
+  });
+
+  return { status: 'success', data: techs };
+}
+
 function doPost(e) {
   try {
     const request = JSON.parse(e.postData.contents);
@@ -402,6 +442,12 @@ function doPost(e) {
         break;
       case 'updateOrderStatus':
         response = handleUpdateOrderStatus(request.payload);
+        break;
+      case 'getClients':
+        response = handleGetClients();
+        break;
+      case 'getTechnicians':
+        response = handleGetTechnicians();
         break;
       case 'sendNotification':
         response = handleSendNotification(request.payload);

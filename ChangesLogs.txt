@@ -15,3 +15,8 @@
 - Desarrollado Motor de Asignación Avanzado con detección de segundos trabajos.
 - Implementada lógica de proximidad para detección automática de llegada.
 - Creado sistema de notificaciones base en el backend.
+- Configurada PWA funcional (manifest.json y service-worker.js).
+- Refinada UI de Órdenes con tablas dinámicas y estados visuales.
+- Implementado módulo de Consulta Técnica simplificada (GOS <-> GPSpedia).
+- Implementado Directorio de Clientes y Panel de Técnicos con seguimiento.
+- Actualizada versión visible de la aplicación a v0.3.0.

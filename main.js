@@ -3,7 +3,8 @@ import { routeAction } from './api-config.js';
 const SESSION_KEY = 'gos_session';
 
 async function init() {
-    window.loadSection = loadSection; // Exponer para depuración y tests
+    window.loadSection = loadSection;
+    window.markStatus = markStatus; // Exponer para botones en tablas dinámicas
     setupAuthListeners();
     setupNavigationListeners();
     setupGeolocation();
@@ -98,7 +99,8 @@ function loadSection(section) {
         agenda: { title: 'Agenda de Instalaciones', content: '<p>Cargando turnos...</p>' },
         ordenes: { title: 'Gestión de Órdenes', content: '<p>Cargando órdenes de trabajo...</p>' },
         clientes: { title: 'Directorio de Clientes', content: '<p>Cargando base de datos de clientes...</p>' },
-        tecnicos: { title: 'Panel de Técnicos', content: '<p>Cargando disponibilidad de técnicos...</p>' }
+        tecnicos: { title: 'Panel de Técnicos', content: '<p>Cargando disponibilidad de técnicos...</p>' },
+        consulta: { title: 'Consulta Técnica GPSpedia', content: '<p>Cargando motor de consulta...</p>' }
     };
 
     if (sections[section]) {
@@ -111,7 +113,71 @@ function loadSection(section) {
             renderAgendaModule(contentEl);
         } else if (section === 'tecnicos') {
             renderTechniciansModule(contentEl);
+        } else if (section === 'clientes') {
+            renderClientsModule(contentEl);
+        } else if (section === 'consulta') {
+            renderConsultationModule(contentEl);
         }
+    }
+}
+
+async function renderConsultationModule(container) {
+    container.innerHTML = `
+        <form id="consult-form" class="order-form">
+            <div class="form-grid">
+                <div class="form-group"><label>Categoría</label><input type="text" name="categoria" class="form-control" placeholder="Ej: Automóvil"></div>
+                <div class="form-group"><label>Marca</label><input type="text" name="marca" class="form-control" required></div>
+                <div class="form-group"><label>Modelo</label><input type="text" name="modelo" class="form-control" required></div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:10px;">Consultar Capacidades</button>
+        </form>
+        <div id="consult-result" style="margin-top:20px;"></div>
+    `;
+
+    document.getElementById('consult-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const payload = Object.fromEntries(formData.entries());
+        const resultDiv = document.getElementById('consult-result');
+
+        resultDiv.innerHTML = '<p>Consultando catálogo...</p>';
+        try {
+            const result = await routeAction('GOS_CORE', 'getTechnicalConsultation', payload);
+            if (result.status === 'success') {
+                const data = result.data;
+                resultDiv.innerHTML = `
+                    <div class="stat-card" style="text-align:left;">
+                        <p><strong>Apagado Remoto:</strong> ${data.apagadoRemoto}</p>
+                        <p><strong>Apertura:</strong> ${data.apertura}</p>
+                        <p><strong>Botón de Pánico:</strong> ${data.botonPanico}</p>
+                        <p><strong>Micrófono:</strong> ${data.microfono}</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            resultDiv.innerHTML = `<p style="color:var(--danger);">Error: ${error.message}</p>`;
+        }
+    });
+}
+
+async function renderClientsModule(container) {
+    container.innerHTML = `<p>Cargando clientes...</p>`;
+    try {
+        const result = await routeAction('GOS_CORE', 'getClients');
+        if (result.status === 'success') {
+            if (result.data.length === 0) {
+                container.innerHTML = '<p>No hay clientes registrados.</p>';
+            } else {
+                let html = `<table class="gos-table"><thead><tr><th>Cliente</th><th>Teléfono</th></tr></thead><tbody>`;
+                result.data.forEach(client => {
+                    html += `<tr><td>${client.nombre}</td><td>${client.telefono}</td></tr>`;
+                });
+                html += `</tbody></table>`;
+                container.innerHTML = html;
+            }
+        }
+    } catch (error) {
+        container.innerHTML = `<p>Error al cargar clientes.</p>`;
     }
 }
 
@@ -126,6 +192,21 @@ async function renderTechniciansModule(container) {
         <div id="techs-list" class="techs-table-container"></div>
     `;
     // Lógica adicional para listar técnicos y su última ubicación
+    try {
+        const result = await routeAction('GOS_CORE', 'getTechnicians');
+        if (result.status === 'success') {
+            document.getElementById('active-techs-count').textContent = result.data.length;
+            const list = document.getElementById('techs-list');
+            let html = `<table class="gos-table"><thead><tr><th>Técnico</th><th>Última Ubicación</th></tr></thead><tbody>`;
+            result.data.forEach(t => {
+                html += `<tr><td>${t.nombre}</td><td>${t.lat || 'N/A'}, ${t.lng || 'N/A'}</td></tr>`;
+            });
+            html += `</tbody></table>`;
+            list.innerHTML = html;
+        }
+    } catch (error) {
+        console.error("Error techs:", error);
+    }
 }
 
 async function renderAgendaModule(container) {
@@ -183,8 +264,31 @@ async function renderOrdersModule(container) {
             if (result.data.length === 0) {
                 listContainer.innerHTML = '<p>No hay órdenes registradas.</p>';
             } else {
-                // Implementar tabla de órdenes aquí
-                listContainer.innerHTML = '<p>Órdenes cargadas exitosamente.</p>';
+                let tableHtml = `
+                    <table class="gos-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th><th>Cliente</th><th>Vehículo</th><th>Estado</th><th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                result.data.forEach(order => {
+                    tableHtml += `
+                        <tr>
+                            <td>${order.fecha}</td>
+                            <td>${order.cliente}</td>
+                            <td>${order.marca} ${order.modelo}</td>
+                            <td><span class="badge badge-${order.estado.toLowerCase().replace(/\s+/g, '')}">${order.estado}</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-secondary" onclick="markStatus(${order.id}, 'En camino')">En camino</button>
+                                <button class="btn btn-sm btn-primary" onclick="markStatus(${order.id}, 'Finalizada')">Finalizar</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                tableHtml += '</tbody></table>';
+                listContainer.innerHTML = tableHtml;
             }
         }
     } catch (error) {
@@ -275,6 +379,15 @@ function showMainView(user) {
     document.getElementById('login-view').style.display = 'none';
     document.getElementById('main-view').style.display = 'block';
     document.getElementById('welcome-msg').textContent = `Hola, ${user.Nombre_Usuario || 'Usuario'}`;
+}
+
+// Registro de Service Worker para PWA
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js')
+            .then(reg => console.log('GOS Service Worker registrado'))
+            .catch(err => console.warn('Fallo al registrar Service Worker', err));
+    });
 }
 
 document.addEventListener('DOMContentLoaded', init);

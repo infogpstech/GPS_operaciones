@@ -66,7 +66,6 @@ body {
 .btn-primary {
     background-color: var(--primary);
     color: white;
-    width: 100%;
 }
 
 .btn-secondary {
@@ -166,6 +165,28 @@ body {
     padding: 1rem;
     box-shadow: 0 2px 10px rgba(0,0,0,0.05);
 }
+
+.gos-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.gos-table th, .gos-table td {
+    text-align: left;
+    padding: 12px;
+    border-bottom: 1px solid #eee;
+}
+
+.badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.badge-pendiente { background: #ffeeba; color: #856404; }
+.badge-asignada { background: #b8daff; color: #004085; }
+.badge-finalizada { background: #c3e6cb; color: #155724; }
 
 .nav-links {
     display: flex;

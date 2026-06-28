@@ -1,0 +1,22 @@
+{
+  "name": "GOS | GPS Operations Suite",
+  "short_name": "GOS",
+  "description": "Sistema de gestión operativa para instalaciones GPS.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f4f7f6",
+  "theme_color": "#007bff",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "legacy/gpspedia/icon-pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "legacy/gpspedia/icon-pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
