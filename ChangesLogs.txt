@@ -1,0 +1,9 @@
+# ChangesLogs - GPS Operations Suite (GOS)
+
+## [v0.1.0] - 2025-05-24
+### Inicialización y Migración
+- Migración de archivos de GPSpedia v2.0 a `legacy/gpspedia/`.
+- Preparación de la estructura raíz para GOS.
+- Implementada estructura base de GOS en `index.html`.
+- Implementada lógica de ruteo y navegación básica en `main.js`.
+- Configurada `api-config.js` para consumir microservicios legacy.

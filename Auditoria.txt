@@ -1,0 +1,40 @@
+AUDITORÍA INICIAL - PROYECTO GOS (MIGRACIÓN GPSPEDIA)
+===================================================
+Fecha: 2025-05-24 (Referencia)
+
+LISTA DE ARCHIVOS PARA MIGRACIÓN A LEGACY/GPSPEDIA:
+- index.html (v2.0): Punto de entrada, depende de main.js y style.css.
+- users.html (v2.0): Gestión de usuarios, depende de api-config.js.
+- main.js: Orquestador principal, importa auth.js, state.js, ui.js, navigation.js, lightbox.js.
+- ui.js: Lógica de DOM, depende de api-config.js, state.js.
+- style.css: Estilos globales, variables de modo oscuro.
+- api-config.js: Configuración de API y routeAction.
+- auth.js: Gestión de sesiones.
+- state.js: Gestión de estado (Single Source of Truth).
+- navigation.js: Lógica de navegación y filtrado.
+- lightbox.js: Funcionalidad de galería de imágenes.
+- manifest.json: Configuración PWA.
+- service-worker.js: Estrategia de cacheo.
+- Iconos y Logos:
+    - icon-pwa-192x192.png
+    - icon-pwa-512x512.png
+    - icon-v2-192x192.png
+    - icon-v2-512x512.png
+    - icon-v3-192x192.png
+    - icon-v3-512x512.png
+    - Logo_TemaOscuro.png
+
+HALLAZGOS ESPECÍFICOS:
+- index.html (Línea 165): Referencia a 'add_cortes.html' la cual NO existe en el sistema de archivos actual.
+- api-config.js: Define endpoints para microservicios que GOS debe seguir utilizando (AUTH, CATALOG, WRITE, USERS, FEEDBACK, UTILITIES).
+- main.js (Línea 104-106): URLs de logos fijas que podrían requerir actualización si cambian los assets en GOS.
+- users.html (Línea 232): SCRIPT_URL apunta a un macro de Google Apps Script.
+
+DEPENDENCIAS CRÍTICAS:
+- La lógica de GOS debe heredar la capacidad de conectarse a los mismos microservicios pero bajo una nueva UI orientada a la gestión operativa.
+
+OBSERVACIONES DE REGLAMENTO:
+- Se debe asegurar que al mover los archivos a legacy/gpspedia/, el acceso a GPSpedia siga siendo posible si se desea, aunque el README dice que son proyectos independientes.
+- "los archivos legacy No deben modificarse." -> Esto aplica a los que moveremos a legacy/.
+
+ESTADO: Auditoría completada. Listo para Fase 2.
