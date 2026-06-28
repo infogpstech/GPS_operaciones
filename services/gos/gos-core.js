@@ -194,8 +194,8 @@ function handleAutoAssignTechnical(payload) {
   const tecnicoAsignado = tecnicos[nextIndex][1]; // Columna 2: Nombre
 
   // Verificar si es segundo trabajo o si el técnico está cerca (Lógica avanzada)
-  const ordersSheet = findOrCreateSheet("Ordenes");
-  const ordersData = ordersSheet.getDataRange().getValues();
+  const currentOrdersSheet = findOrCreateSheet("Ordenes");
+  const ordersData = currentOrdersSheet.getDataRange().getValues();
 
   let jobsCount = 0;
   ordersData.forEach(row => {
@@ -208,8 +208,6 @@ function handleAutoAssignTechnical(payload) {
   configSheet.getRange(lastIndexRow, 2).setValue(nextIndex);
 
   // Actualizar la orden
-  const ordersSheet = findOrCreateSheet("Ordenes");
-  const ordersData = ordersSheet.getDataRange().getValues();
   let orderRow = -1;
   for(let i=1; i<ordersData.length; i++) {
     if(ordersData[i][0].toString() == orderId.toString()) {
@@ -219,8 +217,8 @@ function handleAutoAssignTechnical(payload) {
   }
 
   if (orderRow !== -1) {
-    ordersSheet.getRange(orderRow, 20).setValue(tecnicoAsignado); // Col T: Tecnico Asignado
-    ordersSheet.getRange(orderRow, 21).setValue("Asignada");      // Col U: Estado
+    currentOrdersSheet.getRange(orderRow, 20).setValue(tecnicoAsignado); // Col T: Tecnico Asignado
+    currentOrdersSheet.getRange(orderRow, 21).setValue("Asignada");      // Col U: Estado
   }
 
   return {
@@ -335,7 +333,15 @@ function handleArchiveOldOrders() {
   });
 
   toArchive.forEach(row => archiveSheet.appendRow(row));
-  // Lógica de eliminación de la hoja original omitida por seguridad en MVP
+
+  // Eliminación segura de las filas archivadas (de abajo hacia arriba)
+  for (let i = data.length - 1; i >= 1; i--) {
+    const status = data[i][20];
+    const date = new Date(data[i][1]);
+    if (status === "Finalizada" && date < threshold) {
+      sheet.deleteRow(i + 1);
+    }
+  }
 
   return { status: 'success', archivedCount: toArchive.length };
 }
@@ -382,6 +388,12 @@ function handleGetClients() {
   });
 
   return { status: 'success', data: clients };
+}
+
+function handleCreateClient(payload) {
+  const sheet = findOrCreateSheet("Clientes");
+  sheet.appendRow([payload.nombre, payload.telefono, payload.direccion, new Date().toISOString()]);
+  return { status: 'success' };
 }
 
 /**
@@ -445,6 +457,9 @@ function doPost(e) {
         break;
       case 'getClients':
         response = handleGetClients();
+        break;
+      case 'createClient':
+        response = handleCreateClient(request.payload);
         break;
       case 'getTechnicians':
         response = handleGetTechnicians();

@@ -188,6 +188,30 @@ body {
 .badge-asignada { background: #b8daff; color: #004085; }
 .badge-finalizada { background: #c3e6cb; color: #155724; }
 
+/* Toasts */
+.toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--dark);
+    color: white;
+    padding: 1rem 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    display: none;
+    z-index: 2000;
+}
+
+.order-mini-card {
+    background: var(--light);
+    border-left: 4px solid var(--primary);
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    min-width: 150px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
 .nav-links {
     display: flex;
     gap: 1.5rem;

@@ -20,3 +20,8 @@
 - Implementado módulo de Consulta Técnica simplificada (GOS <-> GPSpedia).
 - Implementado Directorio de Clientes y Panel de Técnicos con seguimiento.
 - Actualizada versión visible de la aplicación a v0.3.0.
+- Implementado renderizado dinámico de la Agenda con vinculación de órdenes.
+- Desarrollado CRUD de Clientes con formularios de registro.
+- Implementado sistema de notificaciones visuales (Toasts) y persistencia en backend.
+- Corregido error de sintaxis en `gos-core.js` (declaración duplicada de `ordersSheet`).
+- Refinada UI global con layouts sticky y componentes de alta densidad.

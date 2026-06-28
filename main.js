@@ -67,6 +67,21 @@ async function markStatus(orderId, newStatus) {
     try {
         const result = await routeAction('GOS_CORE', 'updateOrderStatus', { orderId, status: newStatus });
         if (result.status === 'success') {
+            // Actualizar activeOrder para seguimiento de proximidad
+            if (newStatus === 'En Camino') {
+                // Al iniciar viaje, guardamos referencia para GPS
+                window.activeOrder = { id: orderId, estado: newStatus };
+                // Intentar obtener coordenadas de la UI si están disponibles o recargar
+                const row = document.querySelector(`tr[data-id="${orderId}"]`);
+                if (row) {
+                    window.activeOrder.coordenadas = row.dataset.coords;
+                }
+            } else if (newStatus === 'Finalizada' || newStatus === 'Cancelada') {
+                window.activeOrder = null;
+            } else if (window.activeOrder && window.activeOrder.id === orderId) {
+                window.activeOrder.estado = newStatus;
+            }
+
             notifyChange(newStatus);
             loadSection('ordenes');
         }
@@ -76,8 +91,20 @@ async function markStatus(orderId, newStatus) {
 }
 
 function notifyChange(status) {
-    // Aquí se dispararían las notificaciones a Gerencia y Asesores
-    console.log(`Notificación GOS: Nuevo estado - ${status}`);
+    const toast = document.getElementById('toast');
+    toast.textContent = `Estado actualizado: ${status}`;
+    toast.style.display = 'block';
+
+    setTimeout(() => {
+        toast.style.display = 'none';
+    }, 3000);
+
+    // Registrar en backend para auditoría de gerencia
+    routeAction('GOS_CORE', 'sendNotification', {
+        recipient: 'Gerencia',
+        message: `Orden cambió a ${status}`,
+        type: 'StatusChange'
+    });
 }
 
 function setupNavigationListeners() {
@@ -161,24 +188,64 @@ async function renderConsultationModule(container) {
 }
 
 async function renderClientsModule(container) {
-    container.innerHTML = `<p>Cargando clientes...</p>`;
+    container.innerHTML = `
+        <div class="actions-bar">
+            <button id="new-client-btn" class="btn btn-primary">Nuevo Cliente</button>
+        </div>
+        <div id="clients-list"><p>Cargando clientes...</p></div>
+    `;
+
+    document.getElementById('new-client-btn').addEventListener('click', () => {
+        renderClientForm(container);
+    });
+
     try {
         const result = await routeAction('GOS_CORE', 'getClients');
+        const listDiv = document.getElementById('clients-list');
         if (result.status === 'success') {
             if (result.data.length === 0) {
-                container.innerHTML = '<p>No hay clientes registrados.</p>';
+                listDiv.innerHTML = '<p>No hay clientes registrados.</p>';
             } else {
-                let html = `<table class="gos-table"><thead><tr><th>Cliente</th><th>Teléfono</th></tr></thead><tbody>`;
+                let html = `<table class="gos-table"><thead><tr><th>Cliente</th><th>Teléfono</th><th>Acciones</th></tr></thead><tbody>`;
                 result.data.forEach(client => {
-                    html += `<tr><td>${client.nombre}</td><td>${client.telefono}</td></tr>`;
+                    html += `<tr><td>${client.nombre}</td><td>${client.telefono}</td><td><button class="btn btn-sm btn-secondary">Editar</button></td></tr>`;
                 });
                 html += `</tbody></table>`;
-                container.innerHTML = html;
+                listDiv.innerHTML = html;
             }
         }
     } catch (error) {
-        container.innerHTML = `<p>Error al cargar clientes.</p>`;
+        document.getElementById('clients-list').innerHTML = `<p>Error al cargar clientes.</p>`;
     }
+}
+
+function renderClientForm(container) {
+    container.innerHTML = `
+        <h3>Registrar Nuevo Cliente</h3>
+        <form id="client-form" class="order-form">
+            <div class="form-grid">
+                <div class="form-group"><label>Nombre Completo</label><input type="text" name="nombre" class="form-control" required></div>
+                <div class="form-group"><label>Teléfono</label><input type="text" name="telefono" class="form-control" required></div>
+                <div class="form-group"><label>Dirección</label><input type="text" name="direccion" class="form-control"></div>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button type="submit" class="btn btn-primary">Guardar Cliente</button>
+                <button type="button" onclick="loadSection('clientes')" class="btn btn-secondary">Cancelar</button>
+            </div>
+        </form>
+    `;
+
+    document.getElementById('client-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const payload = Object.fromEntries(new FormData(e.target).entries());
+        try {
+            await routeAction('GOS_CORE', 'createClient', payload);
+            alert('Cliente creado');
+            loadSection('clientes');
+        } catch (error) {
+            alert('Error: ' + error.message);
+        }
+    });
 }
 
 async function renderTechniciansModule(container) {
@@ -229,13 +296,22 @@ async function renderAgendaModule(container) {
             config.data.turnos.forEach(turno => {
                 const row = document.createElement('div');
                 row.className = 'agenda-row';
+                const turnoId = turno.replace(':', '');
                 row.innerHTML = `
                     <div class="agenda-time">${turno}</div>
-                    <div class="agenda-slots" id="slots-${turno.replace(':', '')}">
-                        <!-- Órdenes asignadas aquí -->
-                    </div>
+                    <div class="agenda-slots" id="slots-${turnoId}"></div>
                 `;
                 grid.appendChild(row);
+
+                // Poblar con órdenes de este turno
+                const slotsCont = document.getElementById(`slots-${turnoId}`);
+                const ordersInTurn = orders.data.filter(o => o.hora === turno);
+                ordersInTurn.forEach(order => {
+                    const card = document.createElement('div');
+                    card.className = 'order-mini-card';
+                    card.innerHTML = `<strong>${order.cliente}</strong><br><small>${order.vehiculo || order.marca}</small>`;
+                    slotsCont.appendChild(card);
+                });
             });
         }
     } catch (error) {

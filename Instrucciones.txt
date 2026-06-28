@@ -250,10 +250,10 @@ Cualquier cambio en estas zonas invalidará el commit.
    - **ALCANCE:** Global (Documentación)
    - **DESCRIPCIÓN DETALLADA:** Auditoría integral comparativa v1.5 vs v2.0. Creación de `RELEASE NOTES.txt` detallando todas las mejoras: arquitectura modular, seguridad RBAC, optimización de imágenes/lazy load, navegación contextual, sistema de votos y "Corte Recomendado", modales de Relay, crédito a colaboradores y asistente anti-duplicado.
 
-12. **TÍTULO: Migración a Legacy e Inicialización de GOS v0.1.0**
+12. **TÍTULO: Migración a Legacy e Inicialización de GOS v0.3.0**
    - **ESTADO:** PENDIENTE REVISION POR EL MP
-   - **ALCANCE:** Global (Frontend, Estructura de Proyecto)
-   - **DESCRIPCIÓN DETALLADA:** Migración de GPSpedia v2.0 a `legacy/gpspedia/`. Inicialización de la estructura base de GPS Operations Suite (GOS) con sistema de autenticación y navegación modular.
+   - **ALCANCE:** Global (Frontend, Estructura de Proyecto, Backend)
+   - **DESCRIPCIÓN DETALLADA:** Migración de GPSpedia v2.0 a `legacy/gpspedia/`. Implementación integral de GPS Operations Suite (GOS) incluyendo módulos de Agenda, Órdenes (CRUD), Clientes, Seguimiento de Técnicos en tiempo real (Geolocalización), Consulta Técnica simplificada y sistema de estadísticas. PWA configurada y backend GOS Core (Apps Script) funcional con motor de asignación por rotación.
 
 ---
 **DERIVADO DE AUDITORÍA (ROADMAP v2.0) — NO EJECUTAR AÚN**
