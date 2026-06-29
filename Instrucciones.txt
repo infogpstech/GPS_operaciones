@@ -255,6 +255,11 @@ Cualquier cambio en estas zonas invalidará el commit.
    - **ALCANCE:** Global (Frontend, Estructura de Proyecto, Backend)
    - **DESCRIPCIÓN DETALLADA:** Migración de GPSpedia v2.0 a `legacy/gpspedia/`. Implementación integral de GPS Operations Suite (GOS) incluyendo módulos de Agenda, Órdenes (CRUD), Clientes, Seguimiento de Técnicos en tiempo real (Geolocalización), Consulta Técnica simplificada y sistema de estadísticas. PWA configurada y backend GOS Core (Apps Script) funcional con motor de asignación por rotación.
 
+13. **TÍTULO: Verificación de Despliegue de Microservicio GOS Core v0.3.1**
+   - **ESTADO:** PENDIENTE REVISION POR EL MP
+   - **ALCANCE:** services/gos/gos-core.js, api-config.js
+   - **DESCRIPCIÓN DETALLADA:** Implementada función doGet para validación visual de despliegue y actualización de URL del endpoint GOS_CORE en la configuración global.
+
 ---
 **DERIVADO DE AUDITORÍA (ROADMAP v2.0) — NO EJECUTAR AÚN**
 ---

@@ -25,3 +25,8 @@
 - Implementado sistema de notificaciones visuales (Toasts) y persistencia en backend.
 - Corregido error de sintaxis en `gos-core.js` (declaración duplicada de `ordersSheet`).
 - Refinada UI global con layouts sticky y componentes de alta densidad.
+
+## [v0.3.1] - 2025-05-24
+### Despliegue y Verificación de Microservicio
+- Implementada función `doGet` en `services/gos/gos-core.js` (Línea 400) para permitir verificación de despliegue mediante navegador.
+- Actualizado endpoint `GOS_CORE` en `api-config.js` (Línea 7) con el URL de despliegue final.

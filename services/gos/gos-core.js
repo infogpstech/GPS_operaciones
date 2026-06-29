@@ -1,7 +1,7 @@
 // ============================================================================
 // GOS-CORE SERVICE (GPS Operations Suite)
 // ============================================================================
-// Version: 1.0.0
+// Version: 1.0.1
 
 const SPREADSHEET_ID = "1IiXxydi02QnVUVwWsEnC5lpB730mASI-6rTsmuI4XhE";
 
@@ -394,6 +394,14 @@ function handleCreateClient(payload) {
   const sheet = findOrCreateSheet("Clientes");
   sheet.appendRow([payload.nombre, payload.telefono, payload.direccion, new Date().toISOString()]);
   return { status: 'success' };
+}
+
+/**
+ * Función doGet: Verifica el despliegue del microservicio.
+ */
+function doGet(e) {
+  return ContentService.createTextOutput("GOS-CORE Service: Desplegado correctamente (v1.0.1)")
+    .setMimeType(ContentService.MimeType.TEXT);
 }
 
 /**

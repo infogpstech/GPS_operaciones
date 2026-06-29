@@ -26,6 +26,8 @@ HALLAZGOS:
 - La funcionalidad de GOS está en estado estructural y funcional para MVP.
 - Se requiere desplegar el script de gos-core.js y actualizar el placeholder en api-config.js.
 - El archivo 'add_cortes.html' sigue ausente (mencionado en docs antiguos pero no encontrado en el sistema original).
+- El microservicio gos-core.js carece de la función doGet, lo que impide verificar su despliegue mediante navegador.
+- El endpoint GOS_CORE en api-config.js apunta a un URL desactualizado.
 
 PRÓXIMOS PASOS (POST-ENTREGA):
 - Refinamiento estético de la UI.
