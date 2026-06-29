@@ -29,12 +29,13 @@ ARCHIVO: index.html
 - Versión: Visible v0.3.1.
 
 HALLAZGOS Y TAREAS PENDIENTES:
-1. UI DE REPORTES: Falta implementación de filtros y visualización gráfica (Gráficos de barras/pasteles).
-2. UI DE ASIGNACIÓN: La confirmación de segundo trabajo para técnicos requiere un modal de interacción.
+1. UI DE REPORTES: Falta implementación de filtros y visualización gráfica (Gráficos de barras/pasteles). El enlace en el navbar y la lógica de navegación están ausentes.
+2. UI DE ASIGNACIÓN: La confirmación de segundo trabajo para técnicos requiere un modal de interacción. No se dispara la auto-asignación tras crear una orden.
 3. MAPAS: Falta integración de API de Maps para ver técnicos en tiempo real (actualmente solo texto).
 4. NOTIFICACIONES PUSH: El sistema usa Toasts y logs en backend, pero falta integración con Web Push API para alertas en segundo plano.
 5. DRIVE: El rootFolderId en gos-core.js es estático. Se sugiere parametrizar en Configuracion.
 6. ACTIVEOREDER: La detección de llegada requiere que el técnico inicie explícitamente el viaje (Estado 'En camino').
+7. FORMULARIO DE ORDEN: Faltan múltiples campos requeridos por el README (VIN, Motor, Placa, Prioridad, etc.).
 
 CONCLUSIÓN:
-La base estructural y lógica de negocio (MVP) está completa al 90%. Se procede a registrar tareas restantes en Instrucciones.txt.
+La base estructural y lógica de negocio (MVP) requiere refinamiento en la captura de datos y visualización de reportes.

@@ -261,9 +261,17 @@ Cualquier cambio en estas zonas invalidará el commit.
    - **DESCRIPCIÓN DETALLADA:** Implementada función doGet para validación visual de despliegue y actualización de URL del endpoint GOS_CORE en la configuración global.
 
 ---
+**TAREAS PENDIENTES DE REVISIÓN**
+---
+14. **TÍTULO: Refinamiento de Captura de Datos y Reportes GOS v0.3.3**
+   - **ESTADO:** PENDIENTE REVISION POR EL MP
+   - **ALCANCE:** main.js, gos-core.js, index.html
+   - **DESCRIPCIÓN DETALLADA:** Implementación del módulo de Reportes con filtrado temporal (Diario/Semanal/Mensual). Expansión del formulario de órdenes para cubrir el 100% de los campos del README. Integración de flujo automatizado: Creación -> Asignación automática de técnico.
+
+---
 **DERIVADO DE AUDITORÍA (ROADMAP GOS v0.4.0) — NO EJECUTAR AÚN**
 ---
-14. TÍTULO: Implementación de UI de Reportes con Chart.js (PENDIENTE)
+15. TÍTULO: Implementación de Visualización Gráfica en Reportes (PENDIENTE)
 15. TÍTULO: Sistema de Confirmación Interactiva para Asignaciones (PENDIENTE)
 16. TÍTULO: Integración de Google Maps API para Rastreo Visual (PENDIENTE)
 17. TÍTULO: Configuración de Web Push API para Notificaciones en Mobile (PENDIENTE)

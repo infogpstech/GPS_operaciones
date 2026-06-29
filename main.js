@@ -127,7 +127,8 @@ function loadSection(section) {
         ordenes: { title: 'Gestión de Órdenes', content: '<p>Cargando órdenes de trabajo...</p>' },
         clientes: { title: 'Directorio de Clientes', content: '<p>Cargando base de datos de clientes...</p>' },
         tecnicos: { title: 'Panel de Técnicos', content: '<p>Cargando disponibilidad de técnicos...</p>' },
-        consulta: { title: 'Consulta Técnica GPSpedia', content: '<p>Cargando motor de consulta...</p>' }
+        consulta: { title: 'Consulta Técnica GPSpedia', content: '<p>Cargando motor de consulta...</p>' },
+        reportes: { title: 'Reportes Operativos', content: '<p>Cargando reportes...</p>' }
     };
 
     if (sections[section]) {
@@ -144,8 +145,50 @@ function loadSection(section) {
             renderClientsModule(contentEl);
         } else if (section === 'consulta') {
             renderConsultationModule(contentEl);
+        } else if (section === 'reportes') {
+            renderReportsModule(contentEl);
         }
     }
+}
+
+async function renderReportsModule(container) {
+    container.innerHTML = `
+        <div class="actions-bar">
+            <select id="report-type" class="form-control" style="width:auto; display:inline-block;">
+                <option value="diario">Diario</option>
+                <option value="semanal">Semanal</option>
+                <option value="mensual">Mensual</option>
+            </select>
+            <button id="generate-report-btn" class="btn btn-primary">Generar Reporte</button>
+        </div>
+        <div id="report-results" style="margin-top:20px;">
+            <p>Seleccione el tipo de reporte y presione generar.</p>
+        </div>
+    `;
+
+    document.getElementById('generate-report-btn').addEventListener('click', async () => {
+        const type = document.getElementById('report-type').value;
+        const resultsDiv = document.getElementById('report-results');
+        resultsDiv.innerHTML = '<p>Procesando datos...</p>';
+
+        try {
+            const result = await routeAction('GOS_CORE', 'generateReport', { type });
+            if (result.status === 'success') {
+                // Implementación simple de tabla para MVP
+                let html = `<h3>Reporte ${type.charAt(0).toUpperCase() + type.slice(1)}</h3>`;
+                html += `<table class="gos-table"><thead><tr><th>Fecha</th><th>Cliente</th><th>Técnico</th><th>Estado</th></tr></thead><tbody>`;
+
+                result.reportData.slice(1).forEach(row => {
+                    html += `<tr><td>${row[1]}</td><td>${row[3]}</td><td>${row[19]}</td><td>${row[20]}</td></tr>`;
+                });
+
+                html += `</tbody></table>`;
+                resultsDiv.innerHTML = html;
+            }
+        } catch (error) {
+            resultsDiv.innerHTML = `<p style="color:var(--danger);">Error: ${error.message}</p>`;
+        }
+    });
 }
 
 async function renderConsultationModule(container) {
@@ -377,10 +420,22 @@ function renderOrderForm(container) {
         <h3>Crear Nueva Orden</h3>
         <form id="order-form" class="order-form">
             <div class="form-grid">
+                <div class="form-group"><label>Fecha</label><input type="date" name="fecha" class="form-control" required></div>
+                <div class="form-group"><label>Hora</label><input type="time" name="hora" class="form-control" required></div>
                 <div class="form-group"><label>Cliente</label><input type="text" name="cliente" class="form-control" required></div>
+                <div class="form-group"><label>Contacto</label><input type="text" name="contacto" class="form-control"></div>
                 <div class="form-group"><label>Teléfono</label><input type="text" name="telefono" class="form-control" required></div>
+                <div class="form-group"><label>Dirección</label><input type="text" name="direccion" class="form-control" required></div>
+                <div class="form-group"><label>Coordenadas (Lat, Lng)</label><input type="text" name="coordenadas" class="form-control" placeholder="Ej: 9.9333, -84.0833"></div>
+                <div class="form-group"><label>Link Google Maps</label><input type="url" name="linkMaps" class="form-control"></div>
                 <div class="form-group"><label>Marca</label><input type="text" name="marca" class="form-control" required></div>
                 <div class="form-group"><label>Modelo</label><input type="text" name="modelo" class="form-control" required></div>
+                <div class="form-group"><label>VIN (Chasis)</label><input type="text" name="vin" class="form-control"></div>
+                <div class="form-group"><label>Número Motor</label><input type="text" name="motor" class="form-control"></div>
+                <div class="form-group"><label>Año</label><input type="number" name="anio" class="form-control"></div>
+                <div class="form-group"><label>Placa</label><input type="text" name="placa" class="form-control"></div>
+                <div class="form-group"><label>Servicio</label><input type="text" name="servicio" class="form-control" placeholder="Ej: Full, Básico"></div>
+                <div class="form-group"><label>Inventario</label><textarea name="inventario" class="form-control"></textarea></div>
                 <div class="form-group">
                     <label>Tipo de Trabajo</label>
                     <select name="tipoTrabajo" class="form-control">
@@ -388,11 +443,22 @@ function renderOrderForm(container) {
                         <option value="Revisión">Revisión</option>
                         <option value="Traspaso">Traspaso</option>
                         <option value="Desinstalación">Desinstalación</option>
+                        <option value="Mantenimiento Preventivo">Mantenimiento Preventivo</option>
                     </select>
                 </div>
+                <div class="form-group">
+                    <label>Prioridad</label>
+                    <select name="prioridad" class="form-control">
+                        <option value="Baja">Baja</option>
+                        <option value="Normal" selected>Normal</option>
+                        <option value="Alta">Alta</option>
+                        <option value="Urgente">Urgente</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Observaciones</label><textarea name="observaciones" class="form-control"></textarea></div>
             </div>
             <div style="display:flex; gap:10px; margin-top:20px;">
-                <button type="submit" class="btn btn-primary">Guardar Orden</button>
+                <button type="submit" class="btn btn-primary">Guardar y Asignar</button>
                 <button type="button" id="cancel-order-btn" class="btn btn-secondary">Cancelar</button>
             </div>
         </form>
@@ -406,13 +472,27 @@ function renderOrderForm(container) {
         const payload = Object.fromEntries(formData.entries());
 
         try {
+            // 1. Crear Orden
             const result = await routeAction('GOS_CORE', 'createOrder', payload);
             if (result.status === 'success') {
-                alert('Orden creada con éxito');
+                const orderId = result.orderId;
+
+                // 2. Disparar Auto-Asignación
+                const assignResult = await routeAction('GOS_CORE', 'autoAssignTechnical', {
+                    orderId,
+                    coordinates: payload.coordenadas
+                });
+
+                if (assignResult.status === 'success') {
+                    alert(`Orden #${orderId} creada y asignada a: ${assignResult.tecnico}. ${assignResult.message}`);
+                } else {
+                    alert(`Orden #${orderId} creada pero falló asignación automática: ${assignResult.message}`);
+                }
+
                 loadSection('ordenes');
             }
         } catch (error) {
-            alert('Error al crear la orden: ' + error.message);
+            alert('Error en el proceso: ' + error.message);
         }
     });
 }

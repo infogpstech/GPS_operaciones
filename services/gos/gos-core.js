@@ -355,8 +355,25 @@ function handleGenerateReport(payload) {
   const data = sheet.getDataRange().getValues();
 
   // Lógica de filtrado por diario/semanal/mensual
-  // Para MVP: Devolver datos crudos para que el frontend procese
-  return { status: 'success', reportData: data };
+  const now = new Date();
+  const reportData = data.filter((row, index) => {
+    if (index === 0) return true; // Headers
+    const orderDate = new Date(row[1]);
+    if (isNaN(orderDate)) return false;
+
+    if (type === 'diario') {
+      return orderDate.toDateString() === now.toDateString();
+    } else if (type === 'semanal') {
+      const weekAgo = new Date();
+      weekAgo.setDate(now.getDate() - 7);
+      return orderDate >= weekAgo;
+    } else if (type === 'mensual') {
+      return orderDate.getMonth() === now.getMonth() && orderDate.getFullYear() === now.getFullYear();
+    }
+    return true;
+  });
+
+  return { status: 'success', reportData: reportData };
 }
 
 /**
