@@ -2,13 +2,115 @@ import { routeAction } from './api-config.js';
 
 const SESSION_KEY = 'gos_session';
 
+/**
+ * UI_TEMPLATES: Bloques de construcción para la interfaz.
+ * v0.4.0
+ */
+const UI_TEMPLATES = {
+    loading: '<div class="loading-spinner"><p>Cargando información...</p></div>',
+
+    table(headers, rows) {
+        let html = `<table class="gos-table"><thead><tr>`;
+        headers.forEach(h => html += `<th>${h}</th>`);
+        html += `</tr></thead><tbody>`;
+        rows.forEach(r => html += `<tr>${r}</tr>`);
+        html += `</tbody></table>`;
+        return html;
+    },
+
+    badge(status) {
+        const safeStatus = (status || 'Pendiente').toLowerCase().replace(/\s+/g, '');
+        return `<span class="badge badge-${safeStatus}">${status}</span>`;
+    },
+
+    orderForm(options = {}) {
+        return `
+            <h3>Crear Nueva Orden</h3>
+            <form id="order-form" class="order-form">
+                <div class="form-grid">
+                    <div class="form-group"><label>Fecha</label><input type="date" name="fecha" class="form-control" required></div>
+                    <div class="form-group"><label>Hora</label><input type="time" name="hora" class="form-control" required></div>
+                    <div class="form-group"><label>Cliente</label><input type="text" name="cliente" class="form-control" required></div>
+                    <div class="form-group"><label>Contacto</label><input type="text" name="contacto" class="form-control"></div>
+                    <div class="form-group"><label>Teléfono</label><input type="text" name="telefono" class="form-control" required></div>
+                    <div class="form-group"><label>Dirección</label><input type="text" name="direccion" class="form-control" required></div>
+                    <div class="form-group"><label>Coordenadas (Lat, Lng)</label><input type="text" name="coordenadas" class="form-control" placeholder="Ej: 9.9333, -84.0833"></div>
+                    <div class="form-group"><label>Link Google Maps</label><input type="url" name="linkMaps" class="form-control"></div>
+                    <div class="form-group"><label>Marca</label><input type="text" name="marca" class="form-control" required></div>
+                    <div class="form-group"><label>Modelo</label><input type="text" name="modelo" class="form-control" required></div>
+                    <div class="form-group"><label>VIN (Chasis)</label><input type="text" name="vin" class="form-control"></div>
+                    <div class="form-group"><label>Número Motor</label><input type="text" name="motor" class="form-control"></div>
+                    <div class="form-group"><label>Año</label><input type="number" name="anio" class="form-control"></div>
+                    <div class="form-group"><label>Placa</label><input type="text" name="placa" class="form-control"></div>
+                    <div class="form-group"><label>Servicio</label>
+                        <select name="servicio" class="form-control">${options.servicios || '<option>Cargando...</option>'}</select>
+                    </div>
+                    <div class="form-group"><label>Inventario</label><textarea name="inventario" class="form-control"></textarea></div>
+                    <div class="form-group">
+                        <label>Tipo de Trabajo</label>
+                        <select name="tipoTrabajo" class="form-control">${options.tiposTrabajo || '<option>Cargando...</option>'}</select>
+                    </div>
+                    <div class="form-group">
+                        <label>Prioridad</label>
+                        <select name="prioridad" class="form-control">${options.prioridades || '<option>Cargando...</option>'}</select>
+                    </div>
+                    <div class="form-group"><label>Observaciones</label><textarea name="observaciones" class="form-control"></textarea></div>
+                </div>
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button type="submit" class="btn btn-primary">Guardar y Asignar</button>
+                    <button type="button" id="cancel-order-btn" class="btn btn-secondary">Cancelar</button>
+                </div>
+            </form>
+        `;
+    }
+};
+
+/**
+ * AppState: Gestor central de estado de la aplicación.
+ * v0.4.0
+ */
+const AppState = {
+    user: null,
+    currentSection: 'dashboard',
+    activeOrder: null,
+    config: null,
+
+    setUser(userData) {
+        this.user = userData;
+        localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
+    },
+
+    clearUser() {
+        this.user = null;
+        localStorage.removeItem(SESSION_KEY);
+    },
+
+    async loadConfig() {
+        try {
+            const result = await routeAction('GOS_CORE', 'getSystemConfig');
+            if (result.status === 'success') {
+                this.config = result.data;
+            }
+        } catch (error) {
+            console.error("Error cargando configuración:", error);
+        }
+    }
+};
+
 async function init() {
     window.loadSection = loadSection;
-    window.markStatus = markStatus; // Exponer para botones en tablas dinámicas
+    window.markStatus = markStatus;
+
     setupAuthListeners();
     setupNavigationListeners();
     setupGeolocation();
-    checkSession();
+
+    const session = localStorage.getItem(SESSION_KEY);
+    if (session) {
+        AppState.user = JSON.parse(session);
+        await AppState.loadConfig();
+        showMainView(AppState.user);
+    }
 }
 
 function setupGeolocation() {
@@ -29,24 +131,27 @@ function setupGeolocation() {
 }
 
 async function checkArrivalStatus(lat, lng) {
-    const session = localStorage.getItem(SESSION_KEY);
-    if (!session) return;
-    const user = JSON.parse(session);
+    if (!AppState.user) return;
 
     // Enviar ubicación al backend
     routeAction('GOS_CORE', 'updateTechnicianLocation', {
-        tecnicoId: user.ID,
+        tecnicoId: AppState.user.ID,
         lat,
         lng
     });
 
-    // Lógica de proximidad (Radio 200m aprox)
-    const activeOrder = window.activeOrder; // Supongamos que guardamos la orden en curso
+    // Lógica de proximidad (Radio 200m aprox o configurable)
+    const activeOrder = AppState.activeOrder;
     if (activeOrder && activeOrder.coordenadas) {
         const [targetLat, targetLng] = activeOrder.coordenadas.split(',').map(Number);
         const distance = calculateDistance(lat, lng, targetLat, targetLng);
 
-        if (distance < 0.2 && activeOrder.estado !== 'Llegó') {
+        let threshold = 0.2; // 200m
+        if (AppState.config && AppState.config.Sistema && AppState.config.Sistema.RadioLlegada) {
+            threshold = parseFloat(AppState.config.Sistema.RadioLlegada) / 1000;
+        }
+
+        if (distance < threshold && activeOrder.estado !== 'Llegó') {
             markStatus(activeOrder.id, 'Llegó');
         }
     }
@@ -67,23 +172,21 @@ async function markStatus(orderId, newStatus) {
     try {
         const result = await routeAction('GOS_CORE', 'updateOrderStatus', { orderId, status: newStatus });
         if (result.status === 'success') {
-            // Actualizar activeOrder para seguimiento de proximidad
+            // Actualizar activeOrder en AppState
             if (newStatus === 'En Camino') {
-                // Al iniciar viaje, guardamos referencia para GPS
-                window.activeOrder = { id: orderId, estado: newStatus };
-                // Intentar obtener coordenadas de la UI si están disponibles o recargar
+                AppState.activeOrder = { id: orderId, estado: newStatus };
                 const row = document.querySelector(`tr[data-id="${orderId}"]`);
                 if (row) {
-                    window.activeOrder.coordenadas = row.dataset.coords;
+                    AppState.activeOrder.coordenadas = row.dataset.coords;
                 }
             } else if (newStatus === 'Finalizada' || newStatus === 'Cancelada') {
-                window.activeOrder = null;
-            } else if (window.activeOrder && window.activeOrder.id === orderId) {
-                window.activeOrder.estado = newStatus;
+                AppState.activeOrder = null;
+            } else if (AppState.activeOrder && AppState.activeOrder.id === orderId) {
+                AppState.activeOrder.estado = newStatus;
             }
 
             notifyChange(newStatus);
-            loadSection('ordenes');
+            loadSection(AppState.currentSection || 'ordenes');
         }
     } catch (error) {
         console.error("Error al actualizar estado:", error);
@@ -119,6 +222,7 @@ function setupNavigationListeners() {
 }
 
 function loadSection(section) {
+    AppState.currentSection = section;
     const titleEl = document.getElementById('section-title');
     const contentEl = document.getElementById('section-content');
 
@@ -152,12 +256,13 @@ function loadSection(section) {
 }
 
 async function renderReportsModule(container) {
+    const config = AppState.config || {};
+    const reportOptions = config.Reportes ? Object.values(config.Reportes) : ['diario', 'semanal', 'mensual'];
+
     container.innerHTML = `
         <div class="actions-bar">
             <select id="report-type" class="form-control" style="width:auto; display:inline-block;">
-                <option value="diario">Diario</option>
-                <option value="semanal">Semanal</option>
-                <option value="mensual">Mensual</option>
+                ${reportOptions.map(opt => `<option value="${opt.toLowerCase()}">${opt.charAt(0).toUpperCase() + opt.slice(1)}</option>`).join('')}
             </select>
             <button id="generate-report-btn" class="btn btn-primary">Generar Reporte</button>
         </div>
@@ -174,16 +279,32 @@ async function renderReportsModule(container) {
         try {
             const result = await routeAction('GOS_CORE', 'generateReport', { type });
             if (result.status === 'success') {
-                // Implementación simple de tabla para MVP
-                let html = `<h3>Reporte ${type.charAt(0).toUpperCase() + type.slice(1)}</h3>`;
-                html += `<table class="gos-table"><thead><tr><th>Fecha</th><th>Cliente</th><th>Técnico</th><th>Estado</th></tr></thead><tbody>`;
+                const data = result.reportData;
+                if (data.length <= 1) {
+                    resultsDiv.innerHTML = '<p>No hay datos para este período.</p>';
+                    return;
+                }
 
-                result.reportData.slice(1).forEach(row => {
-                    html += `<tr><td>${row[1]}</td><td>${row[3]}</td><td>${row[19]}</td><td>${row[20]}</td></tr>`;
+                const headers = data[0];
+                const rows = data.slice(1).map(row => {
+                    // Mapeo dinámico basado en nombres de columnas para reporte resumido
+                    const getVal = (name) => {
+                        const idx = headers.indexOf(name);
+                        return idx !== -1 ? row[idx] : 'N/A';
+                    };
+
+                    return `
+                        <td>${getVal('Fecha')}</td>
+                        <td>${getVal('Cliente')}</td>
+                        <td>${getVal('Técnico Asignado')}</td>
+                        <td>${UI_TEMPLATES.badge(getVal('Estado'))}</td>
+                    `;
                 });
 
-                html += `</tbody></table>`;
-                resultsDiv.innerHTML = html;
+                resultsDiv.innerHTML = `
+                    <h3>Reporte ${type.charAt(0).toUpperCase() + type.slice(1)}</h3>
+                    ${UI_TEMPLATES.table(['Fecha', 'Cliente', 'Técnico', 'Estado'], rows)}
+                `;
             }
         } catch (error) {
             resultsDiv.innerHTML = `<p style="color:var(--danger);">Error: ${error.message}</p>`;
@@ -416,53 +537,18 @@ async function renderOrdersModule(container) {
 }
 
 function renderOrderForm(container) {
-    container.innerHTML = `
-        <h3>Crear Nueva Orden</h3>
-        <form id="order-form" class="order-form">
-            <div class="form-grid">
-                <div class="form-group"><label>Fecha</label><input type="date" name="fecha" class="form-control" required></div>
-                <div class="form-group"><label>Hora</label><input type="time" name="hora" class="form-control" required></div>
-                <div class="form-group"><label>Cliente</label><input type="text" name="cliente" class="form-control" required></div>
-                <div class="form-group"><label>Contacto</label><input type="text" name="contacto" class="form-control"></div>
-                <div class="form-group"><label>Teléfono</label><input type="text" name="telefono" class="form-control" required></div>
-                <div class="form-group"><label>Dirección</label><input type="text" name="direccion" class="form-control" required></div>
-                <div class="form-group"><label>Coordenadas (Lat, Lng)</label><input type="text" name="coordenadas" class="form-control" placeholder="Ej: 9.9333, -84.0833"></div>
-                <div class="form-group"><label>Link Google Maps</label><input type="url" name="linkMaps" class="form-control"></div>
-                <div class="form-group"><label>Marca</label><input type="text" name="marca" class="form-control" required></div>
-                <div class="form-group"><label>Modelo</label><input type="text" name="modelo" class="form-control" required></div>
-                <div class="form-group"><label>VIN (Chasis)</label><input type="text" name="vin" class="form-control"></div>
-                <div class="form-group"><label>Número Motor</label><input type="text" name="motor" class="form-control"></div>
-                <div class="form-group"><label>Año</label><input type="number" name="anio" class="form-control"></div>
-                <div class="form-group"><label>Placa</label><input type="text" name="placa" class="form-control"></div>
-                <div class="form-group"><label>Servicio</label><input type="text" name="servicio" class="form-control" placeholder="Ej: Full, Básico"></div>
-                <div class="form-group"><label>Inventario</label><textarea name="inventario" class="form-control"></textarea></div>
-                <div class="form-group">
-                    <label>Tipo de Trabajo</label>
-                    <select name="tipoTrabajo" class="form-control">
-                        <option value="Instalación">Instalación</option>
-                        <option value="Revisión">Revisión</option>
-                        <option value="Traspaso">Traspaso</option>
-                        <option value="Desinstalación">Desinstalación</option>
-                        <option value="Mantenimiento Preventivo">Mantenimiento Preventivo</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Prioridad</label>
-                    <select name="prioridad" class="form-control">
-                        <option value="Baja">Baja</option>
-                        <option value="Normal" selected>Normal</option>
-                        <option value="Alta">Alta</option>
-                        <option value="Urgente">Urgente</option>
-                    </select>
-                </div>
-                <div class="form-group"><label>Observaciones</label><textarea name="observaciones" class="form-control"></textarea></div>
-            </div>
-            <div style="display:flex; gap:10px; margin-top:20px;">
-                <button type="submit" class="btn btn-primary">Guardar y Asignar</button>
-                <button type="button" id="cancel-order-btn" class="btn btn-secondary">Cancelar</button>
-            </div>
-        </form>
-    `;
+    const config = AppState.config || {};
+
+    const buildOptions = (category, defaultList = []) => {
+        const options = config[category] ? Object.values(config[category]) : defaultList;
+        return options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+    };
+
+    container.innerHTML = UI_TEMPLATES.orderForm({
+        servicios: buildOptions('Servicios', ['Básico', 'Full']),
+        tiposTrabajo: buildOptions('TiposTrabajo', ['Instalación', 'Revisión', 'Traspaso', 'Desinstalación', 'Mantenimiento Preventivo']),
+        prioridades: buildOptions('Prioridades', ['Baja', 'Normal', 'Alta', 'Urgente'])
+    });
 
     document.getElementById('cancel-order-btn').addEventListener('click', () => loadSection('ordenes'));
 
@@ -508,7 +594,8 @@ function setupAuthListeners() {
         try {
             const result = await routeAction('AUTH', 'login', { username, password });
             if (result.status === 'success') {
-                localStorage.setItem(SESSION_KEY, JSON.stringify(result.user));
+                AppState.setUser(result.user);
+                await AppState.loadConfig();
                 showMainView(result.user);
             }
         } catch (error) {
@@ -519,16 +606,9 @@ function setupAuthListeners() {
 
     document.getElementById('logout-btn').addEventListener('click', (e) => {
         e.preventDefault();
-        localStorage.removeItem(SESSION_KEY);
+        AppState.clearUser();
         location.reload();
     });
-}
-
-function checkSession() {
-    const session = localStorage.getItem(SESSION_KEY);
-    if (session) {
-        showMainView(JSON.parse(session));
-    }
 }
 
 function showMainView(user) {

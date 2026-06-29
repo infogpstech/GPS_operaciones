@@ -265,25 +265,26 @@ Cualquier cambio en estas zonas invalidará el commit.
    - **ALCANCE:** main.js, gos-core.js, index.html
    - **DESCRIPCIÓN DETALLADA:** Implementación del módulo de Reportes con filtrado temporal (Diario/Semanal/Mensual). Expansión del formulario de órdenes para cubrir el 100% de los campos del README. Integración de flujo automatizado: Creación -> Asignación automática de técnico.
 
+15. **TÍTULO: Normalización Estructural del Backend GOS-CORE (v0.4.0)**
+    - **ESTADO:** PENDIENTE REVISION POR EL MP
+    - **ALCANCE:** services/gos/gos-core.js
+    - **DESCRIPCIÓN:**
+      - Implementada validación integral de hojas y encabezados en `findOrCreateSheet`.
+      - Migrada lógica de lectura de columnas posicionales a búsqueda dinámica por encabezado (`getHeaderMap`).
+      - Refactorizada generación de IDs a sistema persistente `OT-YYYY-XXXXXX` vía contador en `Configuracion`.
+      - Reestructurada hoja de Configuración a formato tabular unificado.
+
+16. **TÍTULO: Refactorización de Arquitectura Frontend Modular (v0.4.0)**
+    - **ESTADO:** PENDIENTE REVISION POR EL MP
+    - **ALCANCE:** main.js
+    - **DESCRIPCIÓN:**
+      - Implementado objeto `AppState` para gestión centralizada de sesión, configuración y órdenes activas.
+      - Implementado sistema de plantillas `UI_TEMPLATES` para desacoplar el HTML de la lógica JS.
+      - Los elementos `<select>` en formularios se construyen dinámicamente desde el backend.
+
 ---
 **DERIVADO DE AUDITORÍA (ROADMAP GOS v0.4.0) — NO EJECUTAR AÚN**
 ---
-15. **TÍTULO: Normalización Estructural del Backend GOS-CORE**
-    - **ALCANCE:** services/gos/gos-core.js
-    - **DESCRIPCIÓN:**
-      - Implementar validación integral de hojas y encabezados en `findOrCreateSheet`.
-      - Migrar lógica de lectura de columnas posicionales a búsqueda por encabezado.
-      - Refactorizar generación de IDs a sistema persistente (no basado en filas).
-      - Reestructurar hoja de Configuración a formato tabular.
-
-16. **TÍTULO: Refactorización de Arquitectura Frontend (Modularidad)**
-    - **ALCANCE:** main.js
-    - **DESCRIPCIÓN:**
-      - Desacoplar `main.js` en controladores y servicios.
-      - Implementar AppState para gestión centralizada de sesión y órdenes.
-      - Externalizar bloques HTML masivos a sistema de plantillas o vistas independientes.
-      - Dinamizar elementos `<select>` desde el Spreadsheet.
-
 17. **TÍTULO: Mejoras Visuales y Funcionales de Reportes**
     - **ALCANCE:** main.js, index.html
     - **DESCRIPCIÓN:** Implementar visualización gráfica y exportación de datos.
@@ -297,7 +298,7 @@ Cualquier cambio en estas zonas invalidará el commit.
 19. **TÍTULO: Integración Avanzada de Drive y Mapas**
     - **ALCANCE:** services/gos/gos-core.js, main.js
     - **DESCRIPCIÓN:**
-      - Parametrizar rootFolderId de Drive.
+      - Parametrizar rootFolderId de Drive en hoja de Configuración.
       - Implementar visualización de técnicos en tiempo real sobre Google Maps API.
 
 ---

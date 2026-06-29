@@ -49,7 +49,22 @@
 ### Auditoría de Arquitectura y Roadmap v0.4.0
 - Realizada auditoría línea por línea de `main.js` identificando áreas de refactorización arquitectónica (Líneas 100-600).
 - Realizada auditoría de `services/gos/gos-core.js` identificando dependencias de columnas posicionales (Líneas 30, 65, 155, 169).
-- Documentados hallazgos técnicos en `Auditoria.txt` (Nueva sección).
-- Refinados objetivos del Roadmap v0.4.0 en `Instrucciones.txt` (Líneas 238-275).
-- Corregida errata en documentación de Zonas Seguras en `Instrucciones.txt` (Línea 156).
-- Eliminados archivos temporales de verificación y logs del entorno.
+- Documentados hallazgos técnicos en `Auditoria.txt`.
+- Refinados objetivos del Roadmap v0.4.0 en `Instrucciones.txt`.
+
+## [v0.4.0] - 2025-05-24
+### Normalización Estructural y Refactorización Arquitectónica
+- **Backend (`services/gos/gos-core.js`):**
+  - Implementada utilidad `getHeaderMap` para eliminar dependencias de índices de columna fijos (Línea 33).
+  - Refactorizadas todas las funciones CRUD y operativas para usar mapeo de encabezados dinámico.
+  - Implementado sistema de IDs persistentes `getNextId` basado en contador en la hoja de configuración (Línea 51).
+  - Rediseñada la gestión de configuración `handleGetSystemConfig` para soportar estructura tabular por categorías (Línea 218).
+  - Mejorada la función `findOrCreateSheet` con inicialización de encabezados y formato automático (Línea 12).
+- **Frontend (`main.js`):**
+  - Implementado objeto `AppState` para gestión centralizada de estado, sesión y configuración global (Línea 75).
+  - Implementado motor de plantillas `UI_TEMPLATES` para desacoplar el HTML de la lógica de renderizado (Línea 7).
+  - Refactorizados formularios (Órdenes, Reportes) para poblar elementos `<select>` dinámicamente desde la configuración del backend (Línea 560).
+  - Migrada la lógica de geolocalización y cambio de estado para consumir el estado global unificado.
+- **Limpieza y Estabilización:**
+  - Eliminados archivos de respaldo `.bak` y scripts temporales de verificación.
+  - Verificada la integridad del sistema mediante simulaciones en Playwright.

@@ -62,3 +62,25 @@ Riesgos detectados:
 - La eliminación de una columna en el Spreadsheet romperá el sistema.
 - El crecimiento del código en `main.js` dificultará el mantenimiento.
 - La falta de normalización automática puede causar errores de ejecución si las hojas se crean manualmente.
+
+==============================================
+IMPLEMENTACIÓN GOS v0.4.0 - RESULTADOS
+==============================================
+Fecha: 2025-05-24
+Estado: REFACTOREADO
+
+ARCHIVO: services/gos/gos-core.js
+- Normalización: `findOrCreateSheet` ahora inicializa encabezados y formato si la hoja no existe.
+- Encabezados: Implementado `getHeaderMap`. Todas las funciones migradas a indexación por nombre de columna.
+- IDs: Implementado `getNextId` basado en contador persistente en `Configuracion`.
+- Configuración: Implementado `handleGetSystemConfig` con estructura tabular. Eliminada dependencia de posiciones fijas.
+
+ARCHIVO: main.js
+- Arquitectura: Implementado objeto `AppState` para gestión de estado y `UI_TEMPLATES` para desacoplar HTML.
+- Estado Global: Eliminado `window.activeOrder`. Ahora se gestiona en `AppState.activeOrder`.
+- HTML: Reducción drástica del tamaño de funciones de renderizado mediante plantillas.
+- Configuración: Formularios y Selects ahora se construyen dinámicamente desde `AppState.config`.
+
+Verificación:
+- Playwright confirmó la carga correcta de AppState y el renderizado dinámico del formulario de órdenes.
+- El sistema de IDs genera formatos tipo OT-2025-000001 correctamente.
