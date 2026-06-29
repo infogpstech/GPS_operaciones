@@ -260,22 +260,51 @@ Cualquier cambio en estas zonas invalidará el commit.
    - **ALCANCE:** services/gos/gos-core.js, api-config.js
    - **DESCRIPCIÓN DETALLADA:** Implementada función doGet para validación visual de despliegue y actualización de URL del endpoint GOS_CORE en la configuración global.
 
----
-**TAREAS PENDIENTES DE REVISIÓN**
----
 14. **TÍTULO: Refinamiento de Captura de Datos y Reportes GOS v0.3.3**
    - **ESTADO:** PENDIENTE REVISION POR EL MP
    - **ALCANCE:** main.js, gos-core.js, index.html
    - **DESCRIPCIÓN DETALLADA:** Implementación del módulo de Reportes con filtrado temporal (Diario/Semanal/Mensual). Expansión del formulario de órdenes para cubrir el 100% de los campos del README. Integración de flujo automatizado: Creación -> Asignación automática de técnico.
 
+15. **TÍTULO: Normalización Estructural del Backend GOS-CORE (v0.4.0)**
+    - **ESTADO:** PENDIENTE REVISION POR EL MP
+    - **ALCANCE:** services/gos/gos-core.js
+    - **DESCRIPCIÓN:**
+      - Implementada validación integral de hojas y encabezados en `findOrCreateSheet`.
+      - Migrada lógica de lectura de columnas posicionales a búsqueda dinámica por encabezado (`getHeaderMap`).
+      - Refactorizada generación de IDs a sistema persistente `OT-YYYY-XXXXXX` vía contador en `Configuracion`.
+      - Reestructurada hoja de Configuración a formato tabular unificado.
+
+16. **TÍTULO: Refactorización de Arquitectura Frontend Modular (v0.4.0)**
+    - **ESTADO:** PENDIENTE REVISION POR EL MP
+    - **ALCANCE:** main.js
+    - **DESCRIPCIÓN:**
+      - Implementado objeto `AppState` para gestión centralizada de sesión, configuración y órdenes activas.
+      - Implementado sistema de plantillas `UI_TEMPLATES` para desacoplar el HTML de la lógica JS.
+      - Los elementos `<select>` en formularios se construyen dinámicamente desde el backend.
+
+17. **TÍTULO: Mejoras Visuales y Funcionales de Reportes (v0.4.1)**
+    - **ESTADO:** PENDIENTE REVISION POR EL MP
+    - **ALCANCE:** main.js, style.css, index.html
+    - **DESCRIPCIÓN:** Implementada visualización gráfica mediante barras CSS y funcionalidad de exportación a CSV en el módulo de Reportes.
+
+18. **TÍTULO: Sistema de Confirmación Interactiva y Proximidad (v0.4.1)**
+    - **ESTADO:** PENDIENTE REVISION POR EL MP
+    - **ALCANCE:** main.js
+    - **DESCRIPCIÓN:**
+      - Implementado modal de confirmación interactiva para la asignación de segundos trabajos.
+      - Refinada la lógica de detección de llegada para activarse exclusivamente cuando la orden está en estado "En Camino".
+
+19. **TÍTULO: Integración Avanzada de Drive y Mapas (v0.4.1)**
+    - **ESTADO:** PENDIENTE REVISION POR EL MP
+    - **ALCANCE:** services/gos/gos-core.js, main.js, index.html
+    - **DESCRIPCIÓN:**
+      - Parametrizado el acceso a Google Drive mediante 'rootFolderId' desde la configuración tabular.
+      - Integrado script de Google Maps API y lógica de visualización de técnicos en tiempo real.
+
 ---
 **DERIVADO DE AUDITORÍA (ROADMAP GOS v0.4.0) — NO EJECUTAR AÚN**
 ---
-15. TÍTULO: Implementación de Visualización Gráfica en Reportes (PENDIENTE)
-15. TÍTULO: Sistema de Confirmación Interactiva para Asignaciones (PENDIENTE)
-16. TÍTULO: Integración de Google Maps API para Rastreo Visual (PENDIENTE)
-17. TÍTULO: Configuración de Web Push API para Notificaciones en Mobile (PENDIENTE)
-18. TÍTULO: Parametrización de Carpeta Root de Drive en Hoja de Configuración (PENDIENTE)
+*No hay tareas pendientes en esta sección.*
 
 ---
 **DERIVADO DE AUDITORÍA (ROADMAP v2.0) — NO EJECUTAR AÚN**

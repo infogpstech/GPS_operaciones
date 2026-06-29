@@ -44,3 +44,50 @@
 - Expandido formulario de "Nueva Orden" con todos los campos requeridos por el README.
 - Implementada lógica de filtrado temporal para reportes en el backend (`gos-core.js`).
 - Automatizada la asignación de técnicos inmediatamente después de la creación de una orden.
+
+## [v0.3.4] - 2025-05-24
+### Auditoría de Arquitectura y Roadmap v0.4.0
+- Realizada auditoría línea por línea de `main.js` identificando áreas de refactorización arquitectónica (Líneas 100-600).
+- Realizada auditoría de `services/gos/gos-core.js` identificando dependencias de columnas posicionales (Líneas 30, 65, 155, 169).
+- Documentados hallazgos técnicos en `Auditoria.txt`.
+- Refinados objetivos del Roadmap v0.4.0 en `Instrucciones.txt`.
+
+## [v0.4.0] - 2025-05-24
+### Normalización Estructural y Refactorización Arquitectónica
+- **Backend (`services/gos/gos-core.js`):**
+  - Implementada utilidad `getHeaderMap` para eliminar dependencias de índices de columna fijos (Línea 33).
+  - Refactorizadas todas las funciones CRUD y operativas para usar mapeo de encabezados dinámico.
+  - Implementado sistema de IDs persistentes `getNextId` basado en contador en la hoja de configuración (Línea 51).
+  - Rediseñada la gestión de configuración `handleGetSystemConfig` para soportar estructura tabular por categorías (Línea 218).
+  - Mejorada la función `findOrCreateSheet` con inicialización de encabezados y formato automático (Línea 12).
+- **Frontend (`main.js`):**
+  - Implementado objeto `AppState` para gestión centralizada de estado, sesión y configuración global (Línea 75).
+  - Implementado motor de plantillas `UI_TEMPLATES` para desacoplar el HTML de la lógica de renderizado (Línea 7).
+  - Refactorizados formularios (Órdenes, Reportes) para poblar elementos `<select>` dinámicamente desde la configuración del backend (Línea 560).
+  - Migrada la lógica de geolocalización y cambio de estado para consumir el estado global unificado.
+- **Limpieza y Estabilización:**
+  - Eliminados archivos de respaldo `.bak` y scripts temporales de verificación.
+  - Verificada la integridad del sistema mediante simulaciones en Playwright.
+
+## [v0.4.1.1] - 2025-05-24
+### Mejoras Funcionales y Expansión de Módulos (Roadmap v0.4.0)
+- **Reportes Avanzados (main.js, style.css):**
+  - Implementada visualización gráfica mediante barras CSS en el módulo de Reportes (Línea 640).
+  - Añadida funcionalidad de exportación a CSV para reportes operativos (Línea 675).
+- **Asignación e Interactividad (main.js):**
+  - Implementado modal interactivo de confirmación para asignación de segundos trabajos (Línea 405).
+  - Refinada la lógica de detección de llegada: ahora solo se activa si la orden está en estado "En Camino" (Línea 515).
+- **Integración de Mapas y Drive (index.html, main.js, gos-core.js):**
+  - Integrado script de Google Maps API (placeholder) y lógica de seguimiento de técnicos en tiempo real (Línea 700).
+  - Parametrizada la raíz de Google Drive en el backend, consumiendo 'rootFolderId' desde la configuración tabular (Línea 150).
+- **Estabilización de Verificación:**
+  - Expuesto el motor de plantillas `UI_TEMPLATES` al objeto global `window` para facilitar pruebas automatizadas (Línea 30).
+  - Actualizada la versión visible de la aplicación a v0.4.1 en index.html y metadatos.
+
+## [v0.4.1.2] - 2025-05-24
+### Correcciones Críticas y Normalización de Datos
+- **Backend (gos-core.js):**
+  - Implementada normalización de claves Unicode (NFD) para eliminar acentos y caracteres especiales en las respuestas JSON (Línea 505).
+  - Asegurada la consistencia de nombres de propiedades entre backend y frontend.
+- **Frontend (main.js):**
+  - Eliminado script de Google Maps hardcodeado en index.html a favor de la carga dinámica (Línea 145).

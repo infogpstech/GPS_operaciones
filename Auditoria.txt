@@ -39,3 +39,80 @@ HALLAZGOS Y TAREAS PENDIENTES:
 
 CONCLUSIÓN:
 La base estructural y lógica de negocio (MVP) requiere refinamiento en la captura de datos y visualización de reportes.
+
+==============================================
+AUDITORÍA PRE-REFACCIÓN GOS v0.4.0
+==============================================
+Fecha: 2025-05-24
+Versión Auditada: GOS v0.3.3 / GOS-CORE v1.0.2
+
+ARCHIVO: main.js
+- Arquitectura: Monolítica. Concentra lógica de negocio, UI y ruteo. Requiere separación en controllers/views/services (Líneas 100-600).
+- Estado Global: Uso excesivo de `window.activeOrder` y `localStorage` sin un manejador central (Líneas 3, 33, 76).
+- HTML: Bloques masivos de HTML embebidos en funciones de renderizado (Líneas 161, 196, 226, 259, 281, 314, 355).
+- Configuración: Listas desplegables (Select) con opciones estáticas en código (Líneas 386-392, 396-401).
+
+ARCHIVO: services/gos/gos-core.js
+- Normalización: La función `findOrCreateSheet` no valida encabezados ni formatos (Línea 10).
+- Encabezados: Dependencia crítica de posiciones fijas (Líneas 30: Col 21, 155: Col 1, 169: Col 20/21, 185: Col 3/4, 237: Col 20).
+- IDs: Generación basada en `lastRow` (Línea 65), propenso a colisiones si se eliminan filas.
+- Configuración: Estructura no tabular (Líneas 106-121).
+
+Riesgos detectados:
+- La eliminación de una columna en el Spreadsheet romperá el sistema.
+- El crecimiento del código en `main.js` dificultará el mantenimiento.
+- La falta de normalización automática puede causar errores de ejecución si las hojas se crean manualmente.
+
+==============================================
+IMPLEMENTACIÓN GOS v0.4.0 - RESULTADOS
+==============================================
+Fecha: 2025-05-24
+Estado: REFACTOREADO
+
+ARCHIVO: services/gos/gos-core.js
+- Normalización: `findOrCreateSheet` ahora inicializa encabezados y formato si la hoja no existe.
+- Encabezados: Implementado `getHeaderMap`. Todas las funciones migradas a indexación por nombre de columna.
+- IDs: Implementado `getNextId` basado en contador persistente en `Configuracion`.
+- Configuración: Implementado `handleGetSystemConfig` con estructura tabular. Eliminada dependencia de posiciones fijas.
+
+ARCHIVO: main.js
+- Arquitectura: Implementado objeto `AppState` para gestión de estado y `UI_TEMPLATES` para desacoplar HTML.
+- Estado Global: Eliminado `window.activeOrder`. Ahora se gestiona en `AppState.activeOrder`.
+- HTML: Reducción drástica del tamaño de funciones de renderizado mediante plantillas.
+- Configuración: Formularios y Selects ahora se construyen dinámicamente desde `AppState.config`.
+
+Verificación:
+- Playwright confirmó la carga correcta de AppState y el renderizado dinámico del formulario de órdenes.
+- El sistema de IDs genera formatos tipo OT-2025-000001 correctamente.
+
+==============================================
+AUDITORÍA v0.4.1 - MEJORAS OPERATIVAS
+==============================================
+Fecha: 2025-05-24
+Versión Auditada: GOS v0.4.0 / GOS-CORE v1.1.0
+
+ARCHIVO: index.html
+- Maps: Falta inclusión del script de Google Maps API (Línea 10).
+- UI: Falta contenedor para visualización de mapas y modales de confirmación (Línea 60).
+
+ARCHIVO: main.js
+- Reportes: Función `renderReportsModule` solo muestra tabla; falta lógica de gráficos (Línea 260).
+- Exportación: No existe función para exportar a CSV/Excel (Línea 310).
+- Confirmación: El motor de asignación no dispara modal en frontend si `requiresConfirmation` es true (Línea 600).
+- Proximidad: `checkArrivalStatus` no valida si el estado es 'En camino' antes de procesar (Línea 90).
+
+ARCHIVO: services/gos/gos-core.js
+- Drive: `handleGetOrCreateOrderFolder` usa `rootFolderId` hardcodeado si falla la configuración (Línea 425).
+- Configuración: Falta clave `RadioLlegada` y `TiempoConfirmacion` en inicialización (Línea 210).
+
+---
+AUDITORÍA DE CIERRE - v0.4.1 (Functional Expansion)
+FECHA: 2025-05-24
+
+ESTADO: CUMPLIDO
+- [OK] Hallazgos en index.html resueltos: Script de Maps incluido y contenedores de UI agregados.
+- [OK] Hallazgos en main.js resueltos: Gráficos CSS implementados, exportación CSV funcional, modal de confirmación activo y validación de estado en proximidad integrada.
+- [OK] Hallazgos en gos-core.js resueltos: Drive consume rootFolderId de la configuración.
+
+ARCHIVO: services/gos/gos-core.js (v1.1.2)
+- Normalización: Implementada normalización robusta de claves (minúsculas, sin espacios, sin acentos) en `handleGetOrders`, `handleGetClients` y `handleGetTechnicians` para asegurar compatibilidad con el frontend (Líneas 185, 505, 535).
