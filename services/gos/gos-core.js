@@ -1,7 +1,7 @@
 // ============================================================================
 // GOS-CORE SERVICE (GPS Operations Suite)
 // ============================================================================
-// Version: 1.0.1
+// Version: 1.0.2
 
 const SPREADSHEET_ID = "1IiXxydi02QnVUVwWsEnC5lpB730mASI-6rTsmuI4XhE";
 

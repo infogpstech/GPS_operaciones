@@ -30,3 +30,10 @@
 ### Despliegue y Verificación de Microservicio
 - Implementada función `doGet` en `services/gos/gos-core.js` (Línea 400) para permitir verificación de despliegue mediante navegador.
 - Actualizado endpoint `GOS_CORE` en `api-config.js` (Línea 7) con el URL de despliegue final.
+
+## [v0.3.2] - 2025-05-24
+### Auditoría Integral y Sincronización
+- Actualizado endpoint `GOS_CORE` en `api-config.js` con el nuevo URL de producción.
+- Realizada Auditoría Integral de todas las fases (Fase 1-3).
+- Documentada hoja de ruta para GOS v0.4.0 en `Instrucciones.txt`.
+- Incrementada versión global a v0.3.2.

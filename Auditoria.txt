@@ -1,35 +1,40 @@
-AUDITORÍA FINAL - FASE INICIAL GOS
-=================================
+AUDITORÍA INTEGRAL GOS - SESIÓN COMPLETA (Fases 1-3)
+==============================================
 Fecha: 2025-05-24
+Versión Auditada: GOS v0.3.1 / GOS-CORE v1.0.1
 
-ESTADO DEL PROYECTO:
-1. Migración: GPSpedia v2.0 movido a /legacy/gpspedia/.
-2. GOS Root: index.html, main.js, style.css y api-config.js creados e implementados.
-3. Backend: services/gos/gos-core.js implementado con toda la lógica de negocio requerida por el README.MD.
+ARCHIVO: api-config.js
+- Estado: ACTUALIZADO (Línea 7) con nuevo URL de microservicio.
+- Seguridad: Uso de fetch con redirect: 'follow' y manejo de errores centralizado.
+- Riesgos: Ninguno detectado.
 
-COBERTURA DE REQUERIMIENTOS (README.MD):
-- Gestión de Hojas (FindOrCreateSheet): OK
-- Integración Catálogo (Simplificada): OK
-- Reglas Especiales (Motos/Gama Alta): OK
-- Gestión de Órdenes: OK
-- Estados de Órden: OK
-- Agenda y Turnos: OK
-- Motor de Asignación (Rotación): OK
-- Geolocalización: OK
-- Notificaciones: OK (Estructura base)
-- Estadísticas y Aprendizaje: OK (Incremental)
-- Archivador: OK
-- Integración Drive: OK
-- Reportes: OK (Estructura base)
+ARCHIVO: services/gos/gos-core.js
+- Función findOrCreateSheet: Correcta, evita duplicados.
+- Función handleGetTechnicalConsultation: Cumple reglas de Motos y Alta Gama.
+- Función handleAutoAssignTechnical: Implementa rotación (round-robin) y detección de segundo trabajo.
+- Función handleUpdateStatistics: Implementa motor de aprendizaje incremental (promedios móviles).
+- Función handleArchiveOldOrders: Implementa archivado seguro (>30 días) con borrado de origen.
+- Función doGet: Implementada para verificación visual.
+- Acción switch: Todas las acciones requeridas por el README están mapeadas.
 
-HALLAZGOS:
-- La funcionalidad de GOS está en estado estructural y funcional para MVP.
-- Se requiere desplegar el script de gos-core.js y actualizar el placeholder en api-config.js.
-- El archivo 'add_cortes.html' sigue ausente (mencionado en docs antiguos pero no encontrado en el sistema original).
-- El microservicio gos-core.js carece de la función doGet, lo que impide verificar su despliegue mediante navegador.
-- El endpoint GOS_CORE en api-config.js apunta a un URL desactualizado.
+ARCHIVO: main.js
+- Geolocalización: Implementada con watchPosition.
+- Proximidad: Lógica de detección de llegada (<200m) funcional.
+- Navegación: Sistema modular de carga de secciones (Agenda, Órdenes, Clientes, etc.).
+- Seguridad: Gestión de sesión en localStorage.
+- Integración: Consumo correcto de servicios legacy (AUTH).
 
-PRÓXIMOS PASOS (POST-ENTREGA):
-- Refinamiento estético de la UI.
-- Implementación de lógica de filtrado avanzada para reportes en el frontend.
-- Integración con servicios de mapas reales para visualización de técnicos.
+ARCHIVO: index.html
+- Estructura: Layout responsivo base.
+- Versión: Visible v0.3.1.
+
+HALLAZGOS Y TAREAS PENDIENTES:
+1. UI DE REPORTES: Falta implementación de filtros y visualización gráfica (Gráficos de barras/pasteles).
+2. UI DE ASIGNACIÓN: La confirmación de segundo trabajo para técnicos requiere un modal de interacción.
+3. MAPAS: Falta integración de API de Maps para ver técnicos en tiempo real (actualmente solo texto).
+4. NOTIFICACIONES PUSH: El sistema usa Toasts y logs en backend, pero falta integración con Web Push API para alertas en segundo plano.
+5. DRIVE: El rootFolderId en gos-core.js es estático. Se sugiere parametrizar en Configuracion.
+6. ACTIVEOREDER: La detección de llegada requiere que el técnico inicie explícitamente el viaje (Estado 'En camino').
+
+CONCLUSIÓN:
+La base estructural y lógica de negocio (MVP) está completa al 90%. Se procede a registrar tareas restantes en Instrucciones.txt.

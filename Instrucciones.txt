@@ -261,6 +261,15 @@ Cualquier cambio en estas zonas invalidará el commit.
    - **DESCRIPCIÓN DETALLADA:** Implementada función doGet para validación visual de despliegue y actualización de URL del endpoint GOS_CORE en la configuración global.
 
 ---
+**DERIVADO DE AUDITORÍA (ROADMAP GOS v0.4.0) — NO EJECUTAR AÚN**
+---
+14. TÍTULO: Implementación de UI de Reportes con Chart.js (PENDIENTE)
+15. TÍTULO: Sistema de Confirmación Interactiva para Asignaciones (PENDIENTE)
+16. TÍTULO: Integración de Google Maps API para Rastreo Visual (PENDIENTE)
+17. TÍTULO: Configuración de Web Push API para Notificaciones en Mobile (PENDIENTE)
+18. TÍTULO: Parametrización de Carpeta Root de Drive en Hoja de Configuración (PENDIENTE)
+
+---
 **DERIVADO DE AUDITORÍA (ROADMAP v2.0) — NO EJECUTAR AÚN**
 ---
 5. TÍTULO: Lógica de Backend para Gestión de Años y Votos (PENDIENTE)
