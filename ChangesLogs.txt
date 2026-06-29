@@ -44,3 +44,12 @@
 - Expandido formulario de "Nueva Orden" con todos los campos requeridos por el README.
 - Implementada lógica de filtrado temporal para reportes en el backend (`gos-core.js`).
 - Automatizada la asignación de técnicos inmediatamente después de la creación de una orden.
+
+## [v0.3.4] - 2025-05-24
+### Auditoría de Arquitectura y Roadmap v0.4.0
+- Realizada auditoría línea por línea de `main.js` identificando áreas de refactorización arquitectónica (Líneas 100-600).
+- Realizada auditoría de `services/gos/gos-core.js` identificando dependencias de columnas posicionales (Líneas 30, 65, 155, 169).
+- Documentados hallazgos técnicos en `Auditoria.txt` (Nueva sección).
+- Refinados objetivos del Roadmap v0.4.0 en `Instrucciones.txt` (Líneas 238-275).
+- Corregida errata en documentación de Zonas Seguras en `Instrucciones.txt` (Línea 156).
+- Eliminados archivos temporales de verificación y logs del entorno.

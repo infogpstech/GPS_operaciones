@@ -260,9 +260,6 @@ Cualquier cambio en estas zonas invalidará el commit.
    - **ALCANCE:** services/gos/gos-core.js, api-config.js
    - **DESCRIPCIÓN DETALLADA:** Implementada función doGet para validación visual de despliegue y actualización de URL del endpoint GOS_CORE en la configuración global.
 
----
-**TAREAS PENDIENTES DE REVISIÓN**
----
 14. **TÍTULO: Refinamiento de Captura de Datos y Reportes GOS v0.3.3**
    - **ESTADO:** PENDIENTE REVISION POR EL MP
    - **ALCANCE:** main.js, gos-core.js, index.html
@@ -271,11 +268,37 @@ Cualquier cambio en estas zonas invalidará el commit.
 ---
 **DERIVADO DE AUDITORÍA (ROADMAP GOS v0.4.0) — NO EJECUTAR AÚN**
 ---
-15. TÍTULO: Implementación de Visualización Gráfica en Reportes (PENDIENTE)
-15. TÍTULO: Sistema de Confirmación Interactiva para Asignaciones (PENDIENTE)
-16. TÍTULO: Integración de Google Maps API para Rastreo Visual (PENDIENTE)
-17. TÍTULO: Configuración de Web Push API para Notificaciones en Mobile (PENDIENTE)
-18. TÍTULO: Parametrización de Carpeta Root de Drive en Hoja de Configuración (PENDIENTE)
+15. **TÍTULO: Normalización Estructural del Backend GOS-CORE**
+    - **ALCANCE:** services/gos/gos-core.js
+    - **DESCRIPCIÓN:**
+      - Implementar validación integral de hojas y encabezados en `findOrCreateSheet`.
+      - Migrar lógica de lectura de columnas posicionales a búsqueda por encabezado.
+      - Refactorizar generación de IDs a sistema persistente (no basado en filas).
+      - Reestructurar hoja de Configuración a formato tabular.
+
+16. **TÍTULO: Refactorización de Arquitectura Frontend (Modularidad)**
+    - **ALCANCE:** main.js
+    - **DESCRIPCIÓN:**
+      - Desacoplar `main.js` en controladores y servicios.
+      - Implementar AppState para gestión centralizada de sesión y órdenes.
+      - Externalizar bloques HTML masivos a sistema de plantillas o vistas independientes.
+      - Dinamizar elementos `<select>` desde el Spreadsheet.
+
+17. **TÍTULO: Mejoras Visuales y Funcionales de Reportes**
+    - **ALCANCE:** main.js, index.html
+    - **DESCRIPCIÓN:** Implementar visualización gráfica y exportación de datos.
+
+18. **TÍTULO: Sistema de Confirmación Interactiva y Proximidad**
+    - **ALCANCE:** main.js, gos-core.js
+    - **DESCRIPCIÓN:**
+      - Implementar modal de confirmación para segundos trabajos.
+      - Optimizar detección de llegada mediante activación explícita de "En camino".
+
+19. **TÍTULO: Integración Avanzada de Drive y Mapas**
+    - **ALCANCE:** services/gos/gos-core.js, main.js
+    - **DESCRIPCIÓN:**
+      - Parametrizar rootFolderId de Drive.
+      - Implementar visualización de técnicos en tiempo real sobre Google Maps API.
 
 ---
 **DERIVADO DE AUDITORÍA (ROADMAP v2.0) — NO EJECUTAR AÚN**

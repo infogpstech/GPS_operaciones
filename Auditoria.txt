@@ -39,3 +39,26 @@ HALLAZGOS Y TAREAS PENDIENTES:
 
 CONCLUSIÓN:
 La base estructural y lógica de negocio (MVP) requiere refinamiento en la captura de datos y visualización de reportes.
+
+==============================================
+AUDITORÍA PRE-REFACCIÓN GOS v0.4.0
+==============================================
+Fecha: 2025-05-24
+Versión Auditada: GOS v0.3.3 / GOS-CORE v1.0.2
+
+ARCHIVO: main.js
+- Arquitectura: Monolítica. Concentra lógica de negocio, UI y ruteo. Requiere separación en controllers/views/services (Líneas 100-600).
+- Estado Global: Uso excesivo de `window.activeOrder` y `localStorage` sin un manejador central (Líneas 3, 33, 76).
+- HTML: Bloques masivos de HTML embebidos en funciones de renderizado (Líneas 161, 196, 226, 259, 281, 314, 355).
+- Configuración: Listas desplegables (Select) con opciones estáticas en código (Líneas 386-392, 396-401).
+
+ARCHIVO: services/gos/gos-core.js
+- Normalización: La función `findOrCreateSheet` no valida encabezados ni formatos (Línea 10).
+- Encabezados: Dependencia crítica de posiciones fijas (Líneas 30: Col 21, 155: Col 1, 169: Col 20/21, 185: Col 3/4/5, 237: Col 20).
+- IDs: Generación basada en `lastRow` (Línea 65), propenso a colisiones si se eliminan filas.
+- Configuración: Estructura no tabular (Líneas 106-121).
+
+Riesgos detectados:
+- La eliminación de una columna en el Spreadsheet romperá el sistema.
+- El crecimiento del código en `main.js` dificultará el mantenimiento.
+- La falta de normalización automática puede causar errores de ejecución si las hojas se crean manualmente.
