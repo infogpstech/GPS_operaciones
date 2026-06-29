@@ -1,25 +1,22 @@
 {
-  "name": "GPSpedia | Catálogo Técnico",
-  "short_name": "GPSpedia",
-  "description": "Catálogo técnico de cortes de vehículos.",
+  "name": "GOS | GPS Operations Suite",
+  "short_name": "GOS",
+  "description": "Sistema de gestión operativa para instalaciones GPS.",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#ffffff",
+  "background_color": "#f4f7f6",
   "theme_color": "#007bff",
   "scope": "/",
   "icons": [
     {
       "src": "icon-pwa-192x192.png",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
+      "type": "image/png"
     },
     {
       "src": "icon-pwa-512x512.png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
+      "type": "image/png"
     }
-  ],
-  "capture_links": "existing-client-navigate"
+  ]
 }

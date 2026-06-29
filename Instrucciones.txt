@@ -250,6 +250,25 @@ Cualquier cambio en estas zonas invalidará el commit.
    - **ALCANCE:** Global (Documentación)
    - **DESCRIPCIÓN DETALLADA:** Auditoría integral comparativa v1.5 vs v2.0. Creación de `RELEASE NOTES.txt` detallando todas las mejoras: arquitectura modular, seguridad RBAC, optimización de imágenes/lazy load, navegación contextual, sistema de votos y "Corte Recomendado", modales de Relay, crédito a colaboradores y asistente anti-duplicado.
 
+12. **TÍTULO: Migración a Legacy e Inicialización de GOS v0.3.0**
+   - **ESTADO:** PENDIENTE REVISION POR EL MP
+   - **ALCANCE:** Global (Frontend, Estructura de Proyecto, Backend)
+   - **DESCRIPCIÓN DETALLADA:** Migración de GPSpedia v2.0 a `legacy/gpspedia/`. Implementación integral de GPS Operations Suite (GOS) incluyendo módulos de Agenda, Órdenes (CRUD), Clientes, Seguimiento de Técnicos en tiempo real (Geolocalización), Consulta Técnica simplificada y sistema de estadísticas. PWA configurada y backend GOS Core (Apps Script) funcional con motor de asignación por rotación.
+
+13. **TÍTULO: Verificación de Despliegue de Microservicio GOS Core v0.3.1**
+   - **ESTADO:** PENDIENTE REVISION POR EL MP
+   - **ALCANCE:** services/gos/gos-core.js, api-config.js
+   - **DESCRIPCIÓN DETALLADA:** Implementada función doGet para validación visual de despliegue y actualización de URL del endpoint GOS_CORE en la configuración global.
+
+---
+**DERIVADO DE AUDITORÍA (ROADMAP GOS v0.4.0) — NO EJECUTAR AÚN**
+---
+14. TÍTULO: Implementación de UI de Reportes con Chart.js (PENDIENTE)
+15. TÍTULO: Sistema de Confirmación Interactiva para Asignaciones (PENDIENTE)
+16. TÍTULO: Integración de Google Maps API para Rastreo Visual (PENDIENTE)
+17. TÍTULO: Configuración de Web Push API para Notificaciones en Mobile (PENDIENTE)
+18. TÍTULO: Parametrización de Carpeta Root de Drive en Hoja de Configuración (PENDIENTE)
+
 ---
 **DERIVADO DE AUDITORÍA (ROADMAP v2.0) — NO EJECUTAR AÚN**
 ---

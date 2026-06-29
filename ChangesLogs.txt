@@ -1,0 +1,39 @@
+# ChangesLogs - GPS Operations Suite (GOS)
+
+## [v0.1.0] - 2025-05-24
+### Inicialización y Migración
+- Migración de archivos de GPSpedia v2.0 a `legacy/gpspedia/`.
+- Preparación de la estructura raíz para GOS.
+- Implementada estructura base de GOS en `index.html`.
+- Implementada lógica de ruteo y navegación básica en `main.js`.
+- Configurada `api-config.js` para consumir microservicios legacy.
+- Implementado núcleo de GOS Core en `services/gos/gos-core.js`.
+- Implementada gestión de Órdenes y Agenda.
+- Integrada geolocalización en tiempo real.
+- Estructurada integración con Drive y sistema de estadísticas.
+- Implementada configuración dinámica de Agenda desde Spreadsheet.
+- Desarrollado Motor de Asignación Avanzado con detección de segundos trabajos.
+- Implementada lógica de proximidad para detección automática de llegada.
+- Creado sistema de notificaciones base en el backend.
+- Configurada PWA funcional (manifest.json y service-worker.js).
+- Refinada UI de Órdenes con tablas dinámicas y estados visuales.
+- Implementado módulo de Consulta Técnica simplificada (GOS <-> GPSpedia).
+- Implementado Directorio de Clientes y Panel de Técnicos con seguimiento.
+- Actualizada versión visible de la aplicación a v0.3.0.
+- Implementado renderizado dinámico de la Agenda con vinculación de órdenes.
+- Desarrollado CRUD de Clientes con formularios de registro.
+- Implementado sistema de notificaciones visuales (Toasts) y persistencia en backend.
+- Corregido error de sintaxis en `gos-core.js` (declaración duplicada de `ordersSheet`).
+- Refinada UI global con layouts sticky y componentes de alta densidad.
+
+## [v0.3.1] - 2025-05-24
+### Despliegue y Verificación de Microservicio
+- Implementada función `doGet` en `services/gos/gos-core.js` (Línea 400) para permitir verificación de despliegue mediante navegador.
+- Actualizado endpoint `GOS_CORE` en `api-config.js` (Línea 7) con el URL de despliegue final.
+
+## [v0.3.2] - 2025-05-24
+### Auditoría Integral y Sincronización
+- Actualizado endpoint `GOS_CORE` en `api-config.js` con el nuevo URL de producción.
+- Realizada Auditoría Integral de todas las fases (Fase 1-3).
+- Documentada hoja de ruta para GOS v0.4.0 en `Instrucciones.txt`.
+- Incrementada versión global a v0.3.2.

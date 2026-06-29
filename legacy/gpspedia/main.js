@@ -1,4 +1,4 @@
-// GPSpedia Main Orchestration Module
+// GPSpedia Main Orchestration Module | Version: 2.0
 // Responsibilities:
 // - Import all feature modules.
 // - Initialize the application and set up global event listeners.
@@ -13,6 +13,7 @@ import * as navigation from './navigation.js';
 import './lightbox.js';
 
 let deferredPrompt;
+let searchBlurTimeout;
 
 /**
  * Main function to initialize the application.
@@ -29,9 +30,14 @@ async function initializeApp() {
     // 2. Setup primary event listeners
     document.getElementById('login-form').addEventListener('submit', (e) => {
         e.preventDefault();
+        const btn = e.target.querySelector('button');
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
-        auth.login(username, password);
+
+        btn.classList.add('btn-loading');
+        auth.login(username, password).finally(() => {
+            btn.classList.remove('btn-loading');
+        });
     });
 
     const searchInput = document.getElementById('searchInput');
@@ -53,18 +59,17 @@ async function initializeApp() {
     }
 
     // --- LÓGICA DE ANIMACIÓN DE LA BARRA DE BÚSQUEDA ---
-    // Añade la clase 'search-active' al body cuando el input gana el foco.
+    // Estabilización de la clase 'search-active' para evitar saltos visuales al limpiar búsqueda.
     searchInput.addEventListener('focus', () => {
+        if (searchBlurTimeout) clearTimeout(searchBlurTimeout);
         document.body.classList.add('search-active');
     });
 
-    // Elimina la clase 'search-active' del body cuando el input pierde el foco.
-    // Se utiliza un setTimeout para permitir que los eventos de clic en los resultados de búsqueda se registren
-    // antes de que la UI se revierta a su estado normal.
     searchInput.addEventListener('blur', () => {
-        setTimeout(() => {
+        // Se utiliza un timeout para evitar el cierre inmediato al hacer clic en el botón de limpiar (X)
+        searchBlurTimeout = setTimeout(() => {
             document.body.classList.remove('search-active');
-        }, 200); // 200ms de retardo
+        }, 250);
     });
 
     // --- LÓGICA DINÁMICA DE VIEWPORT PARA MÓVIL ---
@@ -100,6 +105,63 @@ async function initializeApp() {
     // Hamburger menu listeners
     document.getElementById('hamburger-btn').addEventListener('click', ui.openSideMenu);
     document.getElementById('menu-overlay').addEventListener('click', ui.closeSideMenu);
+
+    // Navigation links in side menu - Unified Handlers
+    // Restauración de funciones para Cortes, Tutoriales y Relay
+    ['cortes', 'tutoriales', 'relay'].forEach(section => {
+        const btn = document.getElementById(`menu-${section}`);
+        if (btn) {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                ui.mostrarSeccion(section);
+                ui.closeSideMenu();
+            });
+        }
+    });
+
+    // Dark Mode Toggle Logic with Logo Swap and Persistence
+    const darkModeToggle = document.getElementById('dark-mode-toggle');
+    const appLogo = document.querySelector('.app-logo');
+    const lightLogo = "https://drive.google.com/thumbnail?id=1NxBx-W_gWmcq3fA9zog6Dpe-WXpH_2e8&sz=2048";
+    const darkLogo = "Logo_TemaOscuro.png";
+
+    // --- LÓGICA DE ACORDEÓN PARA FAQ ---
+    document.querySelectorAll('.accordion-header').forEach(header => {
+        header.addEventListener('click', () => {
+            const item = header.parentElement;
+            const isActive = item.classList.contains('active');
+
+            // Cerrar otros
+            document.querySelectorAll('.accordion-item').forEach(otherItem => {
+                otherItem.classList.remove('active');
+            });
+
+            if (!isActive) {
+                item.classList.add('active');
+            }
+        });
+    });
+
+    if (darkModeToggle) {
+        // Carga inicial de preferencia desde localStorage
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.body.classList.add('dark-mode');
+            darkModeToggle.checked = true;
+            if (appLogo) appLogo.src = darkLogo;
+        }
+
+        darkModeToggle.addEventListener('change', () => {
+            if (darkModeToggle.checked) {
+                document.body.classList.add('dark-mode');
+                localStorage.setItem('darkMode', 'true');
+                if (appLogo) appLogo.src = darkLogo;
+            } else {
+                document.body.classList.remove('dark-mode');
+                localStorage.setItem('darkMode', 'false');
+                if (appLogo) appLogo.src = lightLogo;
+            }
+        });
+    }
 
     // --- LÓGICA DE GESTO PULL-TO-REFRESH (Restaurada) ---
     const container = document.querySelector('.container');
@@ -143,11 +205,20 @@ async function initializeApp() {
     }
 
     // Footer links listeners
-    document.getElementById('footer-about-link')?.addEventListener('click', ui.openAboutUs);
-    document.getElementById('footer-contact-link')?.addEventListener('click', ui.openContact);
-    document.getElementById('footer-faq-link')?.addEventListener('click', ui.openFAQ);
+    document.getElementById('footer-about-link')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        ui.openAboutUs();
+    });
+    document.getElementById('footer-contact-link')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        ui.openContact();
+    });
+    document.getElementById('footer-faq-link')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        ui.openFAQ();
+    });
 
-    // Dashboard button listener
+    // Dashboard button listener - Restauración de funcionalidad
     const dashboardBtn = document.getElementById('dashboard-btn');
     if (dashboardBtn) {
         dashboardBtn.addEventListener('click', (e) => {
@@ -193,30 +264,26 @@ async function initializeApp() {
     document.getElementById('contact-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const submitBtn = e.target.querySelector('button[type="submit"]');
-        const originalBtnText = submitBtn.textContent;
 
-        const formData = {
-            name: document.getElementById('contact-name').value,
-            email: document.getElementById('contact-email').value,
-            message: document.getElementById('contact-message').value,
-            userId: state.getState().currentUser?.ID
-        };
+        const name = document.getElementById('contact-name').value;
+        const email = document.getElementById('contact-email').value;
+        const message = document.getElementById('contact-message').value;
+        const userId = state.getState().currentUser?.ID;
+
+        const formData = { name, email, message, userId };
 
         try {
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Enviando...';
+            submitBtn.classList.add('btn-loading');
 
-            await routeAction('sendContactForm', formData);
+            const result = await routeAction('sendContactForm', formData);
 
             alert('¡Gracias! Tu mensaje ha sido enviado correctamente.');
             e.target.reset();
             document.getElementById('contact-modal').style.display = 'none';
         } catch (error) {
-            console.error('Error sending contact form:', error);
-            ui.showGlobalError('Hubo un error al enviar el mensaje. Por favor intenta más tarde.');
+            ui.showGlobalError(`Hubo un error al enviar el mensaje: ${error.message}`);
         } finally {
-            submitBtn.disabled = false;
-            submitBtn.textContent = originalBtnText;
+            submitBtn.classList.remove('btn-loading');
         }
     });
 
@@ -227,6 +294,65 @@ async function initializeApp() {
             navigator.serviceWorker.register('./service-worker.js')
         });
     }
+
+    // --- LÓGICA DE SEGURIDAD Y BLOQUEO DE INTERACCIONES ---
+    // Bloqueo de menú contextual (click derecho)
+    document.addEventListener('contextmenu', event => event.preventDefault());
+
+    // Bloqueo de atajos de teclado para inspección y ver código fuente
+    document.addEventListener('keydown', (e) => {
+        // Bloquear F12
+        if (e.keyCode === 123) {
+            e.preventDefault();
+            return false;
+        }
+        // Bloquear Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C
+        if (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) {
+            e.preventDefault();
+            return false;
+        }
+        // Bloquear Ctrl+U (Ver código fuente)
+        if (e.ctrlKey && e.keyCode === 85) {
+            e.preventDefault();
+            return false;
+        }
+    });
+
+    // Bloqueo de Zoom manual (Teclado y Rueda del ratón)
+    // EXCEPCIÓN: Se permite zoom si el lightbox está visible.
+    const isLightboxVisible = () => {
+        const lightbox = document.getElementById('lightbox');
+        return lightbox && lightbox.classList.contains('visible');
+    };
+
+    document.addEventListener('wheel', (e) => {
+        if (e.ctrlKey && !isLightboxVisible()) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && !isLightboxVisible()) {
+            // Teclas +, -, y 0 (para reset)
+            if ([61, 107, 173, 109, 187, 189, 48, 96].includes(e.keyCode)) {
+                e.preventDefault();
+            }
+        }
+    });
+
+    // Bloqueo de Zoom por gestos (Touch)
+    // EXCEPCIÓN: Se permite zoom si el lightbox está visible.
+    document.addEventListener('touchstart', (e) => {
+        if (e.touches.length > 1 && !isLightboxVisible()) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+
+    document.addEventListener('touchmove', (e) => {
+        if (e.touches.length > 1 && !isLightboxVisible()) {
+            e.preventDefault();
+        }
+    }, { passive: false });
 
     // 5. Start the application by checking the user's session
     await auth.checkSession();
