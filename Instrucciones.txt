@@ -304,7 +304,14 @@ Cualquier cambio en estas zonas invalidará el commit.
 ---
 **DERIVADO DE AUDITORÍA (ROADMAP GOS v0.4.0) — NO EJECUTAR AÚN**
 ---
-*No hay tareas pendientes en esta sección.*
+20. **TÍTULO: Mejoras de Arquitectura y Preparación para Producción (v0.4.2)**
+    - **ESTADO:** PENDIENTE REVISION POR EL MP
+    - **ALCANCE:** Global (Backend y Frontend)
+    - **DESCRIPCIÓN:**
+      - Backend: Inicialización automática de hojas (Auditoría, Logs, Catálogos) y normalización robusta de claves Unicode.
+      - Drive: Jerarquía jerárquica (Año/Mes/Orden) con sub-carpetas automatizadas.
+      - Frontend: Expansión de formularios de clientes y visualización de estados por colores en Agenda.
+      - Integración: Acciones directas de Drive y Maps desde el listado de órdenes.
 
 ---
 **DERIVADO DE AUDITORÍA (ROADMAP v2.0) — NO EJECUTAR AÚN**

@@ -91,3 +91,16 @@
   - Asegurada la consistencia de nombres de propiedades entre backend y frontend.
 - **Frontend (main.js):**
   - Eliminado script de Google Maps hardcodeado en index.html a favor de la carga dinámica (Línea 145).
+
+## [v0.4.2] - 2025-05-24
+### Mejoras de Arquitectura y Preparación para Producción
+- **Backend (gos-core.js):**
+  - Implementada función `initializeSystem` para creación automática de catálogos y hojas de auditoría (Línea 35).
+  - Refactorizada la normalización de claves Unicode (NFD) para asegurar consistencia en todo el sistema (Línea 185, 510, 540).
+  - Implementado sistema de logs centralizado `logToSheet` para Auditoría y Logs de errores (Línea 455).
+  - Rediseñada la jerarquía de Drive: Año > Mes > Orden > [Sub-carpetas] (Línea 485).
+- **Frontend (main.js):**
+  - Expandido el formulario de Clientes con campos RTN, Correo, Empresa y Observaciones (Línea 490).
+  - Implementada visualización de colores por estado en la Agenda sincronizada con la configuración (Línea 585).
+  - Añadidas acciones de integración directa con Drive y Google Maps desde la tabla de órdenes (Línea 645, 785).
+  - Sincronizada la versión global a v0.4.2 en index.html y metadatos.

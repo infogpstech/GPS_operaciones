@@ -116,3 +116,16 @@ ESTADO: CUMPLIDO
 
 ARCHIVO: services/gos/gos-core.js (v1.1.2)
 - Normalización: Implementada normalización robusta de claves (minúsculas, sin espacios, sin acentos) en `handleGetOrders`, `handleGetClients` y `handleGetTechnicians` para asegurar compatibilidad con el frontend (Líneas 185, 505, 535).
+
+---
+AUDITORÍA DE CIERRE - v0.4.2 (Product Readiness & Architecture)
+FECHA: 2025-05-24
+
+ESTADO: CUMPLIDO
+- [OK] Backend: Implementada inicialización automática de hojas y parámetros de configuración.
+- [OK] Backend: Refactorizada normalización de claves para ser robusta contra acentos y espacios.
+- [OK] Backend: Implementado logToSheet para Auditoría y Logs.
+- [OK] Backend: Jerarquía de Drive Año/Mes/Orden con sub-carpetas automatizada.
+- [OK] Frontend: Formularios de Clientes y Órdenes alineados con la nueva estructura de datos.
+- [OK] Frontend: Agenda con soporte visual de colores por estado y visualización de técnicos.
+- [OK] Frontend: Acciones rápidas (Drive, Maps) integradas en la tabla de órdenes.

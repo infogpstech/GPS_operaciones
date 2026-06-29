@@ -157,6 +157,8 @@ async function init() {
     window.loadSection = loadSection;
     window.markStatus = markStatus;
     window.initMap = initMap;
+    window.openDrive = openDrive;
+    window.openMaps = openMaps;
     window.UI_TEMPLATES = UI_TEMPLATES; // Exponer para utilidades globales
 
     setupAuthListeners();
@@ -480,8 +482,12 @@ function renderClientForm(container) {
         <form id="client-form" class="order-form">
             <div class="form-grid">
                 <div class="form-group"><label>Nombre Completo</label><input type="text" name="nombre" class="form-control" required></div>
+                <div class="form-group"><label>Empresa</label><input type="text" name="empresa" class="form-control"></div>
                 <div class="form-group"><label>Teléfono</label><input type="text" name="telefono" class="form-control" required></div>
+                <div class="form-group"><label>Correo</label><input type="email" name="correo" class="form-control"></div>
+                <div class="form-group"><label>RTN</label><input type="text" name="rtn" class="form-control"></div>
                 <div class="form-group"><label>Dirección</label><input type="text" name="direccion" class="form-control"></div>
+                <div class="form-group"><label>Observaciones</label><textarea name="observaciones" class="form-control"></textarea></div>
             </div>
             <div style="display:flex; gap:10px; margin-top:20px;">
                 <button type="submit" class="btn btn-primary">Guardar Cliente</button>
@@ -570,7 +576,18 @@ async function renderAgendaModule(container) {
                 ordersInTurn.forEach(order => {
                     const card = document.createElement('div');
                     card.className = 'order-mini-card';
-                    card.innerHTML = `<strong>${order.cliente}</strong><br><small>${order.vehiculo || order.marca}</small>`;
+
+                    // Colores por estado (v0.4.2)
+                    const statusKey = (order.estado || 'Pendiente').toLowerCase().replace(/\s+/g, '');
+                    const configColors = AppState.config.Agenda || {};
+                    const statusColor = configColors[`Color_${order.estado}`] || '#ddd';
+
+                    card.style.borderLeft = `5px solid ${statusColor}`;
+                    card.innerHTML = `
+                        <strong>${order.cliente}</strong><br>
+                        <small>${order.marca} ${order.modelo}</small><br>
+                        <span style="font-size:0.7rem; opacity:0.7;">${order.tecnicoasignado || 'Sin asignar'}</span>
+                    `;
                     slotsCont.appendChild(card);
                 });
             });
@@ -618,9 +635,17 @@ async function renderOrdersModule(container) {
                             <td>${order.cliente}</td>
                             <td>${order.marca} ${order.modelo}</td>
                             <td>${UI_TEMPLATES.badge(status)}</td>
-                            <td>
-                                ${status === 'Asignada' ? `<button class="btn btn-sm btn-secondary" onclick="markStatus('${order.id}', 'En Camino')">En camino</button>` : ''}
-                                ${['En Camino', 'Llegó', 'Vehículo recibido'].includes(status) ? `<button class="btn btn-sm btn-primary" onclick="markStatus('${order.id}', 'Finalizada')">Finalizar</button>` : ''}
+                            <td class="actions-cell">
+                                <div style="display:flex; gap:5px; flex-wrap:wrap;">
+                                    ${status === 'Asignada' ? `<button class="btn btn-sm btn-secondary" title="Marcar En camino" onclick="markStatus('${order.id}', 'En Camino')">En camino</button>` : ''}
+                                    ${['En Camino', 'Llegó', 'Vehículo recibido'].includes(status) ? `<button class="btn btn-sm btn-primary" title="Finalizar" onclick="markStatus('${order.id}', 'Finalizada')">Finalizar</button>` : ''}
+
+                                    <button class="btn btn-sm btn-outline" title="Ver Historial (Próximamente)" disabled>📜</button>
+                                    <button class="btn btn-sm btn-outline" title="Duplicar (Próximamente)" disabled>👯</button>
+                                    <button class="btn btn-sm btn-outline" title="Cancelar (Próximamente)" disabled>🚫</button>
+                                    <button class="btn btn-sm btn-outline" title="Drive" onclick="openDrive('${order.id}', '${order.cliente}')">📂</button>
+                                    <button class="btn btn-sm btn-outline" title="Maps" onclick="openMaps('${order.coordenadas}')">📍</button>
+                                </div>
                             </td>
                         </tr>
                     `;
@@ -745,6 +770,28 @@ let markers = [];
 
 function initMap() {
     console.log("Google Maps API inicializada");
+}
+
+async function openDrive(orderId, cliente) {
+    try {
+        const result = await routeAction('GOS_CORE', 'getOrCreateOrderFolder', { orderId, cliente });
+        if (result.status === 'success') {
+            window.open(result.folderUrl, '_blank');
+        } else {
+            alert("Error al abrir Drive: " + result.message);
+        }
+    } catch (e) {
+        alert("Error de conexión con Drive");
+    }
+}
+
+function openMaps(coordenadas) {
+    if (!coordenadas) {
+        alert("No hay coordenadas disponibles para esta orden.");
+        return;
+    }
+    const url = `https://www.google.com/maps/search/?api=1&query=${coordenadas}`;
+    window.open(url, '_blank');
 }
 
 function updateMap(techs) {

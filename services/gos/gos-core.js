@@ -1,13 +1,13 @@
 // ============================================================================
 // GOS-CORE SERVICE (GPS Operations Suite)
 // ============================================================================
-// Version: 1.1.2
+// Version: 1.2.0
 
 const SPREADSHEET_ID = "1IiXxydi02QnVUVwWsEnC5lpB730mASI-6rTsmuI4XhE";
 
 /**
  * Función FindOrCreateSheet: Busca una hoja por nombre o la crea si no existe.
- * v1.1.2: Ahora inicializa encabezados si la hoja es nueva y normaliza claves.
+ * v1.2.0: Ahora inicializa encabezados si la hoja es nueva, normaliza claves y aplica formato.
  */
 function findOrCreateSheet(sheetName, headers = []) {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
@@ -18,9 +18,38 @@ function findOrCreateSheet(sheetName, headers = []) {
       sheet.appendRow(headers);
       sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold").setBackground("#f3f3f3");
       sheet.setFrozenRows(1);
+
+      // Activar filtros si hay datos
+      sheet.getRange(1, 1, 1, headers.length).createFilter();
+
+      // Ajuste automático de columnas
+      sheet.autoResizeColumns(1, headers.length);
     }
   }
   return sheet;
+}
+
+/**
+ * Inicialización Automática del Sistema (v1.2.0)
+ */
+function initializeSystem() {
+  const config = [
+    { sheet: "Roles", headers: ["ID", "Nombre", "Nivel", "Estado"] },
+    { sheet: "Estados", headers: ["ID", "Nombre", "Color", "Estado"] },
+    { sheet: "Prioridades", headers: ["ID", "Nombre", "Color", "Estado"] },
+    { sheet: "TiposTrabajo", headers: ["ID", "Nombre", "Duración (min)", "Estado"] },
+    { sheet: "Servicios", headers: ["ID", "Nombre", "Estado"] },
+    { sheet: "Turnos", headers: ["ID", "Hora", "Estado"] },
+    { sheet: "Permisos", headers: ["ID", "Rol", "Módulo", "Acción", "Estado"] },
+    { sheet: "Auditoria", headers: ["Fecha", "Usuario", "Módulo", "Acción", "Resultado", "Detalles"] },
+    { sheet: "Logs", headers: ["Fecha", "Usuario", "Módulo", "Nivel", "Mensaje", "Stack"] }
+  ];
+
+  config.forEach(item => {
+    findOrCreateSheet(item.sheet, item.headers);
+  });
+
+  return { status: 'success', message: 'Sistema inicializado correctamente' };
 }
 
 /**
@@ -202,9 +231,18 @@ function handleGetSystemConfig() {
 
   // Asegurar parámetros iniciales críticos si la hoja está vacía
   if (sheet.getLastRow() === 1) {
-    sheet.appendRow(["Sistema", "GoogleMapsAPIKey", "PLACEHOLDER_KEY", "Activo"]);
-    sheet.appendRow(["Sistema", "RootFolderId", "1-8QqhS-wtEFFwyBG8CmnEOp5i8rxSM-2", "Activo"]);
-    sheet.appendRow(["Sistema", "RadioLlegada", "200", "Activo"]);
+    const defaultParams = [
+      ["Sistema", "GoogleMapsAPIKey", "PLACEHOLDER_KEY", "Activo"],
+      ["Sistema", "RootFolderId", "1-8QqhS-wtEFFwyBG8CmnEOp5i8rxSM-2", "Activo"],
+      ["Sistema", "RadioLlegada", "200", "Activo"],
+      ["Sistema", "TiempoConfirmacion", "60", "Activo"],
+      ["Sistema", "LastTechnicianIndex", "0", "Activo"],
+      ["Agenda", "Color_Pendiente", "#f0ad4e", "Activo"],
+      ["Agenda", "Color_Asignada", "#5bc0de", "Activo"],
+      ["Agenda", "Color_Finalizada", "#5cb85c", "Activo"]
+    ];
+    defaultParams.forEach(row => sheet.appendRow(row));
+    initializeSystem(); // Disparar inicialización de otras hojas
   }
 
   const data = sheet.getDataRange().getValues();
@@ -412,22 +450,68 @@ function handleUpdateStatistics(payload) {
 }
 
 /**
- * Integración con Drive
+ * Utilidad para Registro de Eventos y Errores
+ */
+function logToSheet(sheetName, module, action, level, message, details = "") {
+  try {
+    const sheet = findOrCreateSheet(sheetName);
+    const timestamp = new Date().toISOString();
+    const user = "SISTEMA"; // En v0.5.0 se usará el usuario de sesión
+
+    if (sheetName === "Auditoria") {
+      sheet.appendRow([timestamp, user, module, action, level, details]); // level actúa como resultado
+    } else if (sheetName === "Logs") {
+      sheet.appendRow([timestamp, user, module, level, message, details]); // details actúa como stack
+    }
+  } catch (e) {
+    console.error("Error logging to sheet:", e);
+  }
+}
+
+/**
+ * Integración con Drive (Jerarquía: Año > Mes > Orden)
  */
 function handleGetOrCreateOrderFolder(payload) {
   const { orderId, cliente } = payload;
 
-  // Consumir configuración tabular v1.1.0
-  const sysConfig = handleGetSystemConfig().data;
-  const systemParams = sysConfig["Sistema"] || {};
-  const rootFolderId = systemParams["RootFolderId"] || "1-8QqhS-wtEFFwyBG8CmnEOp5i8rxSM-2";
+  try {
+    const sysConfig = handleGetSystemConfig().data;
+    const systemParams = sysConfig["Sistema"] || {};
+    const rootFolderId = systemParams["RootFolderId"] || "1-8QqhS-wtEFFwyBG8CmnEOp5i8rxSM-2";
 
-  const rootFolder = DriveApp.getFolderById(rootFolderId);
-  const folderName = `Orden_${orderId}_${cliente}`;
-  const folders = rootFolder.getFoldersByName(folderName);
+    const rootFolder = DriveApp.getFolderById(rootFolderId);
 
-  let folder = folders.hasNext() ? folders.next() : rootFolder.createFolder(folderName);
-  return { status: 'success', folderUrl: folder.getUrl(), folderId: folder.getId() };
+    const now = new Date();
+    const year = now.getFullYear().toString();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+
+    // Navegar o crear jerarquía
+    const getSubFolder = (parent, name) => {
+      const folders = parent.getFoldersByName(name);
+      return folders.hasNext() ? folders.next() : parent.createFolder(name);
+    };
+
+    const yearFolder = getSubFolder(rootFolder, year);
+    const monthFolder = getSubFolder(yearFolder, month);
+
+    const folderName = `Orden_${orderId}_${cliente}`;
+    const folders = monthFolder.getFoldersByName(folderName);
+
+    let folder;
+    if (folders.hasNext()) {
+      folder = folders.next();
+    } else {
+      folder = monthFolder.createFolder(folderName);
+      // Crear sub-estructura
+      ["Fotografías", "PDF", "Documentación", "Evidencias"].forEach(sub => folder.createFolder(sub));
+    }
+
+    logToSheet("Auditoria", "Drive", "createFolder", "success", "", `Folder creado/recuperado: ${folderName}`);
+    return { status: 'success', folderUrl: folder.getUrl(), folderId: folder.getId() };
+  } catch (error) {
+    logToSheet("Logs", "Drive", "createFolder", "error", error.message, error.stack);
+    return { status: 'error', message: error.message };
+  }
 }
 
 /**
@@ -497,7 +581,8 @@ function handleSendNotification(payload) {
 }
 
 function handleGetClients() {
-  const sheet = findOrCreateSheet("Clientes", ["Nombre", "Teléfono", "Dirección", "Fecha Registro"]);
+  const headersList = ["Nombre", "Empresa", "Teléfono", "Correo", "RTN", "Dirección", "Observaciones", "Fecha Registro"];
+  const sheet = findOrCreateSheet("Clientes", headersList);
   const data = sheet.getDataRange().getValues();
   if (data.length <= 1) return { status: 'success', data: [] };
   const headers = data.shift();
@@ -517,8 +602,26 @@ function handleGetClients() {
 }
 
 function handleCreateClient(payload) {
-  const sheet = findOrCreateSheet("Clientes");
-  sheet.appendRow([payload.nombre, payload.telefono, payload.direccion, new Date().toISOString()]);
+  const headersList = ["Nombre", "Empresa", "Teléfono", "Correo", "RTN", "Dirección", "Observaciones", "Fecha Registro"];
+  const sheet = findOrCreateSheet("Clientes", headersList);
+  const headerMap = getHeaderMap(sheet);
+
+  const rowData = headersList.map(h => {
+    switch(h) {
+      case "Nombre": return payload.nombre || "";
+      case "Empresa": return payload.empresa || "";
+      case "Teléfono": return payload.telefono || "";
+      case "Correo": return payload.correo || "";
+      case "RTN": return payload.rtn || "";
+      case "Dirección": return payload.direccion || "";
+      case "Observaciones": return payload.observaciones || "";
+      case "Fecha Registro": return new Date().toISOString();
+      default: return "";
+    }
+  });
+
+  sheet.appendRow(rowData);
+  logToSheet("Auditoria", "Clientes", "createClient", "success", "", `Cliente: ${payload.nombre}`);
   return { status: 'success' };
 }
 
@@ -556,6 +659,7 @@ function doPost(e) {
       case 'createOrder': response = handleCreateOrder(request.payload); break;
       case 'getOrders': response = handleGetOrders(); break;
       case 'getSystemConfig': response = handleGetSystemConfig(); break;
+      case 'initializeSystem': response = initializeSystem(); break;
       case 'getAgendaConfig': response = handleGetAgendaConfig(); break;
       case 'autoAssignTechnical': response = handleAutoAssignTechnical(request.payload); break;
       case 'updateStatistics': response = handleUpdateStatistics(request.payload); break;
