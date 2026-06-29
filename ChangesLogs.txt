@@ -68,3 +68,26 @@
 - **Limpieza y Estabilización:**
   - Eliminados archivos de respaldo `.bak` y scripts temporales de verificación.
   - Verificada la integridad del sistema mediante simulaciones en Playwright.
+
+## [v0.4.1.1] - 2025-05-24
+### Mejoras Funcionales y Expansión de Módulos (Roadmap v0.4.0)
+- **Reportes Avanzados (main.js, style.css):**
+  - Implementada visualización gráfica mediante barras CSS en el módulo de Reportes (Línea 640).
+  - Añadida funcionalidad de exportación a CSV para reportes operativos (Línea 675).
+- **Asignación e Interactividad (main.js):**
+  - Implementado modal interactivo de confirmación para asignación de segundos trabajos (Línea 405).
+  - Refinada la lógica de detección de llegada: ahora solo se activa si la orden está en estado "En Camino" (Línea 515).
+- **Integración de Mapas y Drive (index.html, main.js, gos-core.js):**
+  - Integrado script de Google Maps API (placeholder) y lógica de seguimiento de técnicos en tiempo real (Línea 700).
+  - Parametrizada la raíz de Google Drive en el backend, consumiendo 'rootFolderId' desde la configuración tabular (Línea 150).
+- **Estabilización de Verificación:**
+  - Expuesto el motor de plantillas `UI_TEMPLATES` al objeto global `window` para facilitar pruebas automatizadas (Línea 30).
+  - Actualizada la versión visible de la aplicación a v0.4.1 en index.html y metadatos.
+
+## [v0.4.1.2] - 2025-05-24
+### Correcciones Críticas y Normalización de Datos
+- **Backend (gos-core.js):**
+  - Implementada normalización de claves Unicode (NFD) para eliminar acentos y caracteres especiales en las respuestas JSON (Línea 505).
+  - Asegurada la consistencia de nombres de propiedades entre backend y frontend.
+- **Frontend (main.js):**
+  - Eliminado script de Google Maps hardcodeado en index.html a favor de la carga dinámica (Línea 145).

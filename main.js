@@ -4,7 +4,7 @@ const SESSION_KEY = 'gos_session';
 
 /**
  * UI_TEMPLATES: Bloques de construcción para la interfaz.
- * v0.4.0
+ * v0.4.1
  */
 const UI_TEMPLATES = {
     loading: '<div class="loading-spinner"><p>Cargando información...</p></div>',
@@ -21,6 +21,51 @@ const UI_TEMPLATES = {
     badge(status) {
         const safeStatus = (status || 'Pendiente').toLowerCase().replace(/\s+/g, '');
         return `<span class="badge badge-${safeStatus}">${status}</span>`;
+    },
+
+    chart(data) {
+        // data: [{label: 'Tech1', value: 10}, ...]
+        const maxVal = Math.max(...data.map(d => d.value)) || 1;
+        let html = '<div class="gos-chart-container">';
+        data.forEach(d => {
+            const pct = (d.value / maxVal) * 100;
+            html += `
+                <div class="chart-bar-row">
+                    <div class="chart-label">${d.label}</div>
+                    <div class="chart-bar-wrapper">
+                        <div class="chart-bar" style="width: ${pct}%"></div>
+                        <span class="chart-value">${d.value}</span>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        return html;
+    },
+
+    modal(title, message, onConfirm, onCancel) {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.innerHTML = `
+            <div class="modal-content">
+                <h3>${title}</h3>
+                <p>${message}</p>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" id="modal-cancel">Cancelar</button>
+                    <button class="btn btn-primary" id="modal-confirm">Confirmar</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        overlay.querySelector('#modal-confirm').onclick = () => {
+            onConfirm();
+            document.body.removeChild(overlay);
+        };
+        overlay.querySelector('#modal-cancel').onclick = () => {
+            if (onCancel) onCancel();
+            document.body.removeChild(overlay);
+        };
     },
 
     orderForm(options = {}) {
@@ -90,9 +135,20 @@ const AppState = {
             const result = await routeAction('GOS_CORE', 'getSystemConfig');
             if (result.status === 'success') {
                 this.config = result.data;
+                this.loadMapsScript();
             }
         } catch (error) {
             console.error("Error cargando configuración:", error);
+        }
+    },
+
+    loadMapsScript() {
+        if (this.config?.Sistema?.GoogleMapsAPIKey && !window.google) {
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${this.config.Sistema.GoogleMapsAPIKey}&callback=initMap`;
+            script.async = true;
+            script.defer = true;
+            document.head.appendChild(script);
         }
     }
 };
@@ -100,6 +156,8 @@ const AppState = {
 async function init() {
     window.loadSection = loadSection;
     window.markStatus = markStatus;
+    window.initMap = initMap;
+    window.UI_TEMPLATES = UI_TEMPLATES; // Exponer para utilidades globales
 
     setupAuthListeners();
     setupNavigationListeners();
@@ -140,9 +198,9 @@ async function checkArrivalStatus(lat, lng) {
         lng
     });
 
-    // Lógica de proximidad (Radio 200m aprox o configurable)
+    // Lógica de proximidad: Solo procesar si hay una orden activa en estado 'En camino'
     const activeOrder = AppState.activeOrder;
-    if (activeOrder && activeOrder.coordenadas) {
+    if (activeOrder && activeOrder.estado === 'En Camino' && activeOrder.coordenadas) {
         const [targetLat, targetLng] = activeOrder.coordenadas.split(',').map(Number);
         const distance = calculateDistance(lat, lng, targetLat, targetLng);
 
@@ -265,50 +323,83 @@ async function renderReportsModule(container) {
                 ${reportOptions.map(opt => `<option value="${opt.toLowerCase()}">${opt.charAt(0).toUpperCase() + opt.slice(1)}</option>`).join('')}
             </select>
             <button id="generate-report-btn" class="btn btn-primary">Generar Reporte</button>
+            <button id="export-report-btn" class="btn btn-secondary" style="display:none;">Exportar CSV</button>
         </div>
         <div id="report-results" style="margin-top:20px;">
             <p>Seleccione el tipo de reporte y presione generar.</p>
         </div>
     `;
 
+    const exportBtn = document.getElementById('export-report-btn');
+    let currentReportData = null;
+
     document.getElementById('generate-report-btn').addEventListener('click', async () => {
         const type = document.getElementById('report-type').value;
         const resultsDiv = document.getElementById('report-results');
         resultsDiv.innerHTML = '<p>Procesando datos...</p>';
+        exportBtn.style.display = 'none';
 
         try {
             const result = await routeAction('GOS_CORE', 'generateReport', { type });
             if (result.status === 'success') {
+                currentReportData = result.reportData;
                 const data = result.reportData;
                 if (data.length <= 1) {
                     resultsDiv.innerHTML = '<p>No hay datos para este período.</p>';
                     return;
                 }
 
+                exportBtn.style.display = 'inline-block';
                 const headers = data[0];
-                const rows = data.slice(1).map(row => {
-                    // Mapeo dinámico basado en nombres de columnas para reporte resumido
-                    const getVal = (name) => {
-                        const idx = headers.indexOf(name);
-                        return idx !== -1 ? row[idx] : 'N/A';
-                    };
 
+                // Helper para mapeo dinámico basado en nombres de columnas
+                const getVal = (row, name) => {
+                    const idx = headers.indexOf(name);
+                    return idx !== -1 ? row[idx] : 'N/A';
+                };
+
+                const rows = data.slice(1).map(row => {
                     return `
-                        <td>${getVal('Fecha')}</td>
-                        <td>${getVal('Cliente')}</td>
-                        <td>${getVal('Técnico Asignado')}</td>
-                        <td>${UI_TEMPLATES.badge(getVal('Estado'))}</td>
+                        <td>${getVal(row, 'Fecha')}</td>
+                        <td>${getVal(row, 'Cliente')}</td>
+                        <td>${getVal(row, 'Técnico Asignado')}</td>
+                        <td>${UI_TEMPLATES.badge(getVal(row, 'Estado'))}</td>
                     `;
                 });
 
+                // Generar Estadísticas para Gráfico (Ej: Órdenes por técnico)
+                const stats = {};
+                data.slice(1).forEach(row => {
+                    const tech = getVal(row, 'Técnico Asignado');
+                    stats[tech] = (stats[tech] || 0) + 1;
+                });
+                const chartData = Object.entries(stats).map(([label, value]) => ({ label, value }));
+
                 resultsDiv.innerHTML = `
                     <h3>Reporte ${type.charAt(0).toUpperCase() + type.slice(1)}</h3>
+                    <div style="margin-bottom:30px;">
+                        <h4>Distribución por Técnico</h4>
+                        ${UI_TEMPLATES.chart(chartData)}
+                    </div>
                     ${UI_TEMPLATES.table(['Fecha', 'Cliente', 'Técnico', 'Estado'], rows)}
                 `;
             }
         } catch (error) {
             resultsDiv.innerHTML = `<p style="color:var(--danger);">Error: ${error.message}</p>`;
         }
+    });
+
+    exportBtn.addEventListener('click', () => {
+        if (!currentReportData) return;
+        const csvContent = "data:text/csv;charset=utf-8,"
+            + currentReportData.map(e => e.join(",")).join("\n");
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `GOS_Reporte_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     });
 }
 
@@ -420,20 +511,26 @@ async function renderTechniciansModule(container) {
                 <p id="active-techs-count">Cargando...</p>
             </div>
         </div>
+        <div id="tech-map" style="height:400px; border-radius:12px; margin-bottom:20px; background:#ddd; display:flex; align-items:center; justify-content:center;">
+            <p>Mapa de Seguimiento en Tiempo Real</p>
+        </div>
         <div id="techs-list" class="techs-table-container"></div>
     `;
-    // Lógica adicional para listar técnicos y su última ubicación
+
     try {
         const result = await routeAction('GOS_CORE', 'getTechnicians');
         if (result.status === 'success') {
             document.getElementById('active-techs-count').textContent = result.data.length;
             const list = document.getElementById('techs-list');
-            let html = `<table class="gos-table"><thead><tr><th>Técnico</th><th>Última Ubicación</th></tr></thead><tbody>`;
+            let html = `<table class="gos-table"><thead><tr><th>Técnico</th><th>Última Ubicación</th><th>Última Act.</th></tr></thead><tbody>`;
             result.data.forEach(t => {
-                html += `<tr><td>${t.nombre}</td><td>${t.lat || 'N/A'}, ${t.lng || 'N/A'}</td></tr>`;
+                html += `<tr><td>${t.nombre}</td><td>${t.lat || 'N/A'}, ${t.lng || 'N/A'}</td><td>${t.ultimaact || 'Nunca'}</td></tr>`;
             });
             html += `</tbody></table>`;
             list.innerHTML = html;
+
+            // Actualizar Mapa
+            updateMap(result.data);
         }
     } catch (error) {
         console.error("Error techs:", error);
@@ -514,15 +611,16 @@ async function renderOrdersModule(container) {
                         <tbody>
                 `;
                 result.data.forEach(order => {
+                    const status = order.estado || 'Pendiente';
                     tableHtml += `
-                        <tr>
+                        <tr data-id="${order.id}" data-coords="${order.coordenadas || ''}">
                             <td>${order.fecha}</td>
                             <td>${order.cliente}</td>
                             <td>${order.marca} ${order.modelo}</td>
-                            <td><span class="badge badge-${order.estado.toLowerCase().replace(/\s+/g, '')}">${order.estado}</span></td>
+                            <td>${UI_TEMPLATES.badge(status)}</td>
                             <td>
-                                <button class="btn btn-sm btn-secondary" onclick="markStatus(${order.id}, 'En camino')">En camino</button>
-                                <button class="btn btn-sm btn-primary" onclick="markStatus(${order.id}, 'Finalizada')">Finalizar</button>
+                                ${status === 'Asignada' ? `<button class="btn btn-sm btn-secondary" onclick="markStatus('${order.id}', 'En Camino')">En camino</button>` : ''}
+                                ${['En Camino', 'Llegó', 'Vehículo recibido'].includes(status) ? `<button class="btn btn-sm btn-primary" onclick="markStatus('${order.id}', 'Finalizada')">Finalizar</button>` : ''}
                             </td>
                         </tr>
                     `;
@@ -569,10 +667,35 @@ function renderOrderForm(container) {
                     coordinates: payload.coordenadas
                 });
 
-                if (assignResult.status === 'success') {
-                    alert(`Orden #${orderId} creada y asignada a: ${assignResult.tecnico}. ${assignResult.message}`);
+                if (assignResult.status === 'pending_confirmation') {
+                    UI_TEMPLATES.modal(
+                        'Asignación Requerida',
+                        assignResult.message,
+                        async () => {
+                            // Re-intentar forzando la asignación
+                            const forceResult = await routeAction('GOS_CORE', 'autoAssignTechnical', {
+                                orderId,
+                                coordinates: payload.coordenadas,
+                                force: true
+                            });
+                            if (forceResult.status === 'success') {
+                                notifyChange(`Orden #${orderId} asignada a ${forceResult.tecnico}`);
+                                loadSection('ordenes');
+                            } else {
+                                alert(`Error al forzar asignación: ${forceResult.message}`);
+                            }
+                        },
+                        () => {
+                            notifyChange('Asignación Pendiente de Revisión Manual');
+                            loadSection('ordenes');
+                        }
+                    );
+                } else if (assignResult.status === 'success') {
+                    alert(`Orden #${orderId} creada y asignada a: ${assignResult.tecnico}`);
+                    loadSection('ordenes');
                 } else {
                     alert(`Orden #${orderId} creada pero falló asignación automática: ${assignResult.message}`);
+                    loadSection('ordenes');
                 }
 
                 loadSection('ordenes');
@@ -615,6 +738,43 @@ function showMainView(user) {
     document.getElementById('login-view').style.display = 'none';
     document.getElementById('main-view').style.display = 'block';
     document.getElementById('welcome-msg').textContent = `Hola, ${user.Nombre_Usuario || 'Usuario'}`;
+}
+
+let mapInstance = null;
+let markers = [];
+
+function initMap() {
+    console.log("Google Maps API inicializada");
+}
+
+function updateMap(techs) {
+    const mapEl = document.getElementById('tech-map');
+    if (!mapEl) return;
+
+    if (!mapInstance && window.google) {
+        mapInstance = new google.maps.Map(mapEl, {
+            center: { lat: 9.9333, lng: -84.0833 },
+            zoom: 12
+        });
+    }
+
+    if (mapInstance) {
+        // Limpiar markers previos
+        markers.forEach(m => m.setMap(null));
+        markers = [];
+
+        techs.forEach(t => {
+            if (t.lat && t.lng) {
+                const marker = new google.maps.Marker({
+                    position: { lat: parseFloat(t.lat), lng: parseFloat(t.lng) },
+                    map: mapInstance,
+                    title: t.nombre,
+                    label: t.nombre.charAt(0)
+                });
+                markers.push(marker);
+            }
+        });
+    }
 }
 
 // Registro de Service Worker para PWA

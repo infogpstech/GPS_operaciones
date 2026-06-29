@@ -1,13 +1,13 @@
 // ============================================================================
 // GOS-CORE SERVICE (GPS Operations Suite)
 // ============================================================================
-// Version: 1.1.0
+// Version: 1.1.2
 
 const SPREADSHEET_ID = "1IiXxydi02QnVUVwWsEnC5lpB730mASI-6rTsmuI4XhE";
 
 /**
  * Función FindOrCreateSheet: Busca una hoja por nombre o la crea si no existe.
- * v1.1.0: Ahora inicializa encabezados si la hoja es nueva.
+ * v1.1.2: Ahora inicializa encabezados si la hoja es nueva y normaliza claves.
  */
 function findOrCreateSheet(sheetName, headers = []) {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
@@ -181,7 +181,11 @@ function handleGetOrders() {
   const orders = data.map(row => {
     let obj = {};
     headers.forEach((header, index) => {
-      obj[header.toLowerCase().replace(/\s+/g, '')] = row[index];
+      const key = header.toLowerCase()
+        .replace(/\s+/g, '')
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+      obj[key] = row[index];
     });
     return obj;
   });
@@ -195,6 +199,14 @@ function handleGetOrders() {
  */
 function handleGetSystemConfig() {
   const sheet = findOrCreateSheet("Configuracion", ["Categoría", "Clave", "Valor", "Estado"]);
+
+  // Asegurar parámetros iniciales críticos si la hoja está vacía
+  if (sheet.getLastRow() === 1) {
+    sheet.appendRow(["Sistema", "GoogleMapsAPIKey", "PLACEHOLDER_KEY", "Activo"]);
+    sheet.appendRow(["Sistema", "RootFolderId", "1-8QqhS-wtEFFwyBG8CmnEOp5i8rxSM-2", "Activo"]);
+    sheet.appendRow(["Sistema", "RadioLlegada", "200", "Activo"]);
+  }
+
   const data = sheet.getDataRange().getValues();
   const headerMap = getHeaderMap(sheet);
 
@@ -251,7 +263,7 @@ function handleGetAgendaConfig() {
  * Motor de Asignación Automática
  */
 function handleAutoAssignTechnical(payload) {
-  const { orderId } = payload;
+  const { orderId, force = false } = payload;
   const techSheet = findOrCreateSheet("Tecnicos", ["ID", "Nombre", "Lat", "Lng", "UltimaAct"]);
   const tecnicos = techSheet.getDataRange().getValues();
   if (tecnicos.length <= 1) return { status: 'error', message: 'No hay técnicos registrados' };
@@ -297,6 +309,16 @@ function handleAutoAssignTechnical(payload) {
     if (row[orderHeaderMap["Técnico Asignado"] - 1] === tecnicoAsignado && row[orderEstadoIdx - 1] === "Asignada") jobsCount++;
   });
 
+  // Lógica de confirmación: si tiene trabajos y no es forzado, no asignar aún
+  if (jobsCount > 0 && !force) {
+    return {
+      status: 'pending_confirmation',
+      tecnico: tecnicoAsignado,
+      message: 'El técnico ya tiene un trabajo activo. ¿Desea asignar como segundo trabajo?'
+    };
+  }
+
+  // Si llegamos aquí, procedemos con la asignación física
   configSheet.getRange(lastIndexRow, configValorIdx + 1).setValue(nextIndex);
 
   let orderRow = -1;
@@ -314,8 +336,7 @@ function handleAutoAssignTechnical(payload) {
 
   return {
     status: 'success',
-    tecnico: tecnicoAsignado,
-    requiresConfirmation: jobsCount > 0
+    tecnico: tecnicoAsignado
   };
 }
 
@@ -395,17 +416,11 @@ function handleUpdateStatistics(payload) {
  */
 function handleGetOrCreateOrderFolder(payload) {
   const { orderId, cliente } = payload;
-  const configSheet = findOrCreateSheet("Configuracion");
-  const configData = configSheet.getDataRange().getValues();
-  const headerMap = getHeaderMap(configSheet);
 
-  let rootFolderId = "1-8QqhS-wtEFFwyBG8CmnEOp5i8rxSM-2";
-  for(let i=1; i<configData.length; i++) {
-    if(configData[i][headerMap["Clave"]-1] === "RootFolderId") {
-      rootFolderId = configData[i][headerMap["Valor"]-1];
-      break;
-    }
-  }
+  // Consumir configuración tabular v1.1.0
+  const sysConfig = handleGetSystemConfig().data;
+  const systemParams = sysConfig["Sistema"] || {};
+  const rootFolderId = systemParams["RootFolderId"] || "1-8QqhS-wtEFFwyBG8CmnEOp5i8rxSM-2";
 
   const rootFolder = DriveApp.getFolderById(rootFolderId);
   const folderName = `Orden_${orderId}_${cliente}`;
@@ -489,7 +504,12 @@ function handleGetClients() {
   const clients = data.map(row => {
     let obj = {};
     headers.forEach((header, index) => {
-      obj[header.toLowerCase().replace(/\s+/g, '')] = row[index];
+      // Normalizar claves: minúsculas, sin espacios y sin acentos
+      const key = header.toLowerCase()
+        .replace(/\s+/g, '')
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+      obj[key] = row[index];
     });
     return obj;
   });
@@ -515,7 +535,11 @@ function handleGetTechnicians() {
   const techs = data.map(row => {
     let obj = {};
     headers.forEach((header, index) => {
-      obj[header.toLowerCase().replace(/\s+/g, '')] = row[index];
+      const key = header.toLowerCase()
+        .replace(/\s+/g, '')
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+      obj[key] = row[index];
     });
     return obj;
   });
