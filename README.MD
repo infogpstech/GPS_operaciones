@@ -467,3 +467,674 @@ La carpeta se creará automáticamente cuando sea necesario.
 Objetivo del sistema
 
 El objetivo principal es automatizar la operación diaria de la empresa, reducir tiempos muertos, optimizar la asignación de técnicos, aprovechar la información técnica existente en GPSpedia sin duplicarla y mantener una arquitectura modular, escalable y basada completamente en Google Apps Script, Google Sheets y una PWA.
+
+## GOS v0.4.0 - Instrucciones de Desarrollo y Refactorización
+
+Objetivo
+
+La versión actual del proyecto es funcional como MVP, sin embargo antes de continuar agregando nuevas funcionalidades es necesario realizar una fase completa de refactorización, normalización y preparación de la arquitectura para permitir el crecimiento del proyecto sin generar deuda técnica.
+
+La prioridad NO es agregar nuevas características sino mejorar la arquitectura existente.
+
+---
+
+Restricciones
+
+*NO modificar*
+
+Los siguientes microservicios pertenecen a GPSpedia y únicamente deberán utilizarse para consulta.
+
+AUTH
+CATALOG
+WRITE
+USERS
+FEEDBACK
+
+No modificar su código.
+
+No copiar código.
+
+No mover archivos.
+
+No cambiar sus endpoints.
+
+---
+
+Spreadsheet
+
+Toda la información operativa de GOS deberá almacenarse únicamente en el Spreadsheet propio de GOS.
+
+GPSpedia solamente podrá utilizarse para consultas técnicas.
+
+Nunca deberá escribir datos dentro del Spreadsheet Legacy.
+
+---
+
+Normalización del Spreadsheet
+
+Implementar una función de inicialización que valide la existencia de todas las hojas requeridas.
+
+Si una hoja no existe:
+
+- crearla automáticamente
+- agregar encabezados
+- aplicar formato
+- congelar primera fila
+- activar filtros
+- ajustar ancho de columnas
+
+Nunca crear hojas duplicadas.
+
+Nunca crear hojas con nombres diferentes.
+
+Todas las hojas deberán utilizar nombres en español.
+
+---
+
+Encabezados
+
+Eliminar completamente la dependencia de columnas por posición.
+
+No utilizar:
+
+row[20]
+
+row[19]
+
+row[15]
+
+Toda lectura deberá realizarse utilizando encabezados.
+
+Crear utilidades para obtener índices de columnas automáticamente.
+
+Ejemplo conceptual:
+
+Estado
+
+↓
+
+Buscar índice
+
+↓
+
+Leer columna
+
+La posición física de una columna nunca deberá afectar el funcionamiento del sistema.
+
+---
+
+IDs
+
+Eliminar completamente el cálculo basado en número de filas.
+
+No utilizar:
+
+lastRow
+
+Como generador de IDs.
+
+Implementar un identificador permanente.
+
+Ejemplo
+
+OT-2026-000001
+
+o un UUID.
+
+Los IDs nunca deberán repetirse aunque existan eliminaciones o archivados.
+
+---
+
+Configuración
+
+Rediseñar completamente la hoja Configuración.
+
+Eliminar estructuras del tipo:
+
+Turnos -> 08:00,10:00,13:00
+
+CantidadTecnicos -> 4
+
+Implementar una estructura tabular.
+
+Ejemplo
+
+Categoría| Clave| Valor| Estado
+Agenda| HoraTurno1| 08:00| Activo
+Agenda| HoraTurno2| 10:00| Activo
+Agenda| HoraTurno3| 13:00| Activo
+Agenda| HoraTurno4| 15:00| Activo
+Agenda| CantidadTecnicos| 4| Activo
+Sistema| RadioLlegada| 200| Activo
+Sistema| TiempoConfirmacion| 60| Activo
+
+Toda la aplicación deberá leer estos valores dinámicamente.
+
+No deberán existir constantes de configuración escritas dentro del código.
+
+---
+
+Catálogos
+
+Crear hojas independientes para:
+
+- Roles
+- Estados
+- Prioridades
+- TiposTrabajo
+- Servicios
+- Turnos
+- Permisos
+
+Todos los formularios deberán construir sus listas desde estas hojas.
+
+Nunca escribir listas manualmente dentro del JavaScript.
+
+---
+
+Formularios
+
+Eliminar formularios estáticos.
+
+Todos los Select deberán construirse dinámicamente utilizando información del Spreadsheet.
+
+Ejemplos:
+
+Tipo de trabajo
+
+↓
+
+leer hoja TiposTrabajo
+
+↓
+
+generar opciones
+
+Lo mismo aplica para:
+
+- Técnicos
+- Prioridades
+- Servicios
+- Estados
+- Roles
+
+---
+
+Arquitectura Frontend
+
+Refactorizar completamente main.js.
+
+Actualmente concentra:
+
+- navegación
+- renderizado
+- lógica
+- estado
+- eventos
+- llamadas API
+
+Separar responsabilidades.
+
+Propuesta:
+
+controllers/
+
+views/
+
+services/
+
+state/
+
+utils/
+
+main.js deberá actuar únicamente como inicializador y router.
+
+---
+
+Estado Global
+
+Eliminar el uso excesivo de variables globales.
+
+Evitar:
+
+window.activeOrder
+
+window.loadSection
+
+window.markStatus
+
+Crear un manejador de estado.
+
+Ejemplo
+
+AppState
+
+Que centralice:
+
+- usuario
+- sesión
+- orden activa
+- configuración
+- sección actual
+
+---
+
+HTML
+
+Reducir el uso de grandes bloques HTML dentro de JavaScript.
+
+Mover vistas reutilizables a archivos independientes cuando sea posible.
+
+El objetivo es reducir considerablemente el tamaño de main.js.
+
+---
+
+Agenda
+
+Mejorar la representación visual.
+
+Agregar:
+
+- técnico asignado
+- color por estado
+- prioridad
+- duración estimada
+
+Preparar la estructura para una futura vista tipo Kanban.
+
+---
+
+Órdenes
+
+Agregar acciones futuras para:
+
+- editar
+- cancelar
+- duplicar
+- abrir Google Maps
+- abrir carpeta Drive
+- abrir consulta GPSpedia
+- historial
+
+No es obligatorio implementarlas completamente en esta versión, pero sí preparar la arquitectura.
+
+---
+
+Consulta Técnica
+
+Eliminar cualquier simulación.
+
+Consumir exclusivamente el microservicio CATALOG.
+
+La respuesta deberá limitarse únicamente a:
+
+Sí
+
+No
+
+Nunca mostrar detalles técnicos internos del catálogo.
+
+---
+
+Reportes
+
+Preparar la estructura para:
+
+- indicadores
+- estadísticas
+- exportación PDF
+- exportación Excel
+
+La implementación podrá realizarse en versiones posteriores.
+
+---
+
+Técnicos
+
+Expandir el módulo para mostrar:
+
+- estado
+- última ubicación
+- disponibilidad
+- tiempo promedio
+- trabajos realizados
+- último trabajo
+
+---
+
+Clientes
+
+Expandir estructura para soportar:
+
+- empresa
+- correo
+- RTN
+- observaciones
+- historial
+- vehículos asociados
+
+---
+
+Geolocalización
+
+Eliminar valores fijos.
+
+El radio de llegada deberá obtenerse desde Configuración.
+
+Toda configuración relacionada con GPS deberá ser editable sin modificar código.
+
+---
+
+Estadísticas
+
+La lógica incremental implementada actualmente deberá mantenerse.
+
+No recalcular toda la base de datos.
+
+Actualizar únicamente los registros afectados por cada trabajo finalizado.
+
+---
+
+Aprendizaje
+
+Preparar la arquitectura para utilizar estadísticas acumuladas.
+
+No implementar inteligencia artificial.
+
+La información deberá aprender mediante:
+
+- promedios
+- cantidad de registros
+- tiempos promedio
+- zonas
+- técnicos
+- servicios
+- modelos
+
+---
+
+Drive
+
+Mejorar la organización de carpetas.
+
+Propuesta:
+
+Año
+
+↓
+
+Mes
+
+↓
+
+Orden
+
+↓
+
+Fotos
+
+↓
+
+PDF
+
+↓
+
+Documentos
+
+---
+
+Auditoría
+
+Crear una hoja Auditoría.
+
+Registrar:
+
+- usuario
+- acción
+- fecha
+- módulo
+- resultado
+
+---
+
+Logs
+
+Crear una hoja Logs.
+
+Registrar:
+
+- errores
+- advertencias
+- excepciones
+
+Sin detener la operación del sistema.
+
+---
+
+Objetivo de esta versión
+
+Esta versión debe dejar preparada la arquitectura para el desarrollo de GOS v1.0.
+
+No se busca añadir la mayor cantidad posible de funciones.
+
+Se busca obtener un sistema:
+
+- modular
+- desacoplado
+- escalable
+- mantenible
+- completamente configurable desde Spreadsheet
+- independiente de GPSpedia para almacenamiento
+- preparado para futuras expansiones sin refactorizaciones mayores.
+
+---
+
+[v0.4.2] - 2025-05-24
+
+Mejoras de Arquitectura, Mantenibilidad y Preparación para Producción
+
+Arquitectura General
+
+- Separada la documentación del proyecto en cambios implementados, hoja de ruta, arquitectura y tareas pendientes para mejorar la mantenibilidad.
+- Incorporada la sección Breaking Changes para documentar modificaciones incompatibles entre versiones.
+- Incorporada la sección Migraciones Requeridas para controlar cambios en la estructura del Spreadsheet.
+- Añadida la sección Estado del Proyecto para visualizar el avance por módulos.
+- Añadida la sección Próxima Versión para enlazar el roadmap con el historial de cambios.
+
+---
+
+Backend ("services/gos/gos-core.js")
+
+Normalización
+
+- Refactorizada la lectura de hojas para eliminar completamente las dependencias de índices de columna fijos.
+- Preparada la infraestructura para utilizar únicamente encabezados como referencia de lectura y escritura.
+- Planificada la normalización automática de encabezados durante la inicialización del sistema.
+
+Configuración
+
+- Preparado el backend para soportar una configuración completamente dinámica mediante tablas normalizadas.
+- Eliminados valores de configuración codificados directamente dentro del código cuando sea posible.
+- Centralizada la lectura de parámetros globales desde la hoja Configuración.
+
+Identificadores
+
+- Preparado el sistema para utilizar identificadores permanentes independientes del número de filas del Spreadsheet.
+- Eliminada la dependencia de "lastRow" como mecanismo principal de generación de identificadores.
+
+Auditoría
+
+- Preparada la infraestructura para registrar eventos del sistema en una hoja Auditoría.
+- Preparada una hoja Logs destinada al almacenamiento de errores y excepciones del backend.
+
+---
+
+Frontend ("main.js")
+
+Organización
+
+- Definida la separación futura entre Router, Controllers, Views, Services, State y Utils.
+- Reducida la responsabilidad de "main.js" para convertirlo progresivamente en el punto de inicialización de la aplicación.
+
+Estado Global
+
+- Consolidada la utilización de "AppState" como fuente única de estado de la aplicación.
+- Planificada la eliminación progresiva de variables globales almacenadas en "window".
+
+Formularios
+
+- Preparados los formularios para obtener dinámicamente sus listas desde el Spreadsheet.
+- Eliminada progresivamente la dependencia de listas escritas manualmente en el código JavaScript.
+
+Componentes
+
+- Preparada la migración de grandes bloques HTML hacia componentes reutilizables.
+- Definida la estructura para desacoplar la interfaz de usuario de la lógica de negocio.
+
+---
+
+Agenda
+
+- Preparada la agenda para soportar colores por estado.
+- Preparada la visualización del técnico asignado por turno.
+- Preparada la incorporación de prioridades visuales.
+- Definida la estructura para una futura vista tipo Kanban.
+
+---
+
+Órdenes de Trabajo
+
+- Preparada la arquitectura para soportar edición de órdenes.
+- Preparada la arquitectura para duplicar órdenes.
+- Preparada la arquitectura para cancelación controlada.
+- Preparada la integración con Google Maps desde cada orden.
+- Preparada la integración con la carpeta correspondiente en Google Drive.
+- Preparada la visualización del historial de cada orden.
+
+---
+
+Consulta Técnica
+
+- Definida la migración definitiva hacia consultas reales utilizando únicamente el microservicio CATALOG.
+- Eliminadas las dependencias futuras de respuestas simuladas.
+- Estandarizada la respuesta simplificada de capacidades mediante valores Sí / No.
+
+---
+
+Reportes
+
+- Preparada la infraestructura para indicadores operativos.
+- Preparada la exportación futura a PDF.
+- Preparada la exportación futura a Excel.
+- Definida la incorporación de gráficas estadísticas en versiones posteriores.
+
+---
+
+Técnicos
+
+- Preparada la visualización de disponibilidad.
+- Preparada la visualización del estado operativo.
+- Preparada la visualización del tiempo promedio por instalación.
+- Preparada la visualización del último trabajo realizado.
+- Preparada la visualización del historial operativo.
+
+---
+
+Clientes
+
+- Ampliada la estructura prevista para soportar:
+  - Empresa.
+  - Correo electrónico.
+  - RTN.
+  - Observaciones.
+  - Historial de servicios.
+  - Vehículos asociados.
+
+---
+
+Geolocalización
+
+- Preparada la lectura dinámica del radio de llegada desde la configuración del sistema.
+- Eliminada progresivamente la dependencia de valores fijos dentro del código.
+
+---
+
+Estadísticas
+
+- Consolidado el modelo de actualización incremental de estadísticas.
+- Confirmado el uso de promedios acumulativos para evitar el procesamiento completo del historial.
+- Preparada la infraestructura para futuras métricas predictivas basadas en históricos.
+
+---
+
+Google Drive
+
+- Definida una estructura jerárquica para el almacenamiento documental:
+
+Año
+ └── Mes
+      └── Orden
+            ├── Fotografías
+            ├── PDF
+            ├── Documentación
+            └── Evidencias
+
+---
+
+Breaking Changes
+
+- Eliminada la dependencia futura de índices de columnas.
+- Eliminado el uso de identificadores generados por número de fila.
+- La configuración del sistema migrará completamente a una estructura tabular.
+- Los formularios dejarán de utilizar listas codificadas manualmente.
+
+---
+
+Migraciones Requeridas
+
+- Crear las hojas:
+
+  - Roles
+  - Estados
+  - Prioridades
+  - TiposTrabajo
+  - Servicios
+  - Turnos
+  - Permisos
+  - Auditoría
+  - Logs
+
+- Convertir la hoja Configuración al nuevo formato tabular.
+
+- Ejecutar la inicialización automática del sistema para crear encabezados y filtros.
+
+---
+
+Estado del Proyecto
+
+Módulo| Avance
+Backend| 95%
+Frontend| 85%
+Arquitectura| 90%
+PWA| 75%
+Agenda Inteligente| 65%
+Motor de Asignación| 70%
+Estadísticas| 90%
+Reportes| 70%
+UI/UX| 55%
+Login por Roles| 30%
+
+---
+
+Próxima Versión (v0.5.0)
+
+- Sistema completo de autenticación por roles.
+- Panel inicial dinámico según permisos del usuario.
+- Nueva identidad visual de GOS.
+- Nuevo Service Worker optimizado.
+- Nueva versión móvil de la PWA.
+- Motor inteligente de asignación basado en distancia, carga de trabajo y tiempos históricos.
+- Dashboard ejecutivo con indicadores en tiempo real.
+- Integración completa con Google Maps.
+- Optimización del sistema de aprendizaje utilizando estadísticas históricas acumuladas.
+- Desacoplamiento definitivo entre GOS y GPSpedia, utilizando GPSpedia exclusivamente como servicio de consulta técnica.

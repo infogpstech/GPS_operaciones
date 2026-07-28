@@ -1,4 +1,4 @@
-// GPSpedia Unified API Module | Version: 2.0.0
+// GPSpedia Unified API Module | Version: 2.0
 // ============================================================================
 // ÚNICA FUENTE DE VERDAD PARA LA CONFIGURACIÓN Y LÓGICA DE LA API
 // ============================================================================
@@ -9,7 +9,7 @@ export const API_ENDPOINTS = {
     AUTH:     "https://script.google.com/macros/s/AKfycbwATstMSSnuYZMeGEjI7Q5cznO6kA8rqLo7zNZLmu_f29qwcyt4Fucn5VIBdB9tMoRg/exec",
     CATALOG:  "https://script.google.com/macros/s/AKfycbxenVjZe9C8-0RiYKLxpGfQtobRzydBke44IM4NdNNjh5VRdlB91Ce9dWvQ2xnDFXk0/exec",
     WRITE:    "https://script.google.com/macros/s/AKfycbyzP3RwEAqxJN8xzrqxjlsChx4xDgRuvpW-ygWM9teMHM0hWl0DDx91gR3TTR832BWakQ/exec",
-    USERS:    "https://script.google.com/macros/s/AKfycbwMOfQDAykWJ-m7wOIuxINeqxd88mieYeK6D6YoWFMGfK1j4XMsM7PWiOXBYi8D-N4T2w/exec",
+    USERS:    "https://script.google.com/macros/s/AKfycbxAqyEcAHetH6yN4qccGILL-L3IzMSPVuVJ1kpuO86GqfDXTKP8cHrrB7UkKN1r_0g5/exec",
     FEEDBACK: "https://script.google.com/macros/s/AKfycbwHTr8MSFuNio8rky8tflcErlRlAb1YSH2jmszZp77SM5e_-SVMO2pBU1UmeGOH1Aig/exec",
     UTILITIES: "https://script.google.com/macros/s/AKfycbzkGXk_kSm3rN7K5PM0RntiPAn7DlH78RkH66a2vuwZwU8KgwDufkOiPjXoUKzuHAgG/exec"
 };
@@ -18,7 +18,7 @@ export const ACTION_TO_SERVICE_MAP = {
     'login': 'AUTH', 'validateSession': 'AUTH',
     'getNavigationData': 'CATALOG', 'getCatalogData': 'CATALOG', 'getDropdownData': 'CATALOG',
     'getSuggestion': 'WRITE', 'checkVehicle': 'WRITE', 'addCorte': 'WRITE', 'addOrUpdateCut': 'WRITE', 'addSupplementaryInfo': 'WRITE',
-    'getUsers': 'USERS', 'createUser': 'USERS', 'updateUser': 'USERS', 'deleteUser': 'USERS', 'changePassword': 'USERS',
+    'getUsers': 'USERS', 'createUser': 'USERS', 'updateUser': 'USERS', 'deleteUser': 'USERS', 'changePassword': 'USERS', 'updateProfile': 'USERS',
     'recordLike': 'FEEDBACK', 'reportProblem': 'FEEDBACK', 'sendContactForm': 'FEEDBACK', 'suggestYear': 'FEEDBACK',
     'getFeedbackItems': 'FEEDBACK', 'replyToFeedback': 'FEEDBACK', 'markAsResolved': 'FEEDBACK', 'getActivityLogs': 'FEEDBACK',
     'migrateYearRanges': 'UTILITIES', 'migrateTimestamps': 'UTILITIES',
@@ -37,13 +37,19 @@ export async function routeAction(action, payload = {}, serviceOverride = null) 
         const response = await fetch(targetUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({ action, payload })
+            body: JSON.stringify({ action, payload }),
+            redirect: 'follow'
         });
 
         if (!response.ok) throw new Error(`Error de red: ${response.status} ${response.statusText}`);
 
         const text = await response.text();
-        const result = JSON.parse(text);
+        let result;
+        try {
+            result = JSON.parse(text);
+        } catch (e) {
+            throw new Error("La respuesta del servidor no tiene un formato válido.");
+        }
 
         if (result.status === 'error') {
             const errorMessage = result.details ? `${result.message}: ${result.details.errorMessage}` : result.message;
@@ -84,12 +90,12 @@ export async function getActivityLogs() {
     return await routeAction('getActivityLogs');
 }
 
-export async function recordLike(vehicleId, corteIndex) {
-    return await routeAction('recordLike', { vehicleId, corteIndex });
+export async function recordLike(vehicleId, corteIndex, userId, userName) {
+    return await routeAction('recordLike', { vehicleId, corteIndex, userId, userName });
 }
 
-export async function reportProblem(vehicleId, problemDescription) {
-    return await routeAction('reportProblem', { vehicleId, problem: problemDescription });
+export async function reportProblem(vehicleId, problemDescription, userId, userName) {
+    return await routeAction('reportProblem', { vehicleId, problemText: problemDescription, userId, userName });
 }
 
 export async function sendContactForm(formData) {

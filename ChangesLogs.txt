@@ -1,0 +1,106 @@
+# ChangesLogs - GPS Operations Suite (GOS)
+
+## [v0.1.0] - 2025-05-24
+### Inicialización y Migración
+- Migración de archivos de GPSpedia v2.0 a `legacy/gpspedia/`.
+- Preparación de la estructura raíz para GOS.
+- Implementada estructura base de GOS en `index.html`.
+- Implementada lógica de ruteo y navegación básica en `main.js`.
+- Configurada `api-config.js` para consumir microservicios legacy.
+- Implementado núcleo de GOS Core en `services/gos/gos-core.js`.
+- Implementada gestión de Órdenes y Agenda.
+- Integrada geolocalización en tiempo real.
+- Estructurada integración con Drive y sistema de estadísticas.
+- Implementada configuración dinámica de Agenda desde Spreadsheet.
+- Desarrollado Motor de Asignación Avanzado con detección de segundos trabajos.
+- Implementada lógica de proximidad para detección automática de llegada.
+- Creado sistema de notificaciones base en el backend.
+- Configurada PWA funcional (manifest.json y service-worker.js).
+- Refinada UI de Órdenes con tablas dinámicas y estados visuales.
+- Implementado módulo de Consulta Técnica simplificada (GOS <-> GPSpedia).
+- Implementado Directorio de Clientes y Panel de Técnicos con seguimiento.
+- Actualizada versión visible de la aplicación a v0.3.0.
+- Implementado renderizado dinámico de la Agenda con vinculación de órdenes.
+- Desarrollado CRUD de Clientes con formularios de registro.
+- Implementado sistema de notificaciones visuales (Toasts) y persistencia en backend.
+- Corregido error de sintaxis en `gos-core.js` (declaración duplicada de `ordersSheet`).
+- Refinada UI global con layouts sticky y componentes de alta densidad.
+
+## [v0.3.1] - 2025-05-24
+### Despliegue y Verificación de Microservicio
+- Implementada función `doGet` en `services/gos/gos-core.js` (Línea 400) para permitir verificación de despliegue mediante navegador.
+- Actualizado endpoint `GOS_CORE` en `api-config.js` (Línea 7) con el URL de despliegue final.
+
+## [v0.3.2] - 2025-05-24
+### Auditoría Integral y Sincronización
+- Actualizado endpoint `GOS_CORE` en `api-config.js` con el nuevo URL de producción.
+- Realizada Auditoría Integral de todas las fases (Fase 1-3).
+- Documentada hoja de ruta para GOS v0.4.0 en `Instrucciones.txt`.
+- Incrementada versión global a v0.3.2.
+
+## [v0.3.3] - 2025-05-24
+### Refinamiento Operativo y Reportes
+- Implementada UI de Reportes (Diario, Semanal, Mensual) en `main.js`.
+- Expandido formulario de "Nueva Orden" con todos los campos requeridos por el README.
+- Implementada lógica de filtrado temporal para reportes en el backend (`gos-core.js`).
+- Automatizada la asignación de técnicos inmediatamente después de la creación de una orden.
+
+## [v0.3.4] - 2025-05-24
+### Auditoría de Arquitectura y Roadmap v0.4.0
+- Realizada auditoría línea por línea de `main.js` identificando áreas de refactorización arquitectónica (Líneas 100-600).
+- Realizada auditoría de `services/gos/gos-core.js` identificando dependencias de columnas posicionales (Líneas 30, 65, 155, 169).
+- Documentados hallazgos técnicos en `Auditoria.txt`.
+- Refinados objetivos del Roadmap v0.4.0 en `Instrucciones.txt`.
+
+## [v0.4.0] - 2025-05-24
+### Normalización Estructural y Refactorización Arquitectónica
+- **Backend (`services/gos/gos-core.js`):**
+  - Implementada utilidad `getHeaderMap` para eliminar dependencias de índices de columna fijos (Línea 33).
+  - Refactorizadas todas las funciones CRUD y operativas para usar mapeo de encabezados dinámico.
+  - Implementado sistema de IDs persistentes `getNextId` basado en contador en la hoja de configuración (Línea 51).
+  - Rediseñada la gestión de configuración `handleGetSystemConfig` para soportar estructura tabular por categorías (Línea 218).
+  - Mejorada la función `findOrCreateSheet` con inicialización de encabezados y formato automático (Línea 12).
+- **Frontend (`main.js`):**
+  - Implementado objeto `AppState` para gestión centralizada de estado, sesión y configuración global (Línea 75).
+  - Implementado motor de plantillas `UI_TEMPLATES` para desacoplar el HTML de la lógica de renderizado (Línea 7).
+  - Refactorizados formularios (Órdenes, Reportes) para poblar elementos `<select>` dinámicamente desde la configuración del backend (Línea 560).
+  - Migrada la lógica de geolocalización y cambio de estado para consumir el estado global unificado.
+- **Limpieza y Estabilización:**
+  - Eliminados archivos de respaldo `.bak` y scripts temporales de verificación.
+  - Verificada la integridad del sistema mediante simulaciones en Playwright.
+
+## [v0.4.1.1] - 2025-05-24
+### Mejoras Funcionales y Expansión de Módulos (Roadmap v0.4.0)
+- **Reportes Avanzados (main.js, style.css):**
+  - Implementada visualización gráfica mediante barras CSS en el módulo de Reportes (Línea 640).
+  - Añadida funcionalidad de exportación a CSV para reportes operativos (Línea 675).
+- **Asignación e Interactividad (main.js):**
+  - Implementado modal interactivo de confirmación para asignación de segundos trabajos (Línea 405).
+  - Refinada la lógica de detección de llegada: ahora solo se activa si la orden está en estado "En Camino" (Línea 515).
+- **Integración de Mapas y Drive (index.html, main.js, gos-core.js):**
+  - Integrado script de Google Maps API (placeholder) y lógica de seguimiento de técnicos en tiempo real (Línea 700).
+  - Parametrizada la raíz de Google Drive en el backend, consumiendo 'rootFolderId' desde la configuración tabular (Línea 150).
+- **Estabilización de Verificación:**
+  - Expuesto el motor de plantillas `UI_TEMPLATES` al objeto global `window` para facilitar pruebas automatizadas (Línea 30).
+  - Actualizada la versión visible de la aplicación a v0.4.1 en index.html y metadatos.
+
+## [v0.4.1.2] - 2025-05-24
+### Correcciones Críticas y Normalización de Datos
+- **Backend (gos-core.js):**
+  - Implementada normalización de claves Unicode (NFD) para eliminar acentos y caracteres especiales en las respuestas JSON (Línea 505).
+  - Asegurada la consistencia de nombres de propiedades entre backend y frontend.
+- **Frontend (main.js):**
+  - Eliminado script de Google Maps hardcodeado en index.html a favor de la carga dinámica (Línea 145).
+
+## [v0.4.2] - 2025-05-24
+### Mejoras de Arquitectura y Preparación para Producción
+- **Backend (gos-core.js):**
+  - Implementada función `initializeSystem` para creación automática de catálogos y hojas de auditoría (Línea 35).
+  - Refactorizada la normalización de claves Unicode (NFD) para asegurar consistencia en todo el sistema (Línea 185, 510, 540).
+  - Implementado sistema de logs centralizado `logToSheet` para Auditoría y Logs de errores (Línea 455).
+  - Rediseñada la jerarquía de Drive: Año > Mes > Orden > [Sub-carpetas] (Línea 485).
+- **Frontend (main.js):**
+  - Expandido el formulario de Clientes con campos RTN, Correo, Empresa y Observaciones (Línea 490).
+  - Implementada visualización de colores por estado en la Agenda sincronizada con la configuración (Línea 585).
+  - Añadidas acciones de integración directa con Drive y Google Maps desde la tabla de órdenes (Línea 645, 785).
+  - Sincronizada la versión global a v0.4.2 en index.html y metadatos.
