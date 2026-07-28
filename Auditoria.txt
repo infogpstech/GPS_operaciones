@@ -29,7 +29,7 @@ ARCHIVO: index.html
 - Versión: Visible v0.3.1.
 
 HALLAZGOS Y TAREAS PENDIENTES:
-1. UI DE REPORTES: Falta implementación de filtros y visualización gráfica (Gráficos de barras/pasteles). El enlace en el navbar y la lógica de navegación están ausentes.
+1. UI DE REPORTES: Falta implementación de filtros y visualización gráfica (Gráficos de barras/pasteles). El enlace en el navbar and la lógica de navegación están ausentes.
 2. UI DE ASIGNACIÓN: La confirmación de segundo trabajo para técnicos requiere un modal de interacción. No se dispara la auto-asignación tras crear una orden.
 3. MAPAS: Falta integración de API de Maps para ver técnicos en tiempo real (actualmente solo texto).
 4. NOTIFICACIONES PUSH: El sistema usa Toasts y logs en backend, pero falta integración con Web Push API para alertas en segundo plano.
@@ -180,3 +180,18 @@ ESTADO: PENDIENTE REVISION POR EL MP
 - [PENDIENTE REVISIÓN POR EL MP] Frontend: Implementada window.bookSlot para reservar cupos directamente desde espacios disponibles en la agenda en main.js (Líneas 805-824).
 - [PENDIENTE REVISIÓN POR EL MP] Frontend: Creado el validador dinámico updateSlots que implementa horas normales, extraordinarias, limitación de reservas y expiración temporal de 15 minutos en main.js (Líneas 877-1011).
 - [PENDIENTE REVISIÓN POR EL MP] Frontend: Agregados estilos CSS responsivos para el grid de 8 columnas de la agenda semanal y las tarjetas de cupos en style.css (Líneas 87-250).
+
+==============================================
+AUDITORÍA INICIAL - v0.5.2 (Refinamiento Dashboard y Flujo de Trabajo)
+FECHA: 2025-05-24
+
+ESTADO: POR IMPLEMENTAR
+- [PENDIENTE] CSS UI Compacta: Reducir font-size en aproximadamente 1pt y reducir paddings en style.css.
+- [PENDIENTE] Frontend Roles & Filtros: Filtrar órdenes de técnicos en main.js por sector, ocultar agenda a técnicos.
+- [PENDIENTE] Frontend Asistentes de Ventas: Permitir visualización de agendas de otras divisiones por pestañas sin alterar su división principal.
+- [PENDIENTE] Agenda Inteligente: Ocultar columna del domingo y horarios extraordinarios por defecto (sábados > 12pm, domingos, fuera de horario regular) a menos que haya citas.
+- [PENDIENTE] Capacidad Operativa: Implementar límites de cupos por turno (4 normales, 1 extraordinario bajo prioridad).
+- [PENDIENTE] Duración Estimada por Trabajo: Integrar 120 min para "Instalación nueva". Implementar etapa de diagnóstico para "Revisión por falla" y calcular tiempos (60m Cambio de unidad, 60m Cambio de arnés, 30-40m Reparación de conexión).
+- [PENDIENTE] Control de Retrasos y Reasignación Inteligente: Monitorizar duraciones de trabajos en curso, marcar como "Retrasado" y enviar alerta al exceder el límite. Preguntar sobre asignación posterior y automatizar la reasignación si no puede cumplirla.
+- [PENDIENTE] Flujo de Instalaciones Nuevas: Implementar transiciones de estados (Comenzando el trabajo, Instalando GPS con acceso a números, Pruebas con monitoreo, Terminando la instalación), control de llegada por proximidad y lógica de "Vehículo No Disponible" con tiempos de espera (amarillo suave < 40m, naranja suave > 40m, alertar ventas/jefe).
+- [PENDIENTE] Registro de Estados y Historial: Registrar todas las transiciones con fecha, hora, usuario y observaciones en la hoja Ordenes y Auditoría.

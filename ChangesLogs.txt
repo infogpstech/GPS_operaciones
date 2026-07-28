@@ -158,3 +158,24 @@
   - Incorporadas reglas visuales y de interacción para tarjetas de cupos (`card-confirmed`, `card-draft`, `card-available`, `card-available-partial`) con colores suaves, transparencias y bordes específicos (Líneas 87-250).
 - **Frontend (index.html):**
   - Actualizada la versión visible a v0.5.1 (Línea 56).
+
+## [v0.5.2] - 2025-05-24
+### Refinamiento de Dashboard y Flujo de Trabajo Operativo
+- **Frontend (style.css):**
+  - Reducida la tipografía global en body a 14px (~1pt de reducción) para un diseño compacto y optimizado (Línea 14).
+  - Reducidos los márgenes y paddings excesivos en tablas, botones, formularios y contenedores generales (Líneas 14, 33, 50, 77, 292, 303).
+- **Frontend (main.js):**
+  - Añadidas restricciones de rol para Técnicos: ocultado el botón Agenda del navbar y protegida la navegación directa en `loadSection` redirigiendo al Dashboard (Líneas 317, 1092).
+  - Filtrada la tabla principal en Gestión de Órdenes para Técnicos, mostrando únicamente los trabajos correspondientes a su división (Línea 822).
+  - Implementado visor de agenda por pestañas/tabs para Asistentes de Ventas, permitiendo cambiar de división para consulta sin alterar su división principal (Línea 597).
+  - Implementada visibilidad inteligente en la Agenda semanal: la columna Domingo y slots extraordinarios permanecen ocultos a menos que haya citas programadas o se posea rol de administrador (Línea 597).
+  - Añadida validación de capacidad (4 cupos en turnos regulares, 1 extraordinario bajo prioridad Alta/Máxima) al guardar órdenes (Línea 1085).
+  - Implementada la función helper de duraciones estimadas `calculateEstimatedDuration` para instalaciones y diagnósticos derivados (Línea 1270).
+  - Desarrollada la detección automática de retrasos y reasignación inteligente con prompts de interacción (Línea 1550).
+  - Implementado el flujo operativo del técnico (Moviéndose al lugar, Se recibió el vehículo, Vehículo no disponible con opciones de Alistamiento o Taller y medición visual de tiempos de espera de 40 mins) (Línea 1550).
+- **Backend (services/gos/gos-core.js):**
+  - Modificado `handleUpdateOrderStatus` para admitir `usuario` y `observaciones` y registrar cada transición en `Historial_Estados` (Línea 197).
+  - Implementado `checkAndUpdateJobDelays` para monitorizar la duración de trabajos activos y marcarlos como "Trabajo retrasado" (Línea 1134).
+  - Implementado `handleReassignNextJob` para reasignar automáticamente trabajos posteriores a técnicos libres en caso de retraso prolongado (Línea 1134).
+- **Frontend (index.html):**
+  - Sincronizada la versión visible del sistema a v0.5.2 (Línea 56).
