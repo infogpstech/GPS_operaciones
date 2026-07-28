@@ -76,6 +76,72 @@ function initializeSystem() {
     defaultMappings.forEach(row => userSectoresSheet.appendRow(row));
   }
 
+  // Pre-poblar Tipos de Trabajo si está vacío
+  const tiposTrabajoSheet = findOrCreateSheet("TiposTrabajo", ["ID", "Nombre", "Duración (min)", "Estado"]);
+  if (tiposTrabajoSheet.getLastRow() <= 1) {
+    const defaultTipos = [
+      ["TT001", "Instalación", 90, "Activo"],
+      ["TT002", "Revisión por falla", 60, "Activo"],
+      ["TT003", "Mantenimiento", 15, "Activo"],
+      ["TT004", "Desinstalación", 60, "Activo"],
+      ["TT005", "Reinstalación", 90, "Activo"],
+      ["TT006", "Otros", 30, "Activo"]
+    ];
+    defaultTipos.forEach(row => tiposTrabajoSheet.appendRow(row));
+  }
+
+  // Pre-poblar Estados si está vacío
+  const estadosSheet = findOrCreateSheet("Estados", ["ID", "Nombre", "Color", "Estado"]);
+  if (estadosSheet.getLastRow() <= 1) {
+    const defaultEstados = [
+      ["EST001", "Pendiente", "#6c757d", "Activo"],
+      ["EST002", "Asignada", "#007bff", "Activo"],
+      ["EST003", "En camino", "#ffc107", "Activo"],
+      ["EST004", "Llegó", "#17a2b8", "Activo"],
+      ["EST005", "Vehículo recibido", "#28a745", "Activo"],
+      ["EST006", "Iniciando", "#343a40", "Activo"],
+      ["EST007", "Instalando", "#fd7e14", "Activo"],
+      ["EST008", "Haciendo pruebas", "#e83e8c", "Activo"],
+      ["EST009", "Instalación completada", "#20c997", "Activo"],
+      ["EST010", "Finalizada", "#212529", "Activo"],
+      ["EST011", "Cancelada", "#dc3545", "Activo"]
+    ];
+    defaultEstados.forEach(row => estadosSheet.appendRow(row));
+  }
+
+  // Pre-poblar Prioridades si está vacío
+  const prioridadesSheet = findOrCreateSheet("Prioridades", ["ID", "Nombre", "Color", "Estado"]);
+  if (prioridadesSheet.getLastRow() <= 1) {
+    const defaultPrioridades = [
+      ["PRI001", "Normal", "#28a745", "Activo"],
+      ["PRI002", "Alta", "#fd7e14", "Activo"],
+      ["PRI003", "Máxima", "#dc3545", "Activo"]
+    ];
+    defaultPrioridades.forEach(row => prioridadesSheet.appendRow(row));
+  }
+
+  // Pre-poblar Servicios si está vacío
+  const serviciosSheet = findOrCreateSheet("Servicios", ["ID", "Nombre", "Estado"]);
+  if (serviciosSheet.getLastRow() <= 1) {
+    const defaultServicios = [
+      ["SRV001", "Básico", "Activo"],
+      ["SRV002", "Full", "Activo"]
+    ];
+    defaultServicios.forEach(row => serviciosSheet.appendRow(row));
+  }
+
+  // Pre-poblar Turnos si está vacío
+  const turnosSheet = findOrCreateSheet("Turnos", ["ID", "Hora", "Estado"]);
+  if (turnosSheet.getLastRow() <= 1) {
+    const defaultTurnos = [
+      ["TRN001", "08:00", "Activo"],
+      ["TRN002", "10:00", "Activo"],
+      ["TRN003", "13:00", "Activo"],
+      ["TRN004", "15:00", "Activo"]
+    ];
+    defaultTurnos.forEach(row => turnosSheet.appendRow(row));
+  }
+
   return { status: 'success', message: 'Sistema inicializado correctamente' };
 }
 
@@ -128,10 +194,10 @@ function getNextId(prefix) {
 }
 
 /**
- * Actualiza el estado de la orden
+ * Actualiza el estado de la orden, guardando opcionalmente firma digital e instalación.
  */
 function handleUpdateOrderStatus(payload) {
-  const { orderId, status } = payload;
+  const { orderId, status, firmaDigital, fechaInstalacion } = payload;
   const sheet = findOrCreateSheet("Ordenes");
   const data = sheet.getDataRange().getValues();
   const headerMap = getHeaderMap(sheet);
@@ -149,10 +215,65 @@ function handleUpdateOrderStatus(payload) {
 
   if (orderRow !== -1) {
     sheet.getRange(orderRow, estadoIdx).setValue(status);
+
+    if (firmaDigital) {
+      const firmaIdx = headerMap["Firma Digital"];
+      if (firmaIdx) {
+        sheet.getRange(orderRow, firmaIdx).setValue(firmaDigital);
+      }
+    }
+
+    if (fechaInstalacion) {
+      const fechaInstIdx = headerMap["Fecha Instalacion"];
+      if (fechaInstIdx) {
+        sheet.getRange(orderRow, fechaInstIdx).setValue(fechaInstalacion);
+      }
+    }
+
     return { status: 'success' };
   }
 
   return { status: 'error', message: 'Orden no encontrada' };
+}
+
+/**
+ * Obtiene el historial operativo de un vehículo por número de chasis (VIN).
+ */
+function handleGetVehicleHistory(payload) {
+  const { vin } = payload;
+  if (!vin) return { status: 'error', message: 'Número de chasis (VIN) es requerido' };
+
+  const sheet = findOrCreateSheet("Ordenes");
+  const data = sheet.getDataRange().getValues();
+  const headerMap = getHeaderMap(sheet);
+
+  const vinIdx = headerMap["VIN"] - 1;
+  if (vinIdx < 0) return { status: 'success', history: [] };
+
+  const history = [];
+  for (let i = 1; i < data.length; i++) {
+    const rowVin = data[i][vinIdx] ? data[i][vinIdx].toString().trim() : "";
+    if (rowVin.toLowerCase() === vin.toString().trim().toLowerCase()) {
+      history.push({
+        id: data[i][headerMap["ID"] - 1] || "",
+        fecha: data[i][headerMap["Fecha"] - 1] || "",
+        tipoTrabajo: data[i][headerMap["Tipo Trabajo"] - 1] || "",
+        tecnico: data[i][headerMap["Técnico Asignado"] - 1] || "",
+        lugar: data[i][headerMap["Dirección"] - 1] || "",
+        sector: data[i][headerMap["Sector"] - 1] || "",
+        marca: data[i][headerMap["Marca"] - 1] || "",
+        modelo: data[i][headerMap["Modelo"] - 1] || "",
+        anio: data[i][headerMap["Año"] - 1] || "",
+        color: data[i][headerMap["Color"] - 1] || "",
+        placa: data[i][headerMap["Placa"] - 1] || "",
+        motor: data[i][headerMap["Motor"] - 1] || "",
+        clasificacionVehiculo: data[i][headerMap["Clasificación Vehículo"] - 1] || "",
+        estado: data[i][headerMap["Estado"] - 1] || ""
+      });
+    }
+  }
+
+  return { status: 'success', history: history };
 }
 
 /**
@@ -191,7 +312,8 @@ function handleCreateOrder(payload) {
     "ID", "Fecha", "Hora", "Cliente", "Contacto", "Teléfono", "Dirección",
     "Coordenadas", "Link Maps", "Marca", "Modelo", "VIN", "Motor", "Año",
     "Placa", "Servicio", "Inventario", "Tipo Trabajo", "Prioridad",
-    "Técnico Asignado", "Estado", "Observaciones", "Sector", "Vendedor", "Color", "Fecha Instalacion", "Token"
+    "Técnico Asignado", "Estado", "Observaciones", "Sector", "Vendedor", "Color", "Fecha Instalacion", "Token",
+    "Clasificación Vehículo", "Firma Digital"
   ];
   const sheet = findOrCreateSheet("Ordenes", headers);
   const nextId = getNextId("OT");
@@ -225,6 +347,8 @@ function handleCreateOrder(payload) {
       case "Color": return payload.color || "Sin color";
       case "Fecha Instalacion": return payload.fechaInstalacion || "";
       case "Token": return payload.token || Utilities.getUuid();
+      case "Clasificación Vehículo": return payload.clasificacionVehiculo || "";
+      case "Firma Digital": return payload.firmaDigital || "";
       default: return "";
     }
   });
@@ -845,8 +969,11 @@ function handleGetClientPortalData(payload) {
     color: row[headerMap["Color"] - 1] || "No especificado",
     placa: row[headerMap["Placa"] - 1] || "En trámite",
     ot: ot,
-    estado: serviceInfo.estado
+    estado: serviceInfo.estado,
+    clasificacionVehiculo: row[headerMap["Clasificación Vehículo"] - 1] || ""
   };
+
+  const firmaDigital = row[headerMap["Firma Digital"] - 1] || "";
 
   // 3. Buscar evidencia fotográfica y anotaciones de la recepción
   const recSheet = findOrCreateSheet("RecepcionVehiculos");
@@ -881,7 +1008,8 @@ function handleGetClientPortalData(payload) {
       vendedor: vendedorInfo,
       servicio: serviceInfo,
       fotos: fotos,
-      danos: danos
+      danos: danos,
+      firmaDigital: firmaDigital
     }
   };
 }
@@ -937,6 +1065,7 @@ function doPost(e) {
       case 'updateUserSector': response = handleUpdateUserSector(request.payload); break;
       case 'saveVehicleReception': response = handleSaveVehicleReception(request.payload); break;
       case 'getClientPortalData': response = handleGetClientPortalData(request.payload); break;
+      case 'getVehicleHistory': response = handleGetVehicleHistory(request.payload); break;
       default: response = { status: 'error', message: 'Acción no soportada' };
     }
 
