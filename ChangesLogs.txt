@@ -104,3 +104,26 @@
   - Implementada visualización de colores por estado en la Agenda sincronizada con la configuración (Línea 585).
   - Añadidas acciones de integración directa con Drive y Google Maps desde la tabla de órdenes (Línea 645, 785).
   - Sincronizada la versión global a v0.4.2 en index.html y metadatos.
+
+## [v0.5.0] - 2025-05-24
+### Dashboard Inicial, Recepción Inteligente, Comprobante y Portal Seguro de Clientes
+- **Backend (services/gos/gos-core.js):**
+  - Modificada la inicialización `initializeSystem` para crear hojas `Sectores`, `Usuarios_Sectores` y `RecepcionVehiculos` (Líneas 35-50).
+  - Agregado pre-poblado automático de sectores y usuarios-sectores por defecto (Líneas 51-78).
+  - Expandida la creación de órdenes `handleCreateOrder` con campos `Vendedor`, `Color`, `Fecha Instalacion` y generación automática de un `Token` UUID de seguridad (Líneas 191-230).
+  - Implementados manejadores `handleGetUserSector` (Líneas 655-690), `handleUpdateUserSector` (Líneas 691-720) y `handleSaveVehicleReception` (Líneas 721-758).
+  - Implementado parseador de nombres `parseName` (Líneas 761-771) y el manejador seguro de consulta de cliente `handleGetClientPortalData` (Líneas 772-888).
+  - Mapeadas las nuevas acciones en `doPost` (Línea 936).
+- **Frontend (main.js):**
+  - Declarado `dashboardInterval` global (Línea 2).
+  - Modificada la carga de secciones en `loadSection` para soportar el Dashboard operativo (Líneas 287-320).
+  - Implementado el renderizador de métricas y filtros del sector en `renderDashboardModule` (Líneas 849-1035).
+  - Implementado el formulario inteligente en `renderVehicleReceptionForm` (Líneas 1036-1514).
+  - Implementado el Comprobante Digital con código QR de consulta en `renderDigitalReceipt` (Líneas 1515-1695).
+  - Actualizado `showMainView` para cargar automáticamente el sector operativo del usuario (Líneas 770-790).
+  - Normalizadas las comparaciones de estado para remover acentos utilizando NFD (Línea 971).
+- **Frontend (portal.html):**
+  - Creado Portal de Consulta seguro y móvil-responsivo para visualización pública de datos de órdenes mediante token (Líneas 1-300).
+- **Frontend (style.css, index.html):**
+  - Agregado enlace de navegación para Dashboard en index.html (Línea 40).
+  - Incorporados estilos para el Dashboard, campos autocompletados, pins responsivos de daños, Comprobante de Recepción, reglas de impresión @media print y maquetación móvil del Portal de Clientes (Líneas 304-560).

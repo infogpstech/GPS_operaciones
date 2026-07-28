@@ -42,12 +42,39 @@ function initializeSystem() {
     { sheet: "Turnos", headers: ["ID", "Hora", "Estado"] },
     { sheet: "Permisos", headers: ["ID", "Rol", "Módulo", "Acción", "Estado"] },
     { sheet: "Auditoria", headers: ["Fecha", "Usuario", "Módulo", "Acción", "Resultado", "Detalles"] },
-    { sheet: "Logs", headers: ["Fecha", "Usuario", "Módulo", "Nivel", "Mensaje", "Stack"] }
+    { sheet: "Logs", headers: ["Fecha", "Usuario", "Módulo", "Nivel", "Mensaje", "Stack"] },
+    { sheet: "Sectores", headers: ["ID", "Nombre", "Estado"] },
+    { sheet: "Usuarios_Sectores", headers: ["Usuario", "Sector", "Estado"] },
+    { sheet: "RecepcionVehiculos", headers: ["ID", "OrdenID", "Tecnico", "FechaHora", "Sector", "ClienteInfo", "VehiculoInfo", "Fotos", "Danos", "CalidadCheck"] }
   ];
 
   config.forEach(item => {
     findOrCreateSheet(item.sheet, item.headers);
   });
+
+  // Pre-poblar sectores si está vacío
+  const sectoresSheet = findOrCreateSheet("Sectores", ["ID", "Nombre", "Estado"]);
+  if (sectoresSheet.getLastRow() <= 1) {
+    const defaultSectores = [
+      ["SEC001", "San Pedro Sula", "Activo"],
+      ["SEC002", "Tegucigalpa", "Activo"],
+      ["SEC003", "La Ceiba", "Activo"],
+      ["SEC004", "Choluteca", "Activo"],
+      ["SEC005", "Occidente", "Activo"]
+    ];
+    defaultSectores.forEach(row => sectoresSheet.appendRow(row));
+  }
+
+  // Pre-poblar relación usuario-sector si está vacío
+  const userSectoresSheet = findOrCreateSheet("Usuarios_Sectores", ["Usuario", "Sector", "Estado"]);
+  if (userSectoresSheet.getLastRow() <= 1) {
+    const defaultMappings = [
+      ["tecnico", "San Pedro Sula", "Activo"],
+      ["tecnico_exterior", "Tegucigalpa", "Activo"],
+      ["supervisor", "La Ceiba", "Activo"]
+    ];
+    defaultMappings.forEach(row => userSectoresSheet.appendRow(row));
+  }
 
   return { status: 'success', message: 'Sistema inicializado correctamente' };
 }
@@ -164,7 +191,7 @@ function handleCreateOrder(payload) {
     "ID", "Fecha", "Hora", "Cliente", "Contacto", "Teléfono", "Dirección",
     "Coordenadas", "Link Maps", "Marca", "Modelo", "VIN", "Motor", "Año",
     "Placa", "Servicio", "Inventario", "Tipo Trabajo", "Prioridad",
-    "Técnico Asignado", "Estado", "Observaciones"
+    "Técnico Asignado", "Estado", "Observaciones", "Sector", "Vendedor", "Color", "Fecha Instalacion", "Token"
   ];
   const sheet = findOrCreateSheet("Ordenes", headers);
   const nextId = getNextId("OT");
@@ -193,6 +220,11 @@ function handleCreateOrder(payload) {
       case "Técnico Asignado": return payload.tecnicoAsignado || "";
       case "Estado": return payload.estado || "Pendiente";
       case "Observaciones": return payload.observaciones || "";
+      case "Sector": return payload.sector || "";
+      case "Vendedor": return payload.vendedor || "Sin vendedor";
+      case "Color": return payload.color || "Sin color";
+      case "Fecha Instalacion": return payload.fechaInstalacion || "";
+      case "Token": return payload.token || Utilities.getUuid();
       default: return "";
     }
   });
@@ -302,7 +334,7 @@ function handleGetAgendaConfig() {
  */
 function handleAutoAssignTechnical(payload) {
   const { orderId, force = false } = payload;
-  const techSheet = findOrCreateSheet("Tecnicos", ["ID", "Nombre", "Lat", "Lng", "UltimaAct"]);
+  const techSheet = findOrCreateSheet("Tecnicos", ["ID", "Nombre", "Lat", "Lng", "UltimaAct", "Sector"]);
   const tecnicos = techSheet.getDataRange().getValues();
   if (tecnicos.length <= 1) return { status: 'error', message: 'No hay técnicos registrados' };
 
@@ -625,6 +657,235 @@ function handleCreateClient(payload) {
   return { status: 'success' };
 }
 
+/**
+ * Obtiene el sector de un usuario o técnico.
+ */
+function handleGetUserSector(payload) {
+  const { username } = payload;
+  if (!username) return { status: 'error', message: 'Nombre de usuario requerido' };
+
+  // 1. Buscar en Usuarios_Sectores
+  const userSectoresSheet = findOrCreateSheet("Usuarios_Sectores", ["Usuario", "Sector", "Estado"]);
+  const userSectoresData = userSectoresSheet.getDataRange().getValues();
+  const userSectoresHeaderMap = getHeaderMap(userSectoresSheet);
+  const uIdx = userSectoresHeaderMap["Usuario"] - 1;
+  const sIdx = userSectoresHeaderMap["Sector"] - 1;
+  const estIdx = userSectoresHeaderMap["Estado"] - 1;
+
+  for (let i = 1; i < userSectoresData.length; i++) {
+    if (userSectoresData[i][uIdx].toString().trim().toLowerCase() === username.trim().toLowerCase() && userSectoresData[i][estIdx] === "Activo") {
+      return { status: 'success', sector: userSectoresData[i][sIdx] };
+    }
+  }
+
+  // 2. Buscar en Técnicos
+  const techSheet = findOrCreateSheet("Tecnicos", ["ID", "Nombre", "Lat", "Lng", "UltimaAct", "Sector"]);
+  const techData = techSheet.getDataRange().getValues();
+  const techHeaderMap = getHeaderMap(techSheet);
+  const tNameIdx = techHeaderMap["Nombre"] - 1;
+  const tSectorIdx = techHeaderMap["Sector"] - 1;
+
+  for (let i = 1; i < techData.length; i++) {
+    if (techData[i][tNameIdx].toString().trim().toLowerCase() === username.trim().toLowerCase()) {
+      return { status: 'success', sector: techData[i][tSectorIdx] || "San Pedro Sula" };
+    }
+  }
+
+  // Fallback por defecto
+  return { status: 'success', sector: "San Pedro Sula" };
+}
+
+/**
+ * Registra o actualiza el sector asignado a un usuario.
+ */
+function handleUpdateUserSector(payload) {
+  const { username, sector } = payload;
+  if (!username || !sector) return { status: 'error', message: 'Usuario y sector son requeridos' };
+
+  const userSectoresSheet = findOrCreateSheet("Usuarios_Sectores", ["Usuario", "Sector", "Estado"]);
+  const userSectoresData = userSectoresSheet.getDataRange().getValues();
+  const userSectoresHeaderMap = getHeaderMap(userSectoresSheet);
+  const uIdx = userSectoresHeaderMap["Usuario"] - 1;
+  const sIdx = userSectoresHeaderMap["Sector"] - 1;
+
+  let rowIdx = -1;
+  for (let i = 1; i < userSectoresData.length; i++) {
+    if (userSectoresData[i][uIdx].toString().trim().toLowerCase() === username.trim().toLowerCase()) {
+      rowIdx = i + 1;
+      break;
+    }
+  }
+
+  if (rowIdx !== -1) {
+    userSectoresSheet.getRange(rowIdx, sIdx + 1).setValue(sector);
+  } else {
+    userSectoresSheet.appendRow([username, sector, "Activo"]);
+  }
+
+  logToSheet("Auditoria", "Usuarios", "updateUserSector", "success", "", `Usuario: ${username} asignado a sector: ${sector}`);
+  return { status: 'success', message: 'Sector actualizado exitosamente' };
+}
+
+/**
+ * Guarda la recepción del vehículo y cambia el estado de la orden.
+ */
+function handleSaveVehicleReception(payload) {
+  const { orderId, tecnico, sector, clienteInfo, vehiculoInfo, fotos, danos, calidadCheck } = payload;
+  if (!orderId || !tecnico) return { status: 'error', message: 'OrdenID y Técnico son requeridos' };
+
+  const headers = ["ID", "OrdenID", "Tecnico", "FechaHora", "Sector", "ClienteInfo", "VehiculoInfo", "Fotos", "Danos", "CalidadCheck"];
+  const sheet = findOrCreateSheet("RecepcionVehiculos", headers);
+  const nextId = getNextId("REC");
+
+  const rowData = [
+    nextId,
+    orderId,
+    tecnico,
+    new Date().toISOString(),
+    sector || "",
+    typeof clienteInfo === 'string' ? clienteInfo : JSON.stringify(clienteInfo || {}),
+    typeof vehiculoInfo === 'string' ? vehiculoInfo : JSON.stringify(vehiculoInfo || {}),
+    typeof fotos === 'string' ? fotos : JSON.stringify(fotos || []),
+    typeof danos === 'string' ? danos : JSON.stringify(danos || []),
+    typeof calidadCheck === 'string' ? calidadCheck : JSON.stringify(calidadCheck || {})
+  ];
+
+  sheet.appendRow(rowData);
+
+  // Actualizar estado de la orden a "Vehículo recibido"
+  handleUpdateOrderStatus({ orderId, status: "Vehículo recibido" });
+
+  logToSheet("Auditoria", "Recepcion", "saveVehicleReception", "success", "", `Recepción registrada #${nextId} para orden ${orderId}`);
+
+  return { status: 'success', id: nextId, message: 'Recepción registrada exitosamente' };
+}
+
+/**
+ * Helper para formatear nombres: extrae primer nombre y primer apellido.
+ */
+function parseName(fullName) {
+  if (!fullName) return { first: "Sin nombre", last: "" };
+  const parts = fullName.trim().split(/\s+/);
+  return {
+    first: parts[0] || "Sin nombre",
+    last: parts[2] || parts[1] || "" // Por ejemplo, Juan Perez (idx 1), o Juan Alberto Perez (idx 2)
+  };
+}
+
+/**
+ * Obtiene los datos autorizados para visualización pública en el Portal del Cliente,
+ * impidiendo la enumeración o acceso no autorizado mediante verificación estricta de token.
+ */
+function handleGetClientPortalData(payload) {
+  const { ot, token } = payload;
+  if (!ot || !token) {
+    return { status: "error", message: "Acceso Denegado. Parámetros inválidos." };
+  }
+
+  // 1. Obtener la orden de trabajo
+  const sheet = findOrCreateSheet("Ordenes");
+  const data = sheet.getDataRange().getValues();
+  const headerMap = getHeaderMap(sheet);
+
+  const idIdx = headerMap["ID"] - 1;
+  const tokenIdx = headerMap["Token"] - 1;
+
+  let orderRow = -1;
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][idIdx].toString().trim() === ot.toString().trim()) {
+      orderRow = i;
+      break;
+    }
+  }
+
+  if (orderRow === -1) {
+    return { status: "error", message: "Acceso Denegado. Orden no encontrada." };
+  }
+
+  // 2. Validar que el token sea correcto (Seguridad Estricta contra Enumeración)
+  const savedToken = data[orderRow][tokenIdx] || "";
+  if (!savedToken || savedToken.toString().trim() !== token.toString().trim()) {
+    return { status: "error", message: "Acceso Denegado. Token de seguridad inválido." };
+  }
+
+  const row = data[orderRow];
+
+  // Extraer datos del instalador de forma autorizada
+  const rawTecnico = row[headerMap["Técnico Asignado"] - 1] || "";
+  const parsedTecnico = parseName(rawTecnico);
+  const instaladorInfo = {
+    nombre: parsedTecnico.first,
+    apellido: parsedTecnico.last,
+    puesto: "Instalador Técnico GPS"
+  };
+
+  // Extraer datos del vendedor
+  const rawVendedor = row[headerMap["Vendedor"] - 1] || "";
+  const parsedVendedor = parseName(rawVendedor);
+  const vendedorInfo = {
+    nombre: parsedVendedor.first,
+    apellido: parsedVendedor.last
+  };
+
+  // Extraer información del servicio
+  const serviceInfo = {
+    lugar: row[headerMap["Dirección"] - 1] || "No especificado",
+    fechaRecepcion: row[headerMap["Fecha"] - 1] || "No especificada",
+    fechaInstalacion: row[headerMap["Fecha Instalacion"] - 1] || "Pendiente",
+    tipoServicio: row[headerMap["Servicio"] - 1] || "Básico",
+    observaciones: row[headerMap["Observaciones"] - 1] || "",
+    estado: row[headerMap["Estado"] - 1] || "Pendiente"
+  };
+
+  // Extraer información del vehículo
+  const vehiculoInfo = {
+    marca: row[headerMap["Marca"] - 1] || "",
+    modelo: row[headerMap["Modelo"] - 1] || "",
+    anio: row[headerMap["Año"] - 1] || "",
+    color: row[headerMap["Color"] - 1] || "No especificado",
+    placa: row[headerMap["Placa"] - 1] || "En trámite",
+    ot: ot,
+    estado: serviceInfo.estado
+  };
+
+  // 3. Buscar evidencia fotográfica y anotaciones de la recepción
+  const recSheet = findOrCreateSheet("RecepcionVehiculos");
+  const recData = recSheet.getDataRange().getValues();
+  const recHeaderMap = getHeaderMap(recSheet);
+  const recOtIdx = recHeaderMap["OrdenID"] - 1;
+  const recFotosIdx = recHeaderMap["Fotos"] - 1;
+  const recDanosIdx = recHeaderMap["Danos"] - 1;
+
+  let fotos = {};
+  let danos = {};
+
+  for (let i = 1; i < recData.length; i++) {
+    if (recData[i][recOtIdx].toString().trim() === ot.toString().trim()) {
+      try {
+        fotos = JSON.parse(recData[i][recFotosIdx] || "{}");
+        danos = JSON.parse(recData[i][recDanosIdx] || "{}");
+      } catch (err) {
+        console.error("Error parsing fotos/danos JSON:", err);
+      }
+      break;
+    }
+  }
+
+  logToSheet("Auditoria", "Portal", "getClientPortalData", "success", "", `Consulta exitosa de OT ${ot} desde portal de cliente`);
+
+  return {
+    status: "success",
+    data: {
+      vehiculo: vehiculoInfo,
+      instalador: instaladorInfo,
+      vendedor: vendedorInfo,
+      servicio: serviceInfo,
+      fotos: fotos,
+      danos: danos
+    }
+  };
+}
+
 function doGet(e) {
   return ContentService.createTextOutput("GOS-CORE Service: v1.1.0 OK")
     .setMimeType(ContentService.MimeType.TEXT);
@@ -672,6 +933,10 @@ function doPost(e) {
       case 'createClient': response = handleCreateClient(request.payload); break;
       case 'getTechnicians': response = handleGetTechnicians(); break;
       case 'sendNotification': response = handleSendNotification(request.payload); break;
+      case 'getUserSector': response = handleGetUserSector(request.payload); break;
+      case 'updateUserSector': response = handleUpdateUserSector(request.payload); break;
+      case 'saveVehicleReception': response = handleSaveVehicleReception(request.payload); break;
+      case 'getClientPortalData': response = handleGetClientPortalData(request.payload); break;
       default: response = { status: 'error', message: 'Acción no soportada' };
     }
 

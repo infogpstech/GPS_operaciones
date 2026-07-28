@@ -1,6 +1,7 @@
 import { routeAction } from './api-config.js';
 
 const SESSION_KEY = 'gos_session';
+let dashboardInterval = null;
 
 /**
  * UI_TEMPLATES: Bloques de construcción para la interfaz.
@@ -286,7 +287,13 @@ function loadSection(section) {
     const titleEl = document.getElementById('section-title');
     const contentEl = document.getElementById('section-content');
 
+    if (dashboardInterval) {
+        clearInterval(dashboardInterval);
+        dashboardInterval = null;
+    }
+
     const sections = {
+        dashboard: { title: 'Dashboard Operativo', content: '<p>Cargando dashboard...</p>' },
         agenda: { title: 'Agenda de Instalaciones', content: '<p>Cargando turnos...</p>' },
         ordenes: { title: 'Gestión de Órdenes', content: '<p>Cargando órdenes de trabajo...</p>' },
         clientes: { title: 'Directorio de Clientes', content: '<p>Cargando base de datos de clientes...</p>' },
@@ -299,7 +306,9 @@ function loadSection(section) {
         titleEl.textContent = sections[section].title;
         contentEl.innerHTML = sections[section].content;
 
-        if (section === 'ordenes') {
+        if (section === 'dashboard') {
+            renderDashboardModule(contentEl);
+        } else if (section === 'ordenes') {
             renderOrdersModule(contentEl);
         } else if (section === 'agenda') {
             renderAgendaModule(contentEl);
@@ -759,10 +768,24 @@ function setupAuthListeners() {
     });
 }
 
-function showMainView(user) {
+async function showMainView(user) {
     document.getElementById('login-view').style.display = 'none';
     document.getElementById('main-view').style.display = 'block';
     document.getElementById('welcome-msg').textContent = `Hola, ${user.Nombre_Usuario || 'Usuario'}`;
+
+    try {
+        const result = await routeAction('GOS_CORE', 'getUserSector', { username: user.Nombre_Usuario });
+        if (result.status === 'success') {
+            user.Sector = result.sector;
+        } else {
+            user.Sector = 'San Pedro Sula';
+        }
+    } catch (e) {
+        console.error("Error al obtener sector:", e);
+        user.Sector = 'San Pedro Sula';
+    }
+
+    loadSection('dashboard');
 }
 
 let mapInstance = null;
@@ -822,6 +845,849 @@ function updateMap(techs) {
             }
         });
     }
+}
+
+/**
+ * Renderiza el Dashboard Operativo con métricas y órdenes de trabajo filtradas por sector.
+ */
+async function renderDashboardModule(container) {
+    const user = AppState.user;
+    if (!user) {
+        container.innerHTML = '<p>Por favor inicie sesión para ver esta información.</p>';
+        return;
+    }
+
+    const isPowerUser = ['desarrollador', 'jefe'].includes((user.Privilegios || '').toLowerCase().trim());
+    let activeSector = isPowerUser ? 'Todos' : (user.Sector || 'San Pedro Sula');
+
+    const updateDashboard = async () => {
+        try {
+            const result = await routeAction('GOS_CORE', 'getOrders');
+            if (result.status !== 'success') {
+                container.innerHTML = `<p class="error-msg">Error al cargar datos del dashboard: ${result.message}</p>`;
+                return;
+            }
+
+            const orders = result.data;
+
+            // Filtrar órdenes por el sector seleccionado
+            const filteredOrders = orders.filter(order => {
+                if (activeSector === 'Todos') return true;
+                return (order.sector || '').toLowerCase().trim() === activeSector.toLowerCase().trim();
+            });
+
+            // Calcular Métricas
+            const pendingJobs = filteredOrders.filter(o => ['pendiente', 'asignada'].includes((o.estado || '').toLowerCase().trim())).length;
+
+            const todayStr = new Date().toISOString().split('T')[0];
+            const assignedToday = filteredOrders.filter(o => {
+                const dateMatch = o.fecha === todayStr;
+                const statusMatch = ['asignada', 'en camino', 'llego', 'vehiculo recibido'].includes((o.estado || '').toLowerCase().trim());
+                return dateMatch && statusMatch;
+            }).length;
+
+            const receivedVehicles = filteredOrders.filter(o => (o.estado || '').toLowerCase().trim() === 'vehiculo recibido').length;
+            const finishedJobs = filteredOrders.filter(o => (o.estado || '').toLowerCase().trim() === 'finalizada').length;
+
+            let html = `
+                <div class="dashboard-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:15px;">
+                    <div>
+                        <p style="margin:0; font-size:0.95rem; color:var(--secondary);">
+                            Sector Operativo Activo: <strong id="sector-display" style="color:var(--primary); font-size:1.1rem;">${activeSector}</strong>
+                        </p>
+                    </div>
+            `;
+
+            if (isPowerUser) {
+                const sectores = ['Todos', 'San Pedro Sula', 'Tegucigalpa', 'La Ceiba', 'Choluteca', 'Occidente'];
+                html += `
+                    <div>
+                        <label style="font-weight:bold; margin-right:8px; font-size:0.9rem;">Zona Operativa:</label>
+                        <select id="sector-selector" class="form-control" style="width:auto; display:inline-block; padding: 5px 10px;">
+                            ${sectores.map(sec => `<option value="${sec}" ${activeSector === sec ? 'selected' : ''}>${sec}</option>`).join('')}
+                        </select>
+                    </div>
+                `;
+            }
+
+            html += `
+                </div>
+
+                <!-- Métricas -->
+                <div class="dashboard-grid">
+                    <div class="dashboard-card pending">
+                        <h3>Trabajos Pendientes</h3>
+                        <div class="value">${pendingJobs}</div>
+                    </div>
+                    <div class="dashboard-card assigned">
+                        <h3>Asignados Hoy</h3>
+                        <div class="value">${assignedToday}</div>
+                    </div>
+                    <div class="dashboard-card received">
+                        <h3>Vehículos Recibidos</h3>
+                        <div class="value">${receivedVehicles}</div>
+                    </div>
+                    <div class="dashboard-card finished">
+                        <h3>Trabajos Finalizados</h3>
+                        <div class="value">${finishedJobs}</div>
+                    </div>
+                </div>
+
+                <!-- Lista de Órdenes del Sector -->
+                <div class="orders-table-container">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid var(--light); padding-bottom:10px;">
+                        <h3 style="margin:0; font-size:1.1rem; color:var(--dark);">Órdenes del Sector</h3>
+                        <span class="badge" style="background:var(--light); color:var(--secondary); font-size:0.8rem;">Total: ${filteredOrders.length}</span>
+                    </div>
+            `;
+
+            if (filteredOrders.length === 0) {
+                html += `<p style="padding:20px; text-align:center; color:var(--secondary); font-size:0.95rem;">No hay órdenes de trabajo asignadas a este sector en este momento.</p>`;
+            } else {
+                html += `
+                    <table class="gos-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Hora</th>
+                                <th>Cliente</th>
+                                <th>Vehículo</th>
+                                <th>Prioridad</th>
+                                <th>Estado</th>
+                                <th>Técnico</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                filteredOrders.forEach(o => {
+                    const status = o.estado || 'Pendiente';
+                    const id = o.id;
+                    const time = o.hora || '--:--';
+                    const client = o.cliente || 'Sin nombre';
+                    const vehicle = `${o.marca || ''} ${o.modelo || ''}`.trim() || 'Desconocido';
+                    const priority = o.prioridad || 'Normal';
+                    const tech = o.tecnicoasignado || 'Sin asignar';
+
+                    let actionBtn = '';
+                    const statusLower = (status || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+                    if (statusLower === 'llego') {
+                        actionBtn = `<button class="btn btn-sm btn-primary receive-vehicle-btn" data-id="${id}" style="padding: 6px 12px; font-size: 0.75rem;">Recibir Vehículo</button>`;
+                    } else if (['vehiculo recibido', 'finalizada'].includes(statusLower)) {
+                        actionBtn = `<span class="badge" style="background:#c3e6cb; color:#155724; font-size:0.75rem;">Recibido OK</span>`;
+                    } else {
+                        actionBtn = `<small style="color:var(--secondary); font-style:italic;">Esperando llegada</small>`;
+                    }
+
+                    html += `
+                        <tr data-id="${id}">
+                            <td><strong>${id}</strong></td>
+                            <td>${time}</td>
+                            <td>${client}</td>
+                            <td>${vehicle}</td>
+                            <td>${UI_TEMPLATES.badge(priority)}</td>
+                            <td>${UI_TEMPLATES.badge(status)}</td>
+                            <td><small>${tech}</small></td>
+                            <td>${actionBtn}</td>
+                        </tr>
+                    `;
+                });
+
+                html += `
+                        </tbody>
+                    </table>
+                `;
+            }
+
+            html += `</div>`;
+            container.innerHTML = html;
+
+            const selector = document.getElementById('sector-selector');
+            if (selector) {
+                selector.addEventListener('change', (e) => {
+                    activeSector = e.target.value;
+                    const disp = document.getElementById('sector-display');
+                    if (disp) disp.textContent = activeSector;
+                    updateDashboard();
+                });
+            }
+
+            const btns = container.querySelectorAll('.receive-vehicle-btn');
+            btns.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const orderId = e.target.dataset.id;
+                    const order = orders.find(ord => ord.id === orderId);
+                    if (order) {
+                        renderVehicleReceptionForm(container, order);
+                    }
+                });
+            });
+
+        } catch (error) {
+            console.error("Error al actualizar dashboard:", error);
+            container.innerHTML = `<p style="color:var(--danger); padding:20px;">Error al conectar con el servidor: ${error.message}</p>`;
+        }
+    };
+
+    await updateDashboard();
+
+    if (dashboardInterval) clearInterval(dashboardInterval);
+    dashboardInterval = setInterval(updateDashboard, 30000);
+}
+
+/**
+ * Renderiza el Formulario Inteligente de Recepción de Vehículos.
+ */
+function renderVehicleReceptionForm(container, order) {
+    if (dashboardInterval) {
+        clearInterval(dashboardInterval);
+        dashboardInterval = null;
+    }
+
+    const categories = [
+        { id: 'vin', label: 'Número de Chasis (VIN)', group: 'Identificación' },
+        { id: 'odometro', label: 'Odómetro', group: 'Identificación' },
+        { id: 'tablero', label: 'Tablero de Instrumentos', group: 'Identificación' },
+        { id: 'asientos_delanteros', label: 'Asientos Delanteros', group: 'Interior' },
+        { id: 'asientos_traseros', label: 'Asientos Traseros', group: 'Interior' },
+        { id: 'techo_interior', label: 'Techo Interior', group: 'Interior' },
+        { id: 'estribos', label: 'Estribos', group: 'Interior' },
+        { id: 'lado_izquierdo', label: 'Lado Izquierdo', group: 'Exterior' },
+        { id: 'vista_frontal', label: 'Vista Frontal', group: 'Exterior' },
+        { id: 'lado_derecho', label: 'Lado Derecho', group: 'Exterior' },
+        { id: 'vista_trasera', label: 'Vista Trasera', group: 'Exterior' }
+    ];
+
+    const photosData = {}; // Guardará base64 o metadatos de cada foto
+    const damagesData = {}; // Guardará los daños por cada categoría
+    const qualityData = {}; // Guardará el resultado del quality check por cada categoría
+
+    categories.forEach(cat => {
+        photosData[cat.id] = null;
+        damagesData[cat.id] = [];
+        qualityData[cat.id] = { valid: false, brightness: 0, contrast: 0 };
+    });
+
+    let html = `
+        <div class="reception-container">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--light); padding-bottom:15px; margin-bottom:25px;">
+                <h2 style="margin:0; color:var(--primary);">Módulo de Recepción de Vehículo</h2>
+                <button class="btn btn-secondary" id="back-to-dash-btn" style="padding: 8px 15px; font-size:0.9rem;">Volver al Dashboard</button>
+            </div>
+
+            <!-- Información del Cliente y Orden (Validación Visual) -->
+            <fieldset style="border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem; margin-bottom: 25px;">
+                <legend style="font-weight:bold; padding: 0 10px; color: var(--secondary);">Información del Cliente y Orden #${order.id}</legend>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Cliente:</label>
+                        <input type="text" class="form-control" value="${order.cliente || ''}" readonly style="background:#eee;">
+                    </div>
+                    <div class="form-group">
+                        <label>Contacto:</label>
+                        <input type="text" class="form-control" value="${order.contacto || ''}" readonly style="background:#eee;">
+                    </div>
+                    <div class="form-group">
+                        <label>Teléfono:</label>
+                        <input type="text" class="form-control" value="${order.telefono || ''}" readonly style="background:#eee;">
+                    </div>
+                    <div class="form-group">
+                        <label>Ubicación Programada (Instalación):</label>
+                        <input type="text" class="form-control" value="${order.direccion || ''} (${order.coordenadas || ''})" readonly style="background:#eee;">
+                    </div>
+                    <div class="form-group">
+                        <label>Servicio Contratado:</label>
+                        <input type="text" class="form-control" value="${order.servicio || 'Servicio Estándar'}" readonly style="background:#eee;">
+                    </div>
+                    <div class="form-group">
+                        <label>Vendedor Responsable:</label>
+                        <input type="text" class="form-control" value="${order.vendedor || 'Carlos Ruiz'}" readonly style="background:#eee;">
+                    </div>
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label>Observaciones de la Orden:</label>
+                        <textarea class="form-control" readonly style="background:#eee; height: 50px;">${order.observaciones || 'Ninguna observacion'}</textarea>
+                    </div>
+                </div>
+                <div style="margin-top: 15px; background: #e8f4fd; padding: 10px 15px; border-radius: 6px; font-size: 0.85rem; color: #31708f;">
+                    💡 El técnico debe validar visualmente estos datos antes de continuar con la recepción del vehículo.
+                </div>
+            </fieldset>
+
+            <!-- Información del Vehículo (Campos Inteligentes y Autocompletado) -->
+            <form id="vehicle-reception-form">
+                <fieldset style="border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem; margin-bottom: 25px;">
+                    <legend style="font-weight:bold; padding: 0 10px; color: var(--secondary);">Información del Vehículo</legend>
+                    <div class="form-grid">
+                        <div class="form-group autocomplete-wrapper">
+                            <label>Marca:</label>
+                            <input type="text" id="vehiculo-marca" name="marca" class="form-control" value="${order.marca || ''}" required placeholder="Ej: Toyota">
+                            <div id="suggestions-marca" class="autocomplete-suggestions" style="display:none;"></div>
+                        </div>
+                        <div class="form-group autocomplete-wrapper">
+                            <label>Modelo:</label>
+                            <input type="text" id="vehiculo-modelo" name="modelo" class="form-control" value="${order.modelo || ''}" required placeholder="Ej: Hilux">
+                            <div id="suggestions-modelo" class="autocomplete-suggestions" style="display:none;"></div>
+                        </div>
+                        <div class="form-group">
+                            <label>Año:</label>
+                            <input type="number" name="anio" class="form-control" value="${order.anio || ''}" required placeholder="Ej: 2022">
+                        </div>
+                        <div class="form-group">
+                            <label>Color:</label>
+                            <input type="text" name="color" class="form-control" value="${order.color || ''}" required placeholder="Ej: Gris Metálico">
+                        </div>
+                        <div class="form-group">
+                            <label>Placa:</label>
+                            <input type="text" name="placa" class="form-control" value="${order.placa || ''}" required placeholder="Ej: HAD-1234">
+                        </div>
+                        <div class="form-group">
+                            <label>Número de Chasis (VIN):</label>
+                            <input type="text" name="vin" class="form-control" value="${order.vin || ''}" required placeholder="Ej: 17 dígitos">
+                        </div>
+                        <div class="form-group">
+                            <label>Número de Motor:</label>
+                            <input type="text" name="motor" class="form-control" value="${order.motor || ''}" placeholder="Ej: 1KD-FTV">
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- Validación Fotográfica Obligatoria -->
+                <h3 style="border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:15px; color: var(--primary);">Validación Fotográfica Obligatoria (11 Categorías)</h3>
+                <p style="font-size:0.9rem; color:var(--secondary);">Suba o capture fotografías para cada área. Haga clic sobre la imagen cargada para registrar daños existentes.</p>
+
+                <div class="photo-checklist">
+                    ${categories.map(cat => `
+                        <div class="photo-card" id="card-${cat.id}">
+                            <div>
+                                <span class="badge" style="background:#5bc0de; color:white; font-size:0.7rem; float:right;">${cat.group}</span>
+                                <h4>${cat.label}</h4>
+                            </div>
+
+                            <div class="canvas-wrapper" id="wrapper-${cat.id}" style="display:none;">
+                                <canvas id="canvas-${cat.id}"></canvas>
+                            </div>
+
+                            <div style="margin: 15px 0;">
+                                <label class="input-file-label" id="label-${cat.id}">
+                                    📷 Capturar/Cargar Foto
+                                    <input type="file" id="file-${cat.id}" accept="image/*" style="display:none;">
+                                </label>
+                            </div>
+
+                            <!-- Indicadores de Calidad -->
+                            <div class="quality-checklist" id="quality-${cat.id}" style="display:none;">
+                                <div class="quality-item">
+                                    <span>Nitidez:</span>
+                                    <span class="quality-status" id="quality-nitidez-${cat.id}">--</span>
+                                </div>
+                                <div class="quality-item">
+                                    <span>Iluminación:</span>
+                                    <span class="quality-status" id="quality-luz-${cat.id}">--</span>
+                                </div>
+                                <div class="quality-item">
+                                    <span>Encuadre:</span>
+                                    <span class="quality-status" id="quality-encuadre-${cat.id}">OK</span>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <div style="margin-top:35px; border-top:2px solid var(--light); padding-top:20px; display:flex; gap:15px; justify-content:flex-end;">
+                    <button type="button" class="btn btn-secondary" id="cancel-reception-btn">Cancelar Recepción</button>
+                    <button type="submit" class="btn btn-primary">Registrar Vehículo y Comenzar</button>
+                </div>
+            </form>
+        </div>
+    `;
+
+    container.innerHTML = html;
+
+    const backToDash = () => {
+        loadSection('dashboard');
+    };
+    document.getElementById('back-to-dash-btn').onclick = backToDash;
+    document.getElementById('cancel-reception-btn').onclick = backToDash;
+
+    setupRealtimeAutocomplete();
+
+    categories.forEach(cat => {
+        const fileInput = document.getElementById(`file-${cat.id}`);
+        const canvas = document.getElementById(`canvas-${cat.id}`);
+        const wrapper = document.getElementById(`wrapper-${cat.id}`);
+        const label = document.getElementById(`label-${cat.id}`);
+        const qualityDiv = document.getElementById(`quality-${cat.id}`);
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const maxDim = 400;
+                    let width = img.width;
+                    let height = img.height;
+                    if (width > height) {
+                        if (width > maxDim) {
+                            height = Math.round((height * maxDim) / width);
+                            width = maxDim;
+                        }
+                    } else {
+                        if (height > maxDim) {
+                            width = Math.round((width * maxDim) / height);
+                            height = maxDim;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    const imgData = ctx.getImageData(0, 0, width, height);
+                    const pixels = imgData.data;
+
+                    let totalBrightness = 0;
+                    for (let i = 0; i < pixels.length; i += 4) {
+                        totalBrightness += (pixels[i] + pixels[i+1] + pixels[i+2]) / 3;
+                    }
+                    const avgBrightness = totalBrightness / (pixels.length / 4);
+
+                    let totalDev = 0;
+                    for (let i = 0; i < pixels.length; i += 4) {
+                        const val = (pixels[i] + pixels[i+1] + pixels[i+2]) / 3;
+                        totalDev += Math.abs(val - avgBrightness);
+                    }
+                    const avgContrast = totalDev / (pixels.length / 4);
+
+                    const isLuzOk = avgBrightness >= 40 && avgBrightness <= 240;
+                    const isNitidezOk = avgContrast >= 15;
+                    const isValid = isLuzOk && isNitidezOk;
+
+                    qualityDiv.style.display = 'block';
+                    wrapper.style.display = 'inline-block';
+                    label.innerHTML = '🔄 Re-capturar Foto';
+
+                    const nitidezEl = document.getElementById(`quality-nitidez-${cat.id}`);
+                    const luzEl = document.getElementById(`quality-luz-${cat.id}`);
+
+                    if (isNitidezOk) {
+                        nitidezEl.textContent = 'OK';
+                        nitidezEl.className = 'quality-status ok';
+                    } else {
+                        nitidezEl.textContent = 'Rechazado';
+                        nitidezEl.className = 'quality-status fail';
+                    }
+
+                    if (isLuzOk) {
+                        luzEl.textContent = 'OK';
+                        luzEl.className = 'quality-status ok';
+                    } else {
+                        luzEl.textContent = 'Oscura';
+                        luzEl.className = 'quality-status fail';
+                    }
+
+                    qualityData[cat.id] = { valid: isValid, brightness: avgBrightness, contrast: avgContrast };
+
+                    if (isValid) {
+                        document.getElementById(`card-${cat.id}`).className = 'photo-card completed';
+                        photosData[cat.id] = canvas.toDataURL('image/jpeg', 0.8);
+                    } else {
+                        document.getElementById(`card-${cat.id}`).className = 'photo-card';
+                        photosData[cat.id] = null;
+                        alert(`La imagen para "${cat.label}" no cumple con la calidad mínima requerida (iluminación o nitidez). Por favor tome otra foto con mejor iluminación y enfoque.`);
+                    }
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        wrapper.addEventListener('click', (e) => {
+            if (!photosData[cat.id]) {
+                alert("Primero debe cargar una foto válida antes de registrar anomalías.");
+                return;
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * 100;
+            const y = ((e.clientY - rect.top) / rect.height) * 100;
+
+            const damageTypes = [
+                'Rayón', 'Golpe', 'Abolladura', 'Daño de pintura',
+                'Pieza fracturada', 'Pieza faltante', 'Cristal fracturado',
+                'Accesorio dañado', 'Observación relevante'
+            ];
+
+            const selectOptions = damageTypes.map(t => `<option value="${t}">${t}</option>`).join('');
+
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            overlay.innerHTML = `
+                <div class="modal-content" style="max-width:350px;">
+                    <h3>Registrar Daño Existente</h3>
+                    <div class="form-group">
+                        <label>Tipo de Anomalía:</label>
+                        <select id="damage-type" class="form-control">
+                            ${selectOptions}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Observación Adicional (Opcional):</label>
+                        <input type="text" id="damage-obs" class="form-control" placeholder="Detalle adicional">
+                    </div>
+                    <div class="modal-actions">
+                        <button class="btn btn-secondary" id="damage-cancel" style="padding: 5px 10px;">Cancelar</button>
+                        <button class="btn btn-primary" id="damage-save" style="padding: 5px 15px;">Guardar Pin</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+
+            overlay.querySelector('#damage-cancel').onclick = () => {
+                document.body.removeChild(overlay);
+            };
+
+            overlay.querySelector('#damage-save').onclick = () => {
+                const type = overlay.querySelector('#damage-type').value;
+                const obs = overlay.querySelector('#damage-obs').value;
+                const note = obs ? `${type} - ${obs}` : type;
+
+                const damageEntry = { x, y, note, type };
+                damagesData[cat.id].push(damageEntry);
+
+                addPinToWrapper(wrapper, x, y, damageEntry, cat.id, damagesData[cat.id].length - 1);
+
+                document.body.removeChild(overlay);
+            };
+        });
+    });
+
+    function setupRealtimeAutocomplete() {
+        const marcasList = ['Toyota', 'Nissan', 'Hyundai', 'Honda', 'Mazda', 'Ford', 'Chevrolet', 'Mercedes', 'BMW', 'Suzuki', 'Kia', 'Mitsubishi'];
+        const modelosList = {
+            'Toyota': ['Hilux', 'Corolla', 'Yaris', 'RAV4', 'Land Cruiser', 'Prado'],
+            'Nissan': ['Frontier', 'Sentra', 'Versa', 'Kicks', 'Qashqai', 'Pathfinder'],
+            'Hyundai': ['Elantra', 'Tucson', 'Santa Fe', 'Accent', 'Grand i10'],
+            'Honda': ['Civic', 'CR-V', 'Accord', 'HR-V', 'Fit'],
+            'Mazda': ['BT-50', 'Mazda 3', 'CX-5', 'CX-30', 'Mazda 2']
+        };
+
+        const marcaInput = document.getElementById('vehiculo-marca');
+        const modeloInput = document.getElementById('vehiculo-modelo');
+        const suggestionsMarca = document.getElementById('suggestions-marca');
+        const suggestionsModelo = document.getElementById('suggestions-modelo');
+
+        marcaInput.addEventListener('input', () => {
+            const val = marcaInput.value.trim().toLowerCase();
+            suggestionsMarca.innerHTML = '';
+            if (!val) {
+                suggestionsMarca.style.display = 'none';
+                return;
+            }
+
+            const matches = marcasList.filter(m => m.toLowerCase().includes(val));
+            if (matches.length > 0) {
+                suggestionsMarca.style.display = 'block';
+                matches.forEach(m => {
+                    const div = document.createElement('div');
+                    div.className = 'suggestion-item';
+                    div.textContent = m;
+                    div.onclick = () => {
+                        marcaInput.value = m;
+                        suggestionsMarca.style.display = 'none';
+                    };
+                    suggestionsMarca.appendChild(div);
+                });
+            } else {
+                suggestionsMarca.style.display = 'none';
+            }
+        });
+
+        modeloInput.addEventListener('input', () => {
+            const val = modeloInput.value.trim().toLowerCase();
+            const brand = marcaInput.value.trim();
+            suggestionsModelo.innerHTML = '';
+            if (!val) {
+                suggestionsModelo.style.display = 'none';
+                return;
+            }
+
+            const activeModels = modelosList[brand] || Object.values(modelosList).flat();
+            const matches = activeModels.filter(m => m.toLowerCase().includes(val));
+            if (matches.length > 0) {
+                suggestionsModelo.style.display = 'block';
+                matches.forEach(m => {
+                    const div = document.createElement('div');
+                    div.className = 'suggestion-item';
+                    div.textContent = m;
+                    div.onclick = () => {
+                        modeloInput.value = m;
+                        suggestionsModelo.style.display = 'none';
+                    };
+                    suggestionsModelo.appendChild(div);
+                });
+            } else {
+                suggestionsModelo.style.display = 'none';
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (e.target !== marcaInput) suggestionsMarca.style.display = 'none';
+            if (e.target !== modeloInput) suggestionsModelo.style.display = 'none';
+        });
+    }
+
+    function addPinToWrapper(wrapper, x, y, damage, catId, idx) {
+        const pin = document.createElement('div');
+        pin.className = 'damage-pin';
+        pin.style.left = `${x}%`;
+        pin.style.top = `${y}%`;
+
+        const letter = damage.type ? damage.type.charAt(0).toUpperCase() : 'X';
+        pin.innerHTML = `
+            ${letter}
+            <div class="tooltip">${damage.note} <small style="display:block; opacity:0.7;">Haga clic para remover</small></div>
+        `;
+
+        pin.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (confirm(`¿Desea eliminar la anomalía "${damage.note}" registrada en esta posición?`)) {
+                damagesData[catId].splice(idx, 1);
+                wrapper.removeChild(pin);
+            }
+        });
+
+        wrapper.appendChild(pin);
+    }
+
+    document.getElementById('vehicle-reception-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const missingPhotos = categories.filter(cat => !photosData[cat.id]);
+        if (missingPhotos.length > 0) {
+            alert(`Para registrar el vehículo debe cargar las fotografías obligatorias restantes:\n\n${missingPhotos.map(p => `- ${p.label}`).join('\n')}`);
+            return;
+        }
+
+        const formData = new FormData(e.target);
+        const vehiculoInfo = Object.fromEntries(formData.entries());
+
+        const user = AppState.user;
+        const payload = {
+            orderId: order.id,
+            tecnico: user.Nombre_Completo || user.Nombre_Usuario,
+            sector: user.Sector || 'San Pedro Sula',
+            clienteInfo: {
+                nombre: order.cliente || '',
+                contacto: order.contacto || '',
+                telefono: order.telefono || '',
+                direccion: order.direccion || ''
+            },
+            vehiculoInfo: vehiculoInfo,
+            fotos: photosData,
+            danos: damagesData,
+            calidadCheck: qualityData
+        };
+
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '⏳ Registrando Recepción...';
+
+        try {
+            const result = await routeAction('GOS_CORE', 'saveVehicleReception', payload);
+            if (result.status === 'success') {
+                alert(`¡Vehículo Recibido con Éxito!\nRegistro de Recepción: ${result.id}\nSe ha actualizado el estado de la Orden a 'Vehículo recibido'.\nA continuación se presentará el comprobante digital de recepción.`);
+                renderDigitalReceipt(container, order, vehiculoInfo, damagesData, result.id);
+            } else {
+                alert(`Error al registrar vehículo: ${result.message}`);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Registrar Vehículo y Comenzar';
+            }
+        } catch (error) {
+            alert(`Error de red o conexión: ${error.message}`);
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Registrar Vehículo y Comenzar';
+        }
+    });
+}
+
+/**
+ * Renderiza el Comprobante Digital de Recepción del Vehículo con el Código QR de Consulta.
+ */
+function renderDigitalReceipt(container, order, vehiculoInfo, damages, receptionId) {
+    const user = AppState.user;
+    const dateStr = new Date().toLocaleString();
+
+    const secureToken = order.token || 'tok_' + order.id;
+    const portalUrl = `${window.location.origin}/portal.html?ot=${order.id}&token=${secureToken}`;
+
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(portalUrl)}`;
+
+    let damagesHtml = '';
+    let hasDamages = false;
+
+    Object.entries(damages).forEach(([catId, list]) => {
+        if (list && list.length > 0) {
+            hasDamages = true;
+            const catLabel = catId.toUpperCase().replace('_', ' ');
+            damagesHtml += `
+                <div style="margin-bottom:10px;">
+                    <strong>${catLabel}:</strong>
+                    <ul style="margin:5px 0 0 15px; padding:0; font-size:0.85rem;">
+                        ${list.map(d => `<li>📍 Posición: (${Math.round(d.x)}%, ${Math.round(d.y)}%) - ${d.note}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+    });
+
+    if (!hasDamages) {
+        damagesHtml = '<p style="color:var(--success); margin:0; font-style:italic;">No se registraron daños ni anomalías físicas previas en el vehículo.</p>';
+    }
+
+    let html = `
+        <div class="receipt-container">
+            <div class="receipt-header">
+                <span style="font-size:3rem; color:var(--success);">✔️</span>
+                <h2>Comprobante de Recepción Digital</h2>
+                <p style="margin:5px 0; color:var(--secondary); font-size:0.95rem;">GOS - GPS Operations Suite</p>
+                <span class="badge badge-finalizada" style="font-size:0.8rem; padding: 5px 12px;">REGISTRO: ${receptionId}</span>
+            </div>
+
+            <!-- Botones de Acción -->
+            <div class="actions-bar" style="display:flex; justify-content:space-between; margin-bottom:30px; flex-wrap:wrap; gap:10px;">
+                <button class="btn btn-secondary" id="receipt-back-btn">⬅️ Volver al Dashboard</button>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-primary" id="receipt-print-btn">🖨️ Imprimir</button>
+                    <button class="btn btn-secondary" id="receipt-download-btn">📥 Descargar</button>
+                    <button class="btn btn-secondary" id="receipt-share-btn">🔗 Compartir</button>
+                </div>
+            </div>
+
+            <!-- Datos de la Recepción -->
+            <div class="receipt-section">
+                <h4>Información de la Recepción</h4>
+                <div class="receipt-grid">
+                    <div class="receipt-item"><strong>ID Recepción:</strong> ${receptionId}</div>
+                    <div class="receipt-item"><strong>Orden de Trabajo:</strong> ${order.id}</div>
+                    <div class="receipt-item"><strong>Fecha y Hora:</strong> ${dateStr}</div>
+                    <div class="receipt-item"><strong>Técnico Responsable:</strong> ${user.Nombre_Completo || user.Nombre_Usuario}</div>
+                    <div class="receipt-item"><strong>Sector Operativo:</strong> ${user.Sector || 'San Pedro Sula'}</div>
+                    <div class="receipt-item"><strong>Vendedor Responsable:</strong> ${order.vendedor || 'Carlos Ruiz'}</div>
+                </div>
+            </div>
+
+            <!-- Datos del Cliente -->
+            <div class="receipt-section">
+                <h4>Información del Cliente</h4>
+                <div class="receipt-grid">
+                    <div class="receipt-item"><strong>Cliente:</strong> ${order.cliente || ''}</div>
+                    <div class="receipt-item"><strong>Contacto:</strong> ${order.contacto || ''}</div>
+                    <div class="receipt-item"><strong>Teléfono:</strong> ${order.telefono || ''}</div>
+                    <div class="receipt-item"><strong>Ubicación Programada:</strong> ${order.direccion || ''}</div>
+                </div>
+            </div>
+
+            <!-- Datos del Vehículo -->
+            <div class="receipt-section">
+                <h4>Información del Vehículo</h4>
+                <div class="receipt-grid">
+                    <div class="receipt-item"><strong>Marca:</strong> ${vehiculoInfo.marca}</div>
+                    <div class="receipt-item"><strong>Modelo:</strong> ${vehiculoInfo.modelo}</div>
+                    <div class="receipt-item"><strong>Año:</strong> ${vehiculoInfo.anio}</div>
+                    <div class="receipt-item"><strong>Color:</strong> ${vehiculoInfo.color}</div>
+                    <div class="receipt-item"><strong>Placa:</strong> ${vehiculoInfo.placa}</div>
+                    <div class="receipt-item"><strong>VIN/Chasis:</strong> ${vehiculoInfo.vin}</div>
+                    <div class="receipt-item"><strong>Número Motor:</strong> ${vehiculoInfo.motor || 'N/A'}</div>
+                </div>
+            </div>
+
+            <!-- Registro de Daños Existentes -->
+            <div class="receipt-section">
+                <h4>Registro de Daños Existentes (Estado Físico Previo)</h4>
+                <div class="receipt-damage-list">
+                    ${damagesHtml}
+                </div>
+            </div>
+
+            <!-- Código QR único de Consulta para el Cliente -->
+            <div class="qr-code-section">
+                <div class="qr-code-container">
+                    <img src="${qrCodeUrl}" alt="Código QR de Consulta Seguro" style="width:150px; height:150px; display:block;">
+                </div>
+                <h4 style="margin:5px 0; color:var(--dark); font-size:0.95rem;">Código QR de Consulta Seguro</h4>
+                <p style="margin:0; font-size:0.8rem; color:var(--secondary); max-width:300px;">
+                    Escanee este código QR para acceder en tiempo real al estado de su orden, instalador asignado y evidencias registradas.
+                </p>
+                <p style="margin-top:5px; font-size:0.75rem;"><a href="${portalUrl}" target="_blank" style="color:var(--primary); word-break:break-all;">${portalUrl}</a></p>
+            </div>
+        </div>
+    `;
+
+    container.innerHTML = html;
+
+    document.getElementById('receipt-back-btn').onclick = () => {
+        loadSection('dashboard');
+    };
+
+    document.getElementById('receipt-print-btn').onclick = () => {
+        window.print();
+    };
+
+    document.getElementById('receipt-download-btn').onclick = () => {
+        const textContent = `
+GOS - COMPROBANTE DE RECEPCION DIGITAL
+======================================
+ID Recepcion: ${receptionId}
+Orden de Trabajo: ${order.id}
+Fecha/Hora: ${dateStr}
+Tecnico: ${user.Nombre_Completo || user.Nombre_Usuario}
+Sector: ${user.Sector || 'San Pedro Sula'}
+
+CLIENTE:
+--------
+Nombre: ${order.cliente}
+Contacto: ${order.contacto}
+Telefono: ${order.telefono}
+
+VEHICULO:
+---------
+Marca: ${vehiculoInfo.marca}
+Modelo: ${vehiculoInfo.modelo}
+Anio: ${vehiculoInfo.anio}
+Color: ${vehiculoInfo.color}
+Placa: ${vehiculoInfo.placa}
+VIN: ${vehiculoInfo.vin}
+Motor: ${vehiculoInfo.motor || 'N/A'}
+
+Portal de consulta del cliente:
+${portalUrl}
+        `.trim();
+
+        const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `GOS_Comprobante_${order.id}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    document.getElementById('receipt-share-btn').onclick = () => {
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(portalUrl).then(() => {
+                alert("¡Enlace del Portal de Clientes copiado al portapapeles!");
+            }).catch(err => {
+                alert("Error al copiar enlace: " + err);
+            });
+        } else {
+            alert("Su navegador no soporta el portapapeles. Copie el enlace manualmente:\\n\\n" + portalUrl);
+        }
+    };
 }
 
 // Registro de Service Worker para PWA

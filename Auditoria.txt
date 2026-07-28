@@ -129,3 +129,29 @@ ESTADO: CUMPLIDO
 - [OK] Frontend: Formularios de Clientes y Órdenes alineados con la nueva estructura de datos.
 - [OK] Frontend: Agenda con soporte visual de colores por estado y visualización de técnicos.
 - [OK] Frontend: Acciones rápidas (Drive, Maps) integradas en la tabla de órdenes.
+
+==============================================
+AUDITORÍA INICIAL - v0.5.0 (Dashboard y Recepción de Vehículos)
+FECHA: 2025-05-24
+
+ESTADO: POR IMPLEMENTAR
+- [PENDIENTE] Backend: Modificar initializeSystem en services/gos/gos-core.js para crear y pre-configurar las hojas Sectores, Usuarios_Sectores y RecepcionVehiculos.
+- [PENDIENTE] Backend: Crear métodos saveVehicleReception, getUserSector y updateUserSector en services/gos/gos-core.js.
+- [PENDIENTE] Backend: Actualizar handleCreateOrder y handleGetOrders para soportar el campo "Sector" en las órdenes.
+- [PENDIENTE] Frontend: Agregar la sección Dashboard en index.html y habilitarla como vista de inicio tras iniciar sesión.
+- [PENDIENTE] Frontend: Implementar la UI del Dashboard operativo en main.js, aplicando filtrado automático por el sector del usuario actual.
+- [PENDIENTE] Frontend: Agregar estilos responsivos en style.css para el Dashboard, el Canvas de fotografías y los pines interactivos de daños.
+- [PENDIENTE] Frontend: Desarrollar el formulario inteligente de Recepción de Vehículos en main.js, incluyendo el flujo interactivo de 10 fotografías, marcadores de daños por clic y validación automática de calidad por Canvas.
+- [PENDIENTE] Frontend: Conectar la submisión del formulario de Recepción con el backend (saveVehicleReception) y actualizar el estado de la orden a 'Vehículo recibido'.
+
+==============================================
+AUDITORÍA INICIAL - v0.5.0 FASE 2 (Comprobante, QR, Token y Portal de Clientes)
+FECHA: 2025-05-24
+
+ESTADO: POR IMPLEMENTAR
+- [PENDIENTE] Backend: Agregar campos Vendedor, Color, Fecha Instalacion y Token a la inicialización automática de Ordenes en services/gos/gos-core.js.
+- [PENDIENTE] Backend: Modificar handleCreateOrder para generar un Token UUID seguro.
+- [PENDIENTE] Backend: Implementar getClientPortalData en services/gos/gos-core.js para consulta segura y no enumerable.
+- [PENDIENTE] Frontend: Corregir bug de acento en el estado 'Llegó' (llegó/llego) en la lógica de comparación de main.js.
+- [PENDIENTE] Frontend: Desarrollar en main.js la visualización y generación del Comprobante Digital con datos, lista de daños y QR Code de consulta.
+- [PENDIENTE] Frontend: Crear portal.html en el directorio raíz como portal responsivo público del cliente, consumiendo getClientPortalData.
