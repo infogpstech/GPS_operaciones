@@ -169,3 +169,14 @@ ESTADO: CUMPLIDO
 - [OK] Frontend: Configurar el Dashboard operativo con vistas diferenciadas según roles (Jefe/Gerente vs Técnico/Operador) y restringir el panel de métricas administrativas.
 - [OK] Frontend: Desarrollar el formulario de entrega post-instalación con lienzo de firma interactiva y estados de transición paso a paso.
 - [OK] Frontend: Crear tickets imprimibles para pre-instalación (recepción) y post-instalación (evidencia de entrega con firma).
+
+==============================================
+AUDITORÍA INICIAL - v0.5.1 (Dashboard de Agenda Operativa y Gestión de Cupos)
+FECHA: 2025-05-24
+
+ESTADO: PENDIENTE REVISION POR EL MP
+- [PENDIENTE REVISIÓN POR EL MP] Frontend: Modificado UI_TEMPLATES.orderForm para cambiar el campo de hora por un select dinámico e integrar el botón "Guardar como Borrador" en main.js (Líneas 85-147).
+- [PENDIENTE REVISIÓN POR EL MP] Frontend: Reescripto renderAgendaModule para estructurar la agenda semanal basada en un grid rodante de 8 columnas en main.js (Líneas 591-804).
+- [PENDIENTE REVISIÓN POR EL MP] Frontend: Implementada window.bookSlot para reservar cupos directamente desde espacios disponibles en la agenda en main.js (Líneas 805-824).
+- [PENDIENTE REVISIÓN POR EL MP] Frontend: Creado el validador dinámico updateSlots que implementa horas normales, extraordinarias, limitación de reservas y expiración temporal de 15 minutos en main.js (Líneas 877-1011).
+- [PENDIENTE REVISIÓN POR EL MP] Frontend: Agregados estilos CSS responsivos para el grid de 8 columnas de la agenda semanal y las tarjetas de cupos en style.css (Líneas 87-250).

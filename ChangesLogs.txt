@@ -145,3 +145,16 @@
 - **Frontend (index.html, style.css):**
   - Incorporada navegación `nav-admin-metrics` oculta por defecto y expuesta vía RBAC (Línea 47).
   - Diseñados estilos responsivos para el lienzo de firma, controles de impresión `@media print` y bordes de prioridad visual (Líneas 760-805).
+
+## [v0.5.1] - 2025-05-24
+### Dashboard de Agenda Operativa y Gestión de Cupos
+- **Frontend (main.js):**
+  - Modificado `UI_TEMPLATES.orderForm` para cambiar el campo de hora por un select dinámico (`#order-hora`) y añadir el botón para guardar como borrador (`#save-draft-btn`) (Líneas 85-147).
+  - Reescripto `renderAgendaModule` para implementar un calendario dinámico rodante de 8 columnas a partir del día de hoy local del usuario (Líneas 591-804).
+  - Desarrollada la función `window.bookSlot` para pre-poblar el formulario de nueva orden al pulsar directamente un cupo disponible en la agenda (Líneas 805-824).
+  - Creada la función `updateSlots` que calcula la disponibilidad en tiempo real aplicando reglas de horarios normales y extraordinarios, límites de reserva y validez temporal de borradores de 15 minutos (Líneas 877-1011).
+- **Frontend (style.css):**
+  - Diseñado un layout responsivo mediante CSS Grid de 8 columnas para el calendario semanal (Líneas 87-250).
+  - Incorporadas reglas visuales y de interacción para tarjetas de cupos (`card-confirmed`, `card-draft`, `card-available`, `card-available-partial`) con colores suaves, transparencias y bordes específicos (Líneas 87-250).
+- **Frontend (index.html):**
+  - Actualizada la versión visible a v0.5.1 (Línea 56).
