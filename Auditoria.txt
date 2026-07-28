@@ -155,3 +155,17 @@ ESTADO: POR IMPLEMENTAR
 - [PENDIENTE] Frontend: Corregir bug de acento en el estado 'Llegó' (llegó/llego) en la lógica de comparación de main.js.
 - [PENDIENTE] Frontend: Desarrollar en main.js la visualización y generación del Comprobante Digital con datos, lista de daños y QR Code de consulta.
 - [PENDIENTE] Frontend: Crear portal.html en el directorio raíz como portal responsivo público del cliente, consumiendo getClientPortalData.
+
+==============================================
+AUDITORÍA INICIAL - v0.5.0 FASE 3 (Tickets, Estados, Firma, Historial y Dashboards)
+FECHA: 2025-05-24
+
+ESTADO: CUMPLIDO
+- [OK] Backend: Sembrar catálogos de datos de forma automática al iniciar el sistema.
+- [OK] Backend: Expandir cabeceras y mapeos para Clasificación del Vehículo y Firma Digital.
+- [OK] Backend: Crear manejador para consulta de historial operativo por número de chasis (VIN).
+- [OK] Frontend: Agregar la clasificación obligatoria (Nuevo/Usado) e implementar autocompletado y advertencias de instalación en chasis blur.
+- [OK] Frontend: Implementar la prioridad visual a través de insignias de color, ocultando textos descriptivos.
+- [OK] Frontend: Configurar el Dashboard operativo con vistas diferenciadas según roles (Jefe/Gerente vs Técnico/Operador) y restringir el panel de métricas administrativas.
+- [OK] Frontend: Desarrollar el formulario de entrega post-instalación con lienzo de firma interactiva y estados de transición paso a paso.
+- [OK] Frontend: Crear tickets imprimibles para pre-instalación (recepción) y post-instalación (evidencia de entrega con firma).

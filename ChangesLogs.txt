@@ -127,3 +127,21 @@
 - **Frontend (style.css, index.html):**
   - Agregado enlace de navegación para Dashboard en index.html (Línea 40).
   - Incorporados estilos para el Dashboard, campos autocompletados, pins responsivos de daños, Comprobante de Recepción, reglas de impresión @media print y maquetación móvil del Portal de Clientes (Líneas 304-560).
+
+### Integración de Tickets, Estados de Instalación, Firma Digital, Historial del Vehículo y Dashboard de Roles
+- **Backend (services/gos/gos-core.js):**
+  - Añadida siembra automática de catálogos (`TiposTrabajo`, `Estados`, `Prioridades`, `Servicios`, `Turnos`) en `initializeSystem` para configurar el Spreadsheet operativo (Líneas 77-142).
+  - Expandido `handleCreateOrder` y `handleUpdateOrderStatus` para admitir los campos `"Clasificación Vehículo"` y `"Firma Digital"` (Líneas 218-245, 312-358).
+  - Implementado `handleGetVehicleHistory` para realizar búsquedas por número de chasis (VIN) y recuperar el historial de servicios completo (Líneas 246-284).
+  - Modificado `handleGetClientPortalData` para exponer de forma segura el estado de firma digital del cliente (Líneas 969-1008).
+- **Frontend (main.js):**
+  - Actualizado el formulario de orden para incluir la clasificación mandatoria y un receptor de evento `blur` en el VIN (Líneas 82-120).
+  - Desarrollada la consulta de historial automática que autocompleta campos, dibuja tablas de servicios previos, y advierte al asistente de ventas si el vehículo ya posee un dispositivo GPS (Líneas 702-811).
+  - Creado el método `UI_TEMPLATES.priorityBadge` para ocultar todo texto de prioridad y mostrar únicamente círculos de color (Normal = Verde, Alta = Naranja, Máxima = Rojo) (Líneas 24-35).
+  - Modificado `renderDashboardModule` para filtrar vistas por roles: vista de planificación semanal para gerencia y vista de lista sectorizada con botones de transición paso a paso (`Iniciando`, `Instalando`, `Haciendo pruebas`, `Instalación completada`) para técnicos (Líneas 1012-1322).
+  - Implementado panel `renderAdminMetricsModule` restringido para visualizar tarjetas administrativas sólo con permisos privilegiados (Líneas 1970-2059).
+  - Desarrollado lienzo de firma digital `initSignatureCanvas` y el formulario de confirmación de entrega `renderPostInstallationForm` (Líneas 2060-2200).
+  - Añadidas vistas imprimibles para el Ticket Pre-instalación `renderTicketPreView` y la Evidencia Post-instalación `renderTicketPostView` (Líneas 2201-2500).
+- **Frontend (index.html, style.css):**
+  - Incorporada navegación `nav-admin-metrics` oculta por defecto y expuesta vía RBAC (Línea 47).
+  - Diseñados estilos responsivos para el lienzo de firma, controles de impresión `@media print` y bordes de prioridad visual (Líneas 760-805).

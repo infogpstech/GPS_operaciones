@@ -759,3 +759,50 @@ body {
     width: 12px;
     border-radius: 4px;
 }
+
+/* Indicadores de Prioridad Visual */
+.priority-dot {
+    box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+    transition: transform 0.2s ease;
+}
+.priority-dot:hover {
+    transform: scale(1.2);
+}
+
+/* Lienzo de Firma Digital */
+.signature-wrapper {
+    border: 2px dashed #ccc;
+    background: #fafafa;
+    border-radius: 8px;
+    position: relative;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    width: 100%;
+    max-width: 450px;
+}
+.signature-canvas {
+    display: block;
+    width: 100%;
+    height: 180px;
+    cursor: crosshair;
+}
+.signature-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 5px;
+    max-width: 450px;
+}
+
+/* Ajustes de Impresión Específicos para Tickets */
+@media print {
+    .navbar, .btn, header, #back-to-dash-btn, .actions-bar, .input-file-label, .signature-actions, #cancel-reception-btn {
+        display: none !important;
+    }
+    .receipt-container, .reception-container {
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+    }
+}

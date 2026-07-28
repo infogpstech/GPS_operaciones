@@ -24,6 +24,17 @@ const UI_TEMPLATES = {
         return `<span class="badge badge-${safeStatus}">${status}</span>`;
     },
 
+    priorityBadge(priority) {
+        const p = (priority || 'Normal').toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        let color = '#28a745'; // Normal -> Verde
+        if (p === 'alta') {
+            color = '#fd7e14'; // Alta -> Naranja
+        } else if (p === 'maxima' || p === 'urgente') {
+            color = '#dc3545'; // Máxima -> Rojo
+        }
+        return `<span class="priority-dot" style="display:inline-block; width:15px; height:15px; border-radius:50%; background-color:${color}; vertical-align:middle;" title="Prioridad: ${priority}"></span>`;
+    },
+
     chart(data) {
         // data: [{label: 'Tech1', value: 10}, ...]
         const maxVal = Math.max(...data.map(d => d.value)) || 1;
@@ -82,13 +93,30 @@ const UI_TEMPLATES = {
                     <div class="form-group"><label>Dirección</label><input type="text" name="direccion" class="form-control" required></div>
                     <div class="form-group"><label>Coordenadas (Lat, Lng)</label><input type="text" name="coordenadas" class="form-control" placeholder="Ej: 9.9333, -84.0833"></div>
                     <div class="form-group"><label>Link Google Maps</label><input type="url" name="linkMaps" class="form-control"></div>
-                    <div class="form-group"><label>Marca</label><input type="text" name="marca" class="form-control" required></div>
-                    <div class="form-group"><label>Modelo</label><input type="text" name="modelo" class="form-control" required></div>
-                    <div class="form-group"><label>VIN (Chasis)</label><input type="text" name="vin" class="form-control"></div>
-                    <div class="form-group"><label>Número Motor</label><input type="text" name="motor" class="form-control"></div>
-                    <div class="form-group"><label>Año</label><input type="number" name="anio" class="form-control"></div>
-                    <div class="form-group"><label>Placa</label><input type="text" name="placa" class="form-control"></div>
-                    <div class="form-group"><label>Servicio</label>
+
+                    <!-- Chasis VIN (para consulta de historial automático) -->
+                    <div class="form-group">
+                        <label>VIN (Chasis)</label>
+                        <input type="text" name="vin" id="order-vin" class="form-control" required placeholder="Ingrese 17 dígitos">
+                    </div>
+                    <div class="form-group">
+                        <label>Clasificación del Vehículo</label>
+                        <select name="clasificacionVehiculo" id="order-clasificacion" class="form-control" required>
+                            <option value="">Seleccione...</option>
+                            <option value="Vehículo nuevo">Vehículo nuevo</option>
+                            <option value="Vehículo usado">Vehículo usado</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group"><label>Marca</label><input type="text" name="marca" id="order-marca" class="form-control" required></div>
+                    <div class="form-group"><label>Modelo</label><input type="text" name="modelo" id="order-modelo" class="form-control" required></div>
+                    <div class="form-group"><label>Número Motor</label><input type="text" name="motor" id="order-motor" class="form-control"></div>
+                    <div class="form-group"><label>Año</label><input type="number" name="anio" id="order-anio" class="form-control"></div>
+                    <div class="form-group"><label>Placa</label><input type="text" name="placa" id="order-placa" class="form-control"></div>
+                    <div class="form-group"><label>Color</label><input type="text" name="color" id="order-color" class="form-control"></div>
+
+                    <div class="form-group">
+                        <label>Servicio</label>
                         <select name="servicio" class="form-control">${options.servicios || '<option>Cargando...</option>'}</select>
                     </div>
                     <div class="form-group"><label>Inventario</label><textarea name="inventario" class="form-control"></textarea></div>
@@ -101,6 +129,9 @@ const UI_TEMPLATES = {
                         <select name="prioridad" class="form-control">${options.prioridades || '<option>Cargando...</option>'}</select>
                     </div>
                     <div class="form-group"><label>Observaciones</label><textarea name="observaciones" class="form-control"></textarea></div>
+
+                    <!-- Contenedor dinámico de memoria histórica y validaciones de chasis -->
+                    <div id="vehicle-history-container" style="grid-column: 1 / -1; margin-top: 15px; display: none;"></div>
                 </div>
                 <div style="display:flex; gap:10px; margin-top:20px;">
                     <button type="submit" class="btn btn-primary">Guardar y Asignar</button>
@@ -229,6 +260,9 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
     return R * c;
 }
 
+// Exponer markStatus de forma inmediata a nivel global
+window.markStatus = markStatus;
+
 async function markStatus(orderId, newStatus) {
     try {
         const result = await routeAction('GOS_CORE', 'updateOrderStatus', { orderId, status: newStatus });
@@ -299,7 +333,8 @@ function loadSection(section) {
         clientes: { title: 'Directorio de Clientes', content: '<p>Cargando base de datos de clientes...</p>' },
         tecnicos: { title: 'Panel de Técnicos', content: '<p>Cargando disponibilidad de técnicos...</p>' },
         consulta: { title: 'Consulta Técnica GPSpedia', content: '<p>Cargando motor de consulta...</p>' },
-        reportes: { title: 'Reportes Operativos', content: '<p>Cargando reportes...</p>' }
+        reportes: { title: 'Reportes Operativos', content: '<p>Cargando reportes...</p>' },
+        'admin-metrics': { title: 'Métricas Administrativas (Restringido)', content: '<p>Cargando métricas...</p>' }
     };
 
     if (sections[section]) {
@@ -320,6 +355,8 @@ function loadSection(section) {
             renderConsultationModule(contentEl);
         } else if (section === 'reportes') {
             renderReportsModule(contentEl);
+        } else if (section === 'admin-metrics') {
+            renderAdminMetricsModule(contentEl);
         }
     }
 }
@@ -678,11 +715,121 @@ function renderOrderForm(container) {
 
     container.innerHTML = UI_TEMPLATES.orderForm({
         servicios: buildOptions('Servicios', ['Básico', 'Full']),
-        tiposTrabajo: buildOptions('TiposTrabajo', ['Instalación', 'Revisión', 'Traspaso', 'Desinstalación', 'Mantenimiento Preventivo']),
-        prioridades: buildOptions('Prioridades', ['Baja', 'Normal', 'Alta', 'Urgente'])
+        tiposTrabajo: buildOptions('TiposTrabajo', ['Instalación', 'Revisión por falla', 'Mantenimiento', 'Desinstalación', 'Reinstalación', 'Otros']),
+        prioridades: buildOptions('Prioridades', ['Normal', 'Alta', 'Máxima'])
     });
 
     document.getElementById('cancel-order-btn').addEventListener('click', () => loadSection('ordenes'));
+
+    const vinInput = document.getElementById('order-vin');
+    const historyContainer = document.getElementById('vehicle-history-container');
+
+    vinInput.addEventListener('blur', async () => {
+        const vin = vinInput.value.trim();
+        if (!vin) {
+            historyContainer.style.display = 'none';
+            return;
+        }
+
+        try {
+            historyContainer.innerHTML = '<p style="color:var(--secondary); font-style:italic;">Buscando historial del vehículo...</p>';
+            historyContainer.style.display = 'block';
+
+            const result = await routeAction('GOS_CORE', 'getVehicleHistory', { vin });
+            if (result.status === 'success' && result.history && result.history.length > 0) {
+                const hist = result.history;
+
+                // Buscar si posee registros previos de instalación
+                const hasPrevInstallation = hist.some(h => {
+                    const t = (h.tipotrabajo || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    return t.includes('instalacion') || t.includes('reinstalacion');
+                });
+
+                const lastRecord = hist[hist.length - 1]; // Usar el último registro para autocompletar
+
+                let warningHtml = '';
+                if (hasPrevInstallation) {
+                    warningHtml = `
+                        <div style="background: #fff3cd; color: #856404; border: 1px solid #ffeeba; padding: 15px; border-radius: 8px; margin-bottom: 15px; font-weight: bold;">
+                            ⚠️ ¡ATENCIÓN ASISTENTE DE VENTAS! Este vehículo ya posee un GPS instalado anteriormente en nuestro sistema. (Clasificado como Vehículo Usado).
+                        </div>
+                    `;
+                    const clasifSelect = document.getElementById('order-clasificacion');
+                    if (clasifSelect) clasifSelect.value = 'Vehículo usado';
+                }
+
+                let historyListHtml = `
+                    <div style="background: #f8f9fa; border: 1px solid #eee; padding: 15px; border-radius: 8px; margin-top: 10px;">
+                        ${warningHtml}
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px; border-bottom: 1px solid #ddd; padding-bottom: 8px;">
+                            <h4 style="margin:0; color:var(--dark);">Memoria Histórica del Vehículo</h4>
+                            <button type="button" class="btn btn-sm btn-primary" id="autofill-vehicle-btn" style="padding: 4px 10px; font-size: 0.8rem;">📦 Autocompletar Datos</button>
+                        </div>
+
+                        <div style="margin-bottom:15px; font-size: 0.9rem; line-height: 1.4;">
+                            <strong>Últimos Datos Registrados:</strong><br>
+                            🚗 Vehículo: ${lastRecord.marca || ''} ${lastRecord.modelo || ''} (${lastRecord.anio || ''}) | Color: ${lastRecord.color || ''} | Placa: ${lastRecord.placa || ''} | Motor: ${lastRecord.motor || ''}
+                        </div>
+
+                        <strong>Historial Operativo de Servicios:</strong>
+                        <table class="gos-table" style="margin-top: 10px; font-size:0.8rem;">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Tipo de Trabajo</th>
+                                    <th>Técnico</th>
+                                    <th>Sector/División</th>
+                                    <th>Lugar de Ejecución</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${hist.map(h => `
+                                    <tr>
+                                        <td>${h.fecha || ''}</td>
+                                        <td><strong>${h.tipotrabajo || ''}</strong></td>
+                                        <td>${h.tecnico || ''}</td>
+                                        <td><span class="badge" style="background:#e2e3e5; color:#383d41;">${h.sector || ''}</span></td>
+                                        <td><small>${h.lugar || ''}</small></td>
+                                        <td><small>${h.estado || ''}</small></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                historyContainer.innerHTML = historyListHtml;
+                historyContainer.style.display = 'block';
+
+                // Configurar acción del botón autocompletar
+                document.getElementById('autofill-vehicle-btn').onclick = (e) => {
+                    e.preventDefault();
+                    document.getElementById('order-marca').value = lastRecord.marca || '';
+                    document.getElementById('order-modelo').value = lastRecord.modelo || '';
+                    document.getElementById('order-motor').value = lastRecord.motor || '';
+                    document.getElementById('order-anio').value = lastRecord.anio || '';
+                    document.getElementById('order-placa').value = lastRecord.placa || '';
+                    document.getElementById('order-color').value = lastRecord.color || '';
+                    alert("¡Campos del vehículo autocompletados desde el historial!");
+                };
+
+            } else {
+                // Es un vehículo nuevo o sin registros previos
+                historyContainer.innerHTML = `
+                    <div style="background: #d4edda; color: #155724; border: 1px solid #c3e6cb; padding: 12px; border-radius: 8px; font-weight: bold;">
+                        🚗 No se encontraron registros previos para este chasis. Clasificado tentativamente como Vehículo Nuevo.
+                    </div>
+                `;
+                historyContainer.style.display = 'block';
+                const clasifSelect = document.getElementById('order-clasificacion');
+                if (clasifSelect) clasifSelect.value = 'Vehículo nuevo';
+            }
+        } catch (err) {
+            console.error("Error al consultar historial:", err);
+            historyContainer.style.display = 'none';
+        }
+    });
 
     document.getElementById('order-form').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -785,6 +932,17 @@ async function showMainView(user) {
         user.Sector = 'San Pedro Sula';
     }
 
+    // RBAC: Mostrar enlace a Métricas Administrativas si el rol lo amerita
+    const isChiefOrManager = ['jefe', 'gerente', 'desarrollador', 'jefe de tienda', 'administrador'].includes((user.Privilegios || '').toLowerCase().trim());
+    const navAdmin = document.getElementById('nav-admin-metrics');
+    if (navAdmin) {
+        if (isChiefOrManager) {
+            navAdmin.style.display = 'inline-block';
+        } else {
+            navAdmin.style.display = 'none';
+        }
+    }
+
     loadSection('dashboard');
 }
 
@@ -857,7 +1015,7 @@ async function renderDashboardModule(container) {
         return;
     }
 
-    const isPowerUser = ['desarrollador', 'jefe'].includes((user.Privilegios || '').toLowerCase().trim());
+    const isPowerUser = ['desarrollador', 'jefe', 'gerente', 'jefe de tienda', 'administrador'].includes((user.Privilegios || '').toLowerCase().trim());
     let activeSector = isPowerUser ? 'Todos' : (user.Sector || 'San Pedro Sula');
 
     const updateDashboard = async () => {
@@ -875,19 +1033,6 @@ async function renderDashboardModule(container) {
                 if (activeSector === 'Todos') return true;
                 return (order.sector || '').toLowerCase().trim() === activeSector.toLowerCase().trim();
             });
-
-            // Calcular Métricas
-            const pendingJobs = filteredOrders.filter(o => ['pendiente', 'asignada'].includes((o.estado || '').toLowerCase().trim())).length;
-
-            const todayStr = new Date().toISOString().split('T')[0];
-            const assignedToday = filteredOrders.filter(o => {
-                const dateMatch = o.fecha === todayStr;
-                const statusMatch = ['asignada', 'en camino', 'llego', 'vehiculo recibido'].includes((o.estado || '').toLowerCase().trim());
-                return dateMatch && statusMatch;
-            }).length;
-
-            const receivedVehicles = filteredOrders.filter(o => (o.estado || '').toLowerCase().trim() === 'vehiculo recibido').length;
-            const finishedJobs = filteredOrders.filter(o => (o.estado || '').toLowerCase().trim() === 'finalizada').length;
 
             let html = `
                 <div class="dashboard-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:15px;">
@@ -912,95 +1057,197 @@ async function renderDashboardModule(container) {
 
             html += `
                 </div>
-
-                <!-- Métricas -->
-                <div class="dashboard-grid">
-                    <div class="dashboard-card pending">
-                        <h3>Trabajos Pendientes</h3>
-                        <div class="value">${pendingJobs}</div>
-                    </div>
-                    <div class="dashboard-card assigned">
-                        <h3>Asignados Hoy</h3>
-                        <div class="value">${assignedToday}</div>
-                    </div>
-                    <div class="dashboard-card received">
-                        <h3>Vehículos Recibidos</h3>
-                        <div class="value">${receivedVehicles}</div>
-                    </div>
-                    <div class="dashboard-card finished">
-                        <h3>Trabajos Finalizados</h3>
-                        <div class="value">${finishedJobs}</div>
-                    </div>
-                </div>
-
-                <!-- Lista de Órdenes del Sector -->
-                <div class="orders-table-container">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid var(--light); padding-bottom:10px;">
-                        <h3 style="margin:0; font-size:1.1rem; color:var(--dark);">Órdenes del Sector</h3>
-                        <span class="badge" style="background:var(--light); color:var(--secondary); font-size:0.8rem;">Total: ${filteredOrders.length}</span>
-                    </div>
             `;
 
-            if (filteredOrders.length === 0) {
-                html += `<p style="padding:20px; text-align:center; color:var(--secondary); font-size:0.95rem;">No hay órdenes de trabajo asignadas a este sector en este momento.</p>`;
-            } else {
+            if (isPowerUser) {
+                // DASHBOARD PARA JEFE DE TIENDA Y GERENTE: Planificación de Instalaciones Programadas
+                const today = new Date();
+                const nextWeek = new Date();
+                nextWeek.setDate(today.getDate() + 7);
+
+                const formatLocalDate = (d) => d.toISOString().split('T')[0];
+                const startStr = formatLocalDate(today);
+                const endStr = formatLocalDate(nextWeek);
+
+                // Filtrar por semana y tipo "Instalación" / "Reinstalación"
+                const weeklyInstalls = filteredOrders.filter(o => {
+                    const dateVal = o.fecha || '';
+                    const isInstall = ['instalacion', 'reinstalacion'].includes((o.tipotrabajo || '').toLowerCase().trim());
+                    return dateVal >= startStr && dateVal <= endStr && isInstall;
+                });
+
+                // Distribución de trabajos (por técnico para "Distribución de trabajos")
+                const techCounts = {};
+                weeklyInstalls.forEach(o => {
+                    const t = o.tecnicoasignado || 'Sin asignar';
+                    techCounts[t] = (techCounts[t] || 0) + 1;
+                });
+                const chartData = Object.entries(techCounts).map(([label, value]) => ({ label, value }));
+
                 html += `
-                    <table class="gos-table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Hora</th>
-                                <th>Cliente</th>
-                                <th>Vehículo</th>
-                                <th>Prioridad</th>
-                                <th>Estado</th>
-                                <th>Técnico</th>
-                                <th>Acción</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                    <div style="background: #e3f2fd; padding:15px; border-radius:8px; margin-bottom:20px; font-size:0.95rem; color:#0d47a1;">
+                        📅 <strong>Planificación de Instalaciones de la Semana (Jefatura/Gerencia)</strong><br>
+                        Mostrando instalaciones programadas desde hoy hasta el ${endStr}.
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:25px; flex-wrap:wrap;">
+                        <div class="orders-table-container">
+                            <h3 style="margin-top:0; margin-bottom:15px; border-bottom:2px solid var(--light); padding-bottom:8px; color:var(--dark);">Distribución de Trabajos</h3>
+                            ${chartData.length > 0 ? UI_TEMPLATES.chart(chartData) : '<p style="color:var(--secondary); font-style:italic;">No hay instalaciones distribuidas esta semana.</p>'}
+                        </div>
+                        <div class="orders-table-container">
+                            <h3 style="margin-top:0; margin-bottom:15px; border-bottom:2px solid var(--light); padding-bottom:8px; color:var(--dark);">Estados de Ejecución</h3>
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; font-size:0.9rem;">
+                                <div>⏳ Pendientes: <strong>${weeklyInstalls.filter(o => (o.estado || '').toLowerCase().trim() === 'pendiente').length}</strong></div>
+                                <div>🔧 Asignadas: <strong>${weeklyInstalls.filter(o => (o.estado || '').toLowerCase().trim() === 'asignada').length}</strong></div>
+                                <div>🚚 En Camino/Llegó: <strong>${weeklyInstalls.filter(o => ['en camino', 'llego'].includes((o.estado || '').toLowerCase().trim())).length}</strong></div>
+                                <div>✅ Completadas: <strong>${weeklyInstalls.filter(o => ['finalizada', 'instalacion completada'].includes((o.estado || '').toLowerCase().trim())).length}</strong></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="orders-table-container">
+                        <h3 style="margin-top:0; margin-bottom:15px; border-bottom:2px solid var(--light); padding-bottom:8px; color:var(--dark);">Planificación Semanal de Instalaciones</h3>
+                        <table class="gos-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Fecha Programada</th>
+                                    <th>Hora</th>
+                                    <th>Cliente</th>
+                                    <th>Vehículo</th>
+                                    <th>Prioridad</th>
+                                    <th>Estado de Ejecución</th>
+                                    <th>Técnico</th>
+                                    <th>Sector</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${weeklyInstalls.map(o => `
+                                    <tr>
+                                        <td><strong>${o.id}</strong></td>
+                                        <td>${o.fecha || ''}</td>
+                                        <td>${o.hora || ''}</td>
+                                        <td>${o.cliente || ''}</td>
+                                        <td>${o.marca || ''} ${o.modelo || ''}</td>
+                                        <td>${UI_TEMPLATES.priorityBadge(o.prioridad)}</td>
+                                        <td>${UI_TEMPLATES.badge(o.estado)}</td>
+                                        <td><small>${o.tecnicoasignado || 'Sin asignar'}</small></td>
+                                        <td><span class="badge" style="background:#e8f4fd; color:#1a73e8;">${o.sector || ''}</span></td>
+                                    </tr>
+                                `).join('')}
+                                ${weeklyInstalls.length === 0 ? '<tr><td colspan="9" style="text-align:center; color:var(--secondary);">No hay instalaciones planificadas para esta semana.</td></tr>' : ''}
+                            </tbody>
+                        </table>
+                    </div>
                 `;
-
-                filteredOrders.forEach(o => {
-                    const status = o.estado || 'Pendiente';
-                    const id = o.id;
-                    const time = o.hora || '--:--';
-                    const client = o.cliente || 'Sin nombre';
-                    const vehicle = `${o.marca || ''} ${o.modelo || ''}`.trim() || 'Desconocido';
-                    const priority = o.prioridad || 'Normal';
-                    const tech = o.tecnicoasignado || 'Sin asignar';
-
-                    let actionBtn = '';
-                    const statusLower = (status || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-                    if (statusLower === 'llego') {
-                        actionBtn = `<button class="btn btn-sm btn-primary receive-vehicle-btn" data-id="${id}" style="padding: 6px 12px; font-size: 0.75rem;">Recibir Vehículo</button>`;
-                    } else if (['vehiculo recibido', 'finalizada'].includes(statusLower)) {
-                        actionBtn = `<span class="badge" style="background:#c3e6cb; color:#155724; font-size:0.75rem;">Recibido OK</span>`;
-                    } else {
-                        actionBtn = `<small style="color:var(--secondary); font-style:italic;">Esperando llegada</small>`;
-                    }
-
-                    html += `
-                        <tr data-id="${id}">
-                            <td><strong>${id}</strong></td>
-                            <td>${time}</td>
-                            <td>${client}</td>
-                            <td>${vehicle}</td>
-                            <td>${UI_TEMPLATES.badge(priority)}</td>
-                            <td>${UI_TEMPLATES.badge(status)}</td>
-                            <td><small>${tech}</small></td>
-                            <td>${actionBtn}</td>
-                        </tr>
-                    `;
+            } else {
+                // DASHBOARD PARA TÉCNICOS Y OPERATIVOS: Instalaciones asignadas, Trabajos programados, Estado de órdenes
+                const activeJobs = filteredOrders.filter(o => {
+                    const statusLower = (o.estado || '').toLowerCase().trim();
+                    return ['pendiente', 'asignada', 'en camino', 'llego', 'vehiculo recibido', 'iniciando', 'instalando', 'haciendo pruebas', 'instalacion completada', 'finalizada'].includes(statusLower);
                 });
 
                 html += `
-                        </tbody>
-                    </table>
+                    <div class="orders-table-container">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid var(--light); padding-bottom:10px;">
+                            <h3 style="margin:0; font-size:1.1rem; color:var(--dark);">Trabajos Programados y Asignaciones - Sector ${activeSector}</h3>
+                            <span class="badge" style="background:var(--light); color:var(--secondary); font-size:0.8rem;">Total: ${activeJobs.length}</span>
+                        </div>
                 `;
+
+                if (activeJobs.length === 0) {
+                    html += `<p style="padding:20px; text-align:center; color:var(--secondary); font-size:0.95rem;">No hay trabajos asignados o programados en este sector.</p>`;
+                } else {
+                    html += `
+                        <table class="gos-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Hora</th>
+                                    <th>Cliente</th>
+                                    <th>Vehículo</th>
+                                    <th>Prioridad</th>
+                                    <th>Estado de la Orden</th>
+                                    <th>Técnico</th>
+                                    <th style="min-width: 150px;">Control Operativo</th>
+                                    <th>Tickets</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+
+                    activeJobs.forEach(o => {
+                        const status = o.estado || 'Pendiente';
+                        const id = o.id;
+                        const time = o.hora || '--:--';
+                        const client = o.cliente || 'Sin nombre';
+                        const vehicle = `${o.marca || ''} ${o.modelo || ''}`.trim() || 'Desconocido';
+                        const priority = o.prioridad || 'Normal';
+                        const tech = o.tecnicoasignado || 'Sin asignar';
+
+                        let controlBtn = '';
+                        const statusLower = (status || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+                        if (statusLower === 'llego') {
+                            controlBtn = `<button class="btn btn-sm btn-primary receive-vehicle-btn" data-id="${id}">Recibir Vehículo</button>`;
+                        } else if (statusLower === 'vehiculo recibido') {
+                            controlBtn = `<button class="btn btn-sm btn-primary" onclick="markStatus('${id}', 'Iniciando')">➡️ Iniciar Trabajo</button>`;
+                        } else if (statusLower === 'iniciando') {
+                            controlBtn = `<button class="btn btn-sm btn-primary" onclick="markStatus('${id}', 'Instalando')">➡️ Comenzar Instalación</button>`;
+                        } else if (statusLower === 'instalando') {
+                            controlBtn = `<button class="btn btn-sm btn-primary" onclick="markStatus('${id}', 'Haciendo pruebas')">➡️ Realizar Pruebas</button>`;
+                        } else if (statusLower === 'haciendo pruebas') {
+                            controlBtn = `<button class="btn btn-sm btn-primary" onclick="markStatus('${id}', 'Instalación completada')">➡️ Completar Instalación</button>`;
+                        } else if (statusLower === 'instalacion completada') {
+                            controlBtn = `<button class="btn btn-sm btn-success deliver-vehicle-btn" data-id="${id}">🤝 Entregar Vehículo</button>`;
+                        } else if (statusLower === 'finalizada') {
+                            controlBtn = `<span class="badge" style="background:#d4edda; color:#155724;">✅ Entregado</span>`;
+                        } else {
+                            controlBtn = `<small style="color:var(--secondary); font-style:italic;">Esperando llegada</small>`;
+                        }
+
+                        // Tickets buttons
+                        const hasReceived = !['pendiente', 'asignada', 'en camino', 'llego'].includes(statusLower);
+                        const isFinalized = statusLower === 'finalizada';
+
+                        const ticketPreBtn = hasReceived
+                            ? `<button class="btn btn-sm btn-outline view-ticket-pre-btn" data-id="${id}" title="Ticket Pre-instalación" style="padding: 4px 8px; font-size: 0.8rem;">🎟️ Pre</button>`
+                            : `<button class="btn btn-sm btn-outline" disabled title="Falta recepción" style="padding: 4px 8px; font-size: 0.8rem; opacity:0.5;">🎟️ Pre</button>`;
+
+                        const ticketPostBtn = isFinalized
+                            ? `<button class="btn btn-sm btn-outline view-ticket-post-btn" data-id="${id}" title="Evidencia Post-instalación" style="padding: 4px 8px; font-size: 0.8rem;">🎟️ Post</button>`
+                            : `<button class="btn btn-sm btn-outline" disabled title="No entregado" style="padding: 4px 8px; font-size: 0.8rem; opacity:0.5;">🎟️ Post</button>`;
+
+                        html += `
+                            <tr data-id="${id}">
+                                <td><strong>${id}</strong></td>
+                                <td>${time}</td>
+                                <td>${client}</td>
+                                <td>${vehicle}</td>
+                                <td>${UI_TEMPLATES.priorityBadge(priority)}</td>
+                                <td>${UI_TEMPLATES.badge(status)}</td>
+                                <td><small>${tech}</small></td>
+                                <td>${controlBtn}</td>
+                                <td>
+                                    <div style="display:flex; gap:5px;">
+                                        ${ticketPreBtn}
+                                        ${ticketPostBtn}
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    });
+
+                    html += `
+                            </tbody>
+                        </table>
+                    `;
+                }
+
+                html += `</div>`;
             }
 
-            html += `</div>`;
             container.innerHTML = html;
 
             const selector = document.getElementById('sector-selector');
@@ -1020,6 +1267,41 @@ async function renderDashboardModule(container) {
                     const order = orders.find(ord => ord.id === orderId);
                     if (order) {
                         renderVehicleReceptionForm(container, order);
+                    }
+                });
+            });
+
+            // Enlazar botones de entrega de vehículo (firma digital)
+            const deliverBtns = container.querySelectorAll('.deliver-vehicle-btn');
+            deliverBtns.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const orderId = e.currentTarget.dataset.id;
+                    const order = orders.find(ord => ord.id === orderId);
+                    if (order) {
+                        renderPostInstallationForm(container, order);
+                    }
+                });
+            });
+
+            // Enlazar botones para ver Tickets
+            const viewPreBtns = container.querySelectorAll('.view-ticket-pre-btn');
+            viewPreBtns.forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const orderId = e.currentTarget.dataset.id;
+                    const order = orders.find(ord => ord.id === orderId);
+                    if (order) {
+                        renderTicketPreView(container, order);
+                    }
+                });
+            });
+
+            const viewPostBtns = container.querySelectorAll('.view-ticket-post-btn');
+            viewPostBtns.forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const orderId = e.currentTarget.dataset.id;
+                    const order = orders.find(ord => ord.id === orderId);
+                    if (order) {
+                        renderTicketPostView(container, order);
                     }
                 });
             });
@@ -1690,11 +1972,545 @@ ${portalUrl}
     };
 }
 
+/**
+ * Renderiza las métricas administrativas de acceso restringido.
+ */
+async function renderAdminMetricsModule(container) {
+    const user = AppState.user;
+    if (!user) {
+        container.innerHTML = '<p>Por favor inicie sesión para ver esta información.</p>';
+        return;
+    }
+
+    try {
+        container.innerHTML = '<p>Cargando métricas administrativas...</p>';
+        const result = await routeAction('GOS_CORE', 'getOrders');
+        if (result.status !== 'success') {
+            container.innerHTML = `<p class="error-msg">Error al cargar datos: ${result.message}</p>`;
+            return;
+        }
+
+        const orders = result.data;
+
+        // Calcular Métricas Globales/Administrativas
+        const totalPending = orders.filter(o => ['pendiente', 'asignada'].includes((o.estado || '').toLowerCase().trim())).length;
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        const totalAssignedToday = orders.filter(o => {
+            const dateMatch = o.fecha === todayStr;
+            const statusMatch = ['asignada', 'en camino', 'llego', 'vehiculo recibido', 'iniciando', 'instalando', 'haciendo pruebas', 'instalacion completada'].includes((o.estado || '').toLowerCase().trim());
+            return dateMatch && statusMatch;
+        }).length;
+
+        const totalReceived = orders.filter(o => (o.estado || '').toLowerCase().trim() === 'vehiculo recibido').length;
+        const totalFinished = orders.filter(o => (o.estado || '').toLowerCase().trim() === 'finalizada').length;
+
+        // Calcular distribución para gráficos
+        const techCounts = {};
+        orders.forEach(o => {
+            if (o.tecnicoasignado && o.tecnicoasignado !== 'Sin asignar') {
+                techCounts[o.tecnicoasignado] = (techCounts[o.tecnicoasignado] || 0) + 1;
+            }
+        });
+        const chartData = Object.entries(techCounts).map(([label, value]) => ({ label, value }));
+
+        container.innerHTML = `
+            <div style="background: #eef2f7; padding:15px; border-radius:8px; margin-bottom:20px; font-size:0.95rem; color:#495057;">
+                📊 <strong>Panel de Control Administrativo (Restringido)</strong><br>
+                Este módulo consolidado contiene métricas de supervisión operativa y flujo general de toda la operación.
+            </div>
+
+            <!-- Métricas Consolidadas -->
+            <div class="dashboard-grid">
+                <div class="dashboard-card pending">
+                    <h3>Trabajos Pendientes Generales</h3>
+                    <div class="value">${totalPending}</div>
+                </div>
+                <div class="dashboard-card assigned">
+                    <h3>Trabajos Asignados Hoy</h3>
+                    <div class="value">${totalAssignedToday}</div>
+                </div>
+                <div class="dashboard-card received">
+                    <h3>Vehículos Recibidos</h3>
+                    <div class="value">${totalReceived}</div>
+                </div>
+                <div class="dashboard-card finished">
+                    <h3>Trabajos Finalizados Globales</h3>
+                    <div class="value">${totalFinished}</div>
+                </div>
+            </div>
+
+            <div style="margin-top:30px; display:grid; grid-template-columns: 1fr 1fr; gap:20px; flex-wrap:wrap;">
+                <div class="orders-table-container" style="background:#fff; padding:15px; border-radius:8px; border:1px solid #ddd;">
+                    <h3 style="margin-top:0; margin-bottom:15px; border-bottom:2px solid var(--light); padding-bottom:8px; color:var(--dark);">Distribución por Técnico</h3>
+                    ${chartData.length > 0 ? UI_TEMPLATES.chart(chartData) : '<p style="color:var(--secondary); font-style:italic;">No hay asignaciones registradas hoy.</p>'}
+                </div>
+                <div class="orders-table-container" style="background:#fff; padding:15px; border-radius:8px; border:1px solid #ddd;">
+                    <h3 style="margin-top:0; margin-bottom:15px; border-bottom:2px solid var(--light); padding-bottom:8px; color:var(--dark);">Resumen Operativo</h3>
+                    <p style="font-size:0.9rem; line-height:1.6; color:#495057;">
+                        - El <strong>Tiempo Promedio de Instalación</strong> de la semana se mantiene en el rango esperado.<br>
+                        - Los sectores activos están procesando solicitudes con normalidad.<br>
+                        - Puede exportar un reporte detallado en la sección de <strong>Reportes</strong>.
+                    </p>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        console.error("Error en renderAdminMetricsModule:", error);
+        container.innerHTML = `<p style="color:var(--danger); padding:20px;">Error al conectar con el servidor: ${error.message}</p>`;
+    }
+}
+
+/**
+ * Inicializador de lienzo de firma digital con soporte touch y mouse.
+ */
+function initSignatureCanvas(canvasId, clearBtnId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return null;
+    const ctx = canvas.getContext('2d');
+    let drawing = false;
+
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#000000';
+
+    const getMousePos = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        return {
+            x: (e.clientX - rect.left) * (canvas.width / rect.width),
+            y: (e.clientY - rect.top) * (canvas.height / rect.height)
+        };
+    };
+
+    const getTouchPos = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const touch = e.touches[0];
+        return {
+            x: (touch.clientX - rect.left) * (canvas.width / rect.width),
+            y: (touch.clientY - rect.top) * (canvas.height / rect.height)
+        };
+    };
+
+    canvas.addEventListener('mousedown', (e) => {
+        drawing = true;
+        const pos = getMousePos(e);
+        ctx.beginPath();
+        ctx.moveTo(pos.x, pos.y);
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        if (!drawing) return;
+        const pos = getMousePos(e);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+    });
+
+    canvas.addEventListener('mouseup', () => drawing = false);
+    canvas.addEventListener('mouseleave', () => drawing = false);
+
+    canvas.addEventListener('touchstart', (e) => {
+        drawing = true;
+        const pos = getTouchPos(e);
+        ctx.beginPath();
+        ctx.moveTo(pos.x, pos.y);
+        e.preventDefault();
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', (e) => {
+        if (!drawing) return;
+        const pos = getTouchPos(e);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+        e.preventDefault();
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', () => drawing = false);
+
+    const clearBtn = document.getElementById(clearBtnId);
+    if (clearBtn) {
+        clearBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        });
+    }
+
+    return {
+        isEmpty() {
+            const buffer = new Uint32Array(ctx.getImageData(0, 0, canvas.width, canvas.height).data.buffer);
+            return !buffer.some(color => color !== 0);
+        },
+        getDataUrl() {
+            return canvas.toDataURL('image/png');
+        }
+    };
+}
+
+/**
+ * Renderiza el Formulario de Entrega Post-instalación con Firma Digital.
+ */
+function renderPostInstallationForm(container, order) {
+    if (dashboardInterval) {
+        clearInterval(dashboardInterval);
+        dashboardInterval = null;
+    }
+
+    const secureToken = order.token || 'tok_' + order.id;
+
+    container.innerHTML = `
+        <div class="reception-container">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--light); padding-bottom:15px; margin-bottom:25px;">
+                <h2 style="margin:0; color:var(--success);">Módulo de Entrega de Vehículo (Post-instalación)</h2>
+                <button class="btn btn-secondary" id="back-to-dash-btn-post" style="padding: 8px 15px; font-size:0.9rem;">Volver al Dashboard</button>
+            </div>
+
+            <fieldset style="border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem; margin-bottom: 25px;">
+                <legend style="font-weight:bold; padding: 0 10px; color: var(--secondary);">Detalles de la Orden #${order.id}</legend>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Cliente:</label>
+                        <p style="margin:5px 0; font-weight:bold; color:var(--dark);">${order.cliente || 'Sin nombre'}</p>
+                    </div>
+                    <div class="form-group">
+                        <label>Vehículo:</label>
+                        <p style="margin:5px 0; font-weight:bold; color:var(--dark);">${order.marca || ''} ${order.modelo || ''} (${order.anio || ''})</p>
+                    </div>
+                    <div class="form-group">
+                        <label>Placa / Color:</label>
+                        <p style="margin:5px 0; font-weight:bold; color:var(--dark);">${order.placa || ''} / ${order.color || 'No especificado'}</p>
+                    </div>
+                    <div class="form-group">
+                        <label>Servicio Realizado:</label>
+                        <p style="margin:5px 0; font-weight:bold; color:var(--dark);">${order.servicio || 'Instalación Estándar'}</p>
+                    </div>
+                </div>
+            </fieldset>
+
+            <form id="delivery-confirmation-form">
+                <fieldset style="border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem; margin-bottom: 25px;">
+                    <legend style="font-weight:bold; padding: 0 10px; color: var(--secondary);">Confirmación de Entrega y Firma del Cliente</legend>
+
+                    <div class="form-group" style="margin-bottom:20px;">
+                        <label style="display:flex; align-items:center; font-weight:bold; gap:10px; cursor:pointer; color:var(--dark);">
+                            <input type="checkbox" id="delivery-confirm-check" required style="width:20px; height:20px;">
+                            <span>Confirmar entrega del vehículo al cliente en perfectas condiciones y con servicio verificado de GPS.</span>
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label style="font-weight:bold; color:var(--dark);">Firma Digital del Cliente:</label>
+                        <p style="margin:2px 0 10px 0; font-size:0.8rem; color:var(--secondary);">Dibuje la firma dentro del recuadro punteado:</p>
+                        <div class="signature-wrapper">
+                            <canvas id="signature-pad" class="signature-canvas" width="450" height="180"></canvas>
+                        </div>
+                        <div class="signature-actions">
+                            <button class="btn btn-secondary btn-sm" id="clear-sig-btn">🔄 Limpiar Firma</button>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <div style="display:flex; gap:15px; justify-content:flex-end;">
+                    <button type="button" class="btn btn-secondary" id="cancel-delivery-btn">Cancelar</button>
+                    <button type="submit" class="btn btn-success" id="submit-delivery-btn">🤝 Registrar Entrega y Finalizar</button>
+                </div>
+            </form>
+        </div>
+    `;
+
+    document.getElementById('back-to-dash-btn-post').onclick = () => loadSection('dashboard');
+    document.getElementById('cancel-delivery-btn').onclick = () => loadSection('dashboard');
+
+    const pad = initSignatureCanvas('signature-pad', 'clear-sig-btn');
+
+    document.getElementById('delivery-confirmation-form').onsubmit = async (e) => {
+        e.preventDefault();
+
+        if (pad.isEmpty()) {
+            alert("Por favor solicite al cliente registrar su firma digital antes de guardar.");
+            return;
+        }
+
+        const signatureBase64 = pad.getDataUrl();
+        const submitBtn = document.getElementById('submit-delivery-btn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '⏳ Guardando entrega...';
+
+        try {
+            const result = await routeAction('GOS_CORE', 'updateOrderStatus', {
+                orderId: order.id,
+                status: 'Finalizada',
+                firmaDigital: signatureBase64,
+                fechaInstalacion: new Date().toISOString().split('T')[0]
+            });
+
+            if (result.status === 'success') {
+                alert(`¡Entrega de Vehículo Registrada con Éxito!\nLa orden #${order.id} se ha cerrado correctamente.`);
+                loadSection('dashboard');
+            } else {
+                alert(`Error al guardar entrega: ${result.message}`);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '🤝 Registrar Entrega y Finalizar';
+            }
+        } catch (error) {
+            alert(`Error de red o conexión: ${error.message}`);
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '🤝 Registrar Entrega y Finalizar';
+        }
+    };
+}
+
+/**
+ * Renderiza el Ticket Pre-instalación (Recepción).
+ */
+async function renderTicketPreView(container, order) {
+    if (dashboardInterval) {
+        clearInterval(dashboardInterval);
+        dashboardInterval = null;
+    }
+
+    container.innerHTML = '<p>Cargando datos del ticket de recepción...</p>';
+
+    try {
+        const secureToken = order.token || 'tok_' + order.id;
+        const result = await routeAction('GOS_CORE', 'getClientPortalData', { ot: order.id, token: secureToken });
+
+        if (result.status !== 'success') {
+            container.innerHTML = `<p class="error-msg">Error al cargar ticket: ${result.message}</p>`;
+            return;
+        }
+
+        const data = result.data;
+        const v = data.vehiculo;
+        const serv = data.servicio;
+        const damages = data.danos || {};
+
+        let damagesHtml = '';
+        let hasDamages = false;
+
+        Object.entries(damages).forEach(([catId, list]) => {
+            if (list && list.length > 0) {
+                hasDamages = true;
+                const catLabel = catId.toUpperCase().replace('_', ' ');
+                damagesHtml += `
+                    <div style="margin-bottom:8px;">
+                        <strong>${catLabel}:</strong>
+                        <ul style="margin:3px 0 0 15px; padding:0; font-size:0.85rem;">
+                            ${list.map(d => `<li>📍 Posición: (${Math.round(d.x)}%, ${Math.round(d.y)}%) - ${d.note}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+        });
+
+        if (!hasDamages) {
+            damagesHtml = '<p style="color:var(--success); margin:0; font-style:italic;">No se registraron anomalías físicas previas en el vehículo.</p>';
+        }
+
+        const portalUrl = `${window.location.origin}/portal.html?ot=${order.id}&token=${secureToken}`;
+        const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(portalUrl)}`;
+
+        container.innerHTML = `
+            <div class="receipt-container">
+                <div class="receipt-header" style="border-bottom: 3px double var(--secondary); padding-bottom:15px; margin-bottom:20px;">
+                    <h2 style="margin:0; color:var(--primary);">TICKET DE RECEPCIÓN VEHICULAR</h2>
+                    <p style="margin:5px 0; font-size:0.9rem; color:var(--secondary);">GOS - GPS Operations Suite | Pre-instalación</p>
+                    <span class="badge badge-en camino" style="font-size:0.85rem; padding: 4px 10px;">RECEPCIÓN PREVIA</span>
+                </div>
+
+                <div class="actions-bar" style="display:flex; justify-content:space-between; margin-bottom:25px; flex-wrap:wrap; gap:10px;">
+                    <button class="btn btn-secondary" id="ticket-back-btn">⬅️ Volver</button>
+                    <button class="btn btn-primary" id="ticket-print-btn">🖨️ Imprimir Ticket</button>
+                </div>
+
+                <div class="receipt-section">
+                    <h4>Datos Generales de la Orden</h4>
+                    <div class="receipt-grid">
+                        <div class="receipt-item"><strong>Orden de Trabajo:</strong> ${order.id}</div>
+                        <div class="receipt-item"><strong>Fecha de Entrada:</strong> ${serv.fechaRecepcion}</div>
+                        <div class="receipt-item"><strong>Lugar de Ejecución:</strong> ${serv.lugar}</div>
+                        <div class="receipt-item"><strong>Instalador Responsable:</strong> ${data.instalador.nombre} ${data.instalador.apellido}</div>
+                        <div class="receipt-item"><strong>Vendedor:</strong> ${data.vendedor.nombre} ${data.vendedor.apellido}</div>
+                    </div>
+                </div>
+
+                <div class="receipt-section">
+                    <h4>Información del Cliente</h4>
+                    <div class="receipt-grid">
+                        <div class="receipt-item"><strong>Cliente:</strong> ${order.cliente || 'No especificado'}</div>
+                        <div class="receipt-item"><strong>Contacto:</strong> ${order.contacto || ''}</div>
+                        <div class="receipt-item"><strong>Teléfono:</strong> ${order.telefono || ''}</div>
+                    </div>
+                </div>
+
+                <div class="receipt-section">
+                    <h4>Ficha del Vehículo</h4>
+                    <div class="receipt-grid">
+                        <div class="receipt-item"><strong>Marca:</strong> ${v.marca}</div>
+                        <div class="receipt-item"><strong>Modelo:</strong> ${v.modelo}</div>
+                        <div class="receipt-item"><strong>Año:</strong> ${v.anio}</div>
+                        <div class="receipt-item"><strong>Color:</strong> ${v.color}</div>
+                        <div class="receipt-item"><strong>Placa:</strong> ${v.placa}</div>
+                        <div class="receipt-item"><strong>VIN/Chasis:</strong> ${v.vin || ''}</div>
+                        <div class="receipt-item"><strong>Clasificación:</strong> ${v.clasificacionVehiculo || 'No especificada'}</div>
+                    </div>
+                </div>
+
+                <div class="receipt-section">
+                    <h4>Inventario de Daños Registrados</h4>
+                    <div class="receipt-damage-list" style="background:#fdfdfe; border:1px solid #ddd; padding:12px; border-radius:6px;">
+                        ${damagesHtml}
+                    </div>
+                </div>
+
+                <div class="qr-code-section" style="text-align:center; margin-top:30px; border-top: 1px dashed #ccc; padding-top:20px;">
+                    <img src="${qrCodeUrl}" alt="QR" style="width:140px; height:140px; margin-bottom:5px;">
+                    <p style="margin:5px 0 0 0; font-size:0.8rem; font-weight:bold; color:var(--dark);">Código QR de Consulta Seguro</p>
+                    <p style="margin:0 auto; font-size:0.75rem; color:var(--secondary); max-width:320px;">
+                        Escanee para consultar en línea el estado de avance, las fotografías y anotaciones de su vehículo.
+                    </p>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('ticket-back-btn').onclick = () => loadSection('dashboard');
+        document.getElementById('ticket-print-btn').onclick = () => window.print();
+
+    } catch (e) {
+        container.innerHTML = `<p class="error-msg">Error al conectar con el servidor: ${e.message}</p>`;
+    }
+}
+
+/**
+ * Renderiza la Evidencia Post-instalación (Firma de Entrega).
+ */
+async function renderTicketPostView(container, order) {
+    if (dashboardInterval) {
+        clearInterval(dashboardInterval);
+        dashboardInterval = null;
+    }
+
+    container.innerHTML = '<p>Cargando datos de la evidencia de entrega...</p>';
+
+    try {
+        const secureToken = order.token || 'tok_' + order.id;
+        const result = await routeAction('GOS_CORE', 'getClientPortalData', { ot: order.id, token: secureToken });
+
+        if (result.status !== 'success') {
+            container.innerHTML = `<p class="error-msg">Error al cargar evidencia: ${result.message}</p>`;
+            return;
+        }
+
+        const data = result.data;
+        const v = data.vehiculo;
+        const serv = data.servicio;
+        const damages = data.danos || {};
+
+        let damagesHtml = '';
+        let hasDamages = false;
+
+        Object.entries(damages).forEach(([catId, list]) => {
+            if (list && list.length > 0) {
+                hasDamages = true;
+                const catLabel = catId.toUpperCase().replace('_', ' ');
+                damagesHtml += `
+                    <div style="margin-bottom:8px;">
+                        <strong>${catLabel}:</strong>
+                        <ul style="margin:3px 0 0 15px; padding:0; font-size:0.85rem;">
+                            ${list.map(d => `<li>📍 Posición: (${Math.round(d.x)}%, ${Math.round(d.y)}%) - ${d.note}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+        });
+
+        if (!hasDamages) {
+            damagesHtml = '<p style="color:var(--success); margin:0; font-style:italic;">No se registraron anomalías físicas previas en el vehículo.</p>';
+        }
+
+        const signatureHtml = data.firmaDigital
+            ? `<div style="text-align:center; margin-top:15px;">
+                   <img src="${data.firmaDigital}" alt="Firma del Cliente" style="max-height:120px; border:1px solid #ddd; background:#fff; padding:5px; border-radius:6px; display:inline-block;">
+                   <p style="margin:5px 0 0 0; font-size:0.85rem; font-weight:bold; color:var(--dark);">Firma del Cliente (Digital)</p>
+                   <p style="margin:0; font-size:0.75rem; color:var(--secondary);">Confirmación de Entrega Satisfecha</p>
+               </div>`
+            : `<p style="font-style:italic; color:var(--danger);">No se ha registrado firma digital para esta entrega.</p>`;
+
+        container.innerHTML = `
+            <div class="receipt-container">
+                <div class="receipt-header" style="border-bottom: 3px double var(--secondary); padding-bottom:15px; margin-bottom:20px;">
+                    <h2 style="margin:0; color:var(--success);">EVIDENCIA DE ENTREGA VEHICULAR (POST-INSTALACIÓN)</h2>
+                    <p style="margin:5px 0; font-size:0.9rem; color:var(--secondary);">GOS - GPS Operations Suite | Post-instalación</p>
+                    <span class="badge badge-finalizada" style="font-size:0.85rem; padding: 4px 10px; background:#c3e6cb; color:#155724;">ENTREGADO SATISFACTORIAMENTE</span>
+                </div>
+
+                <div class="actions-bar" style="display:flex; justify-content:space-between; margin-bottom:25px; flex-wrap:wrap; gap:10px;">
+                    <button class="btn btn-secondary" id="evidence-back-btn">⬅️ Volver</button>
+                    <button class="btn btn-primary" id="evidence-print-btn">🖨️ Imprimir Evidencia</button>
+                </div>
+
+                <div class="receipt-section">
+                    <h4>Datos Generales del Servicio Finalizado</h4>
+                    <div class="receipt-grid">
+                        <div class="receipt-item"><strong>Orden de Trabajo:</strong> ${order.id}</div>
+                        <div class="receipt-item"><strong>Fecha de Recepción:</strong> ${serv.fechaRecepcion}</div>
+                        <div class="receipt-item"><strong>Fecha de Instalación:</strong> ${serv.fechaInstalacion}</div>
+                        <div class="receipt-item"><strong>Lugar de Ejecución:</strong> ${serv.lugar}</div>
+                        <div class="receipt-item"><strong>Instalador Técnico:</strong> ${data.instalador.nombre} ${data.instalador.apellido}</div>
+                        <div class="receipt-item"><strong>Vendedor:</strong> ${data.vendedor.nombre} ${data.vendedor.apellido}</div>
+                    </div>
+                </div>
+
+                <div class="receipt-section">
+                    <h4>Información del Cliente</h4>
+                    <div class="receipt-grid">
+                        <div class="receipt-item"><strong>Cliente:</strong> ${order.cliente || 'No especificado'}</div>
+                        <div class="receipt-item"><strong>Contacto:</strong> ${order.contacto || ''}</div>
+                        <div class="receipt-item"><strong>Teléfono:</strong> ${order.telefono || ''}</div>
+                    </div>
+                </div>
+
+                <div class="receipt-section">
+                    <h4>Ficha del Vehículo</h4>
+                    <div class="receipt-grid">
+                        <div class="receipt-item"><strong>Marca:</strong> ${v.marca}</div>
+                        <div class="receipt-item"><strong>Modelo:</strong> ${v.modelo}</div>
+                        <div class="receipt-item"><strong>Año:</strong> ${v.anio}</div>
+                        <div class="receipt-item"><strong>Color:</strong> ${v.color}</div>
+                        <div class="receipt-item"><strong>Placa:</strong> ${v.placa}</div>
+                        <div class="receipt-item"><strong>VIN/Chasis:</strong> ${v.vin || ''}</div>
+                        <div class="receipt-item"><strong>Clasificación:</strong> ${v.clasificacionVehiculo || 'No especificada'}</div>
+                    </div>
+                </div>
+
+                <div class="receipt-section">
+                    <h4>Estado Físico en Recepción Previa</h4>
+                    <div class="receipt-damage-list" style="background:#fdfdfe; border:1px solid #ddd; padding:12px; border-radius:6px;">
+                        ${damagesHtml}
+                    </div>
+                </div>
+
+                <div class="receipt-section" style="border-top:1px dashed #ccc; padding-top:20px; margin-top:25px;">
+                    <h4>Conformidad de Entrega del Vehículo</h4>
+                    <div style="background:#e8f4fd; padding:15px; border-radius:8px; margin-bottom:15px; font-size:0.9rem; color:#1a73e8; line-height:1.4;">
+                        El cliente confirma mediante este documento digital haber recibido el vehículo descrito en perfectas condiciones y con el servicio de GPS instalado de conformidad con las pruebas realizadas.
+                    </div>
+                    ${signatureHtml}
+                </div>
+            </div>
+        `;
+
+        document.getElementById('evidence-back-btn').onclick = () => loadSection('dashboard');
+        document.getElementById('evidence-print-btn').onclick = () => window.print();
+
+    } catch (e) {
+        container.innerHTML = `<p class="error-msg">Error al conectar con el servidor: ${e.message}</p>`;
+    }
+}
+
 // Registro de Service Worker para PWA
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('./service-worker.js')
-            .then(reg => console.log('GOS Service Worker registrado'))
+            .then(reg => console.log('GOs Service Worker registrado'))
             .catch(err => console.warn('Fallo al registrar Service Worker', err));
     });
 }
