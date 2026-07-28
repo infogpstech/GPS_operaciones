@@ -591,57 +591,211 @@ async function renderTechniciansModule(container) {
 
 async function renderAgendaModule(container) {
     container.innerHTML = `
-        <div class="agenda-container">
-            <div id="agenda-grid" class="agenda-grid">
-                <p>Cargando agenda...</p>
+        <div class="agenda-container-fluid" style="padding: 10px;">
+            <div id="agenda-weekly-grid" class="agenda-weekly-grid">
+                <p>Cargando agenda semanal...</p>
             </div>
         </div>
     `;
 
     try {
-        const config = await routeAction('GOS_CORE', 'getAgendaConfig');
-        const orders = await routeAction('GOS_CORE', 'getOrders');
-
-        if (config.status === 'success' && orders.status === 'success') {
-            const grid = document.getElementById('agenda-grid');
-            grid.innerHTML = '';
-
-            config.data.turnos.forEach(turno => {
-                const row = document.createElement('div');
-                row.className = 'agenda-row';
-                const turnoId = turno.replace(':', '');
-                row.innerHTML = `
-                    <div class="agenda-time">${turno}</div>
-                    <div class="agenda-slots" id="slots-${turnoId}"></div>
-                `;
-                grid.appendChild(row);
-
-                // Poblar con órdenes de este turno
-                const slotsCont = document.getElementById(`slots-${turnoId}`);
-                const ordersInTurn = orders.data.filter(o => o.hora === turno);
-                ordersInTurn.forEach(order => {
-                    const card = document.createElement('div');
-                    card.className = 'order-mini-card';
-
-                    // Colores por estado (v0.4.2)
-                    const statusKey = (order.estado || 'Pendiente').toLowerCase().replace(/\s+/g, '');
-                    const configColors = AppState.config.Agenda || {};
-                    const statusColor = configColors[`Color_${order.estado}`] || '#ddd';
-
-                    card.style.borderLeft = `5px solid ${statusColor}`;
-                    card.innerHTML = `
-                        <strong>${order.cliente}</strong><br>
-                        <small>${order.marca} ${order.modelo}</small><br>
-                        <span style="font-size:0.7rem; opacity:0.7;">${order.tecnicoasignado || 'Sin asignar'}</span>
-                    `;
-                    slotsCont.appendChild(card);
-                });
-            });
+        const ordersRes = await routeAction('GOS_CORE', 'getOrders');
+        if (ordersRes.status !== 'success') {
+            document.getElementById('agenda-weekly-grid').innerHTML = '<p class="error-msg">Error al cargar la agenda.</p>';
+            return;
         }
+
+        const orders = ordersRes.data;
+
+        // Days setup: rolling 8 days
+        const WEEKDAYS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+        const MONTHS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+        const daysList = [];
+        const today = new Date();
+
+        for (let i = 0; i < 8; i++) {
+            const d = new Date();
+            d.setDate(today.getDate() + i);
+            daysList.push(d);
+        }
+
+        const grid = document.getElementById('agenda-weekly-grid');
+        if (!grid) return;
+        grid.innerHTML = '';
+
+        const isHoldExpired = (orderDate, orderTime) => {
+            const match = (orderTime || '').match(/(\d{2}):(\d{2})/);
+            let hours = 8, minutes = 0;
+            if (match) {
+                hours = parseInt(match[1]);
+                minutes = parseInt(match[2]);
+            }
+            const appointmentDate = new Date(`${orderDate}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`);
+            const expirationDate = new Date(appointmentDate.getTime() + 15 * 60 * 1000); // 15 mins later
+            return new Date() > expirationDate;
+        };
+
+        const getSlotMinutes = (slot) => {
+            const match = slot.match(/(\d{2}):(\d{2})/);
+            if (match) return parseInt(match[1]) * 60 + parseInt(match[2]);
+            return 9999;
+        };
+
+        daysList.forEach(day => {
+            const year = day.getFullYear();
+            const month = String(day.getMonth() + 1).padStart(2, '0');
+            const dateNum = String(day.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${dateNum}`;
+            const weekdayName = WEEKDAYS[day.getDay()];
+            const dateLabel = `${day.getDate()} ${MONTHS[day.getMonth()]}`;
+            const dayOfWeek = day.getDay();
+
+            // Setup default normal slots for this day
+            const normalSlots = [];
+            if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                normalSlots.push("08:00 - 10:00", "10:00 - 12:00", "13:00 - 15:00", "15:00 - 17:00");
+            } else if (dayOfWeek === 6) {
+                normalSlots.push("08:00 - 10:00", "10:00 - 12:00");
+            }
+
+            // Find all orders on this date to extract extraordinary slots
+            const ordersOnDate = orders.filter(o => o.fecha === dateStr);
+            const extraSlotsSet = new Set();
+            ordersOnDate.forEach(o => {
+                if (o.hora && !normalSlots.includes(o.hora)) {
+                    extraSlotsSet.add(o.hora);
+                }
+            });
+
+            const allSlots = [...normalSlots, ...extraSlotsSet];
+            allSlots.sort((a, b) => getSlotMinutes(a) - getSlotMinutes(b));
+
+            // Create column element
+            const col = document.createElement('div');
+            col.className = 'agenda-column';
+
+            // Highlight today's column
+            const isToday = dateStr === today.toISOString().split('T')[0];
+            if (isToday) {
+                col.classList.add('agenda-column-today');
+            }
+
+            let colHtml = `
+                <div class="agenda-column-header ${isToday ? 'header-today' : ''}">
+                    <div class="agenda-column-dayname">${weekdayName}</div>
+                    <div class="agenda-column-date">${dateLabel}</div>
+                </div>
+                <div class="agenda-column-body">
+            `;
+
+            allSlots.forEach(slot => {
+                const slotOrders = ordersOnDate.filter(o => o.hora === slot);
+
+                // Identify confirmed and draft active orders
+                const confirmedOrder = slotOrders.find(o => !['borrador', 'cancelada', 'expirada'].includes((o.estado || '').toLowerCase().trim()));
+                const activeDrafts = slotOrders.filter(o => (o.estado || '').toLowerCase().trim() === 'borrador' && !isHoldExpired(o.fecha, o.hora));
+
+                if (confirmedOrder) {
+                    // Confirmed card
+                    const p = (confirmedOrder.prioridad || 'Normal').toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    let pColor = '#28a745';
+                    if (p === 'alta') pColor = '#fd7e14';
+                    else if (p === 'maxima' || p === 'urgente') pColor = '#dc3545';
+
+                    // Get status color from config or default
+                    const configColors = AppState.config?.Agenda || {};
+                    const statusColor = configColors[`Color_${confirmedOrder.estado}`] || '#007bff';
+
+                    colHtml += `
+                        <div class="agenda-slot-card card-confirmed" style="border-left: 5px solid ${statusColor};">
+                            <div class="card-slot-time">⏱️ ${slot}</div>
+                            <div class="card-confirmed-title">
+                                <span class="priority-dot" style="display:inline-block; width:10px; height:10px; border-radius:50%; background-color:${pColor}; margin-right:5px;" title="Prioridad: ${confirmedOrder.prioridad}"></span>
+                                <strong>${confirmedOrder.cliente || 'S/N'}</strong>
+                            </div>
+                            <div class="card-confirmed-info">
+                                🚗 ${confirmedOrder.marca || ''} ${confirmedOrder.modelo || ''}<br>
+                                👤 <small>${confirmedOrder.tecnicoasignado || 'Sin asignar'}</small>
+                            </div>
+                            <div class="card-status-badge">
+                                <span class="badge" style="background:${statusColor}; color:white; font-size:0.7rem; padding: 2px 6px;">${confirmedOrder.estado}</span>
+                            </div>
+                        </div>
+                    `;
+                } else if (activeDrafts.length > 0) {
+                    // Reservado temporalmente card (supports up to 2 holds shown individually)
+                    activeDrafts.forEach((draft, idx) => {
+                        const p = (draft.prioridad || 'Normal').toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                        let pColor = '#28a745';
+                        if (p === 'alta') pColor = '#fd7e14';
+                        else if (p === 'maxima' || p === 'urgente') pColor = '#dc3545';
+
+                        colHtml += `
+                            <div class="agenda-slot-card card-draft">
+                                <div class="card-slot-time" style="color: #856404;">⏱️ ${slot} (Hold ${idx + 1}/2)</div>
+                                <div class="card-draft-title">
+                                    <span class="priority-dot" style="display:inline-block; width:10px; height:10px; border-radius:50%; background-color:${pColor}; margin-right:5px;" title="Prioridad: ${draft.prioridad}"></span>
+                                    <strong>${draft.cliente || 'Sin nombre'}</strong>
+                                </div>
+                                <div class="card-draft-info">
+                                    👤 Vend: ${draft.vendedor || 'S/V'}<br>
+                                    ⚠️ Pendiente Confirmar
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    // If less than 2 drafts are reserved on this slot, it is STILL available for a second draft!
+                    if (activeDrafts.length === 1) {
+                        colHtml += `
+                            <div class="agenda-slot-card card-available-partial" onclick="bookSlot('${dateStr}', '${slot}')">
+                                <div class="card-slot-time">⏱️ ${slot}</div>
+                                <div class="card-available-text">🟢 Hold 2 de 2 Disponible</div>
+                                <button class="btn btn-sm btn-outline-primary" style="padding: 2px 5px; font-size:0.7rem; margin-top:5px; width:100%;">+ Apartar</button>
+                            </div>
+                        `;
+                    }
+                } else {
+                    // Disponible card
+                    colHtml += `
+                        <div class="agenda-slot-card card-available" onclick="bookSlot('${dateStr}', '${slot}')">
+                            <div class="card-slot-time">⏱️ ${slot}</div>
+                            <div class="card-available-text">🟢 Disponible</div>
+                            <button class="btn btn-sm btn-outline-secondary" style="padding: 2px 5px; font-size:0.7rem; margin-top:5px; width:100%;">+ Reservar</button>
+                        </div>
+                    `;
+                }
+            });
+
+            colHtml += `
+                </div>
+            `;
+            col.innerHTML = colHtml;
+            grid.appendChild(col);
+        });
+
     } catch (error) {
-        console.error("Error al cargar agenda:", error);
+        console.error("Error al renderizar agenda semanal:", error);
     }
 }
+
+window.bookSlot = (date, slot) => {
+    const contentEl = document.getElementById('section-content');
+    renderOrderForm(contentEl);
+
+    const dateInput = document.getElementById('order-fecha');
+    if (dateInput) {
+        dateInput.value = date;
+        dateInput.dispatchEvent(new Event('change'));
+
+        setTimeout(() => {
+            const horaSelect = document.getElementById('order-hora');
+            if (horaSelect) {
+                horaSelect.value = slot;
+            }
+        }, 400);
+    }
+};
 
 async function renderOrdersModule(container) {
     container.innerHTML = `

@@ -5,3 +5,4 @@ TAREAS PENDIENTES DE REVISIÓN:
 - Implementación de Dashboard Inicial y Formulario Inteligente de Recepción de Vehículos (v0.5.0) [PENDIENTE REVISIÓN POR EL MP]
 - Integración automática, Comprobante de Recepción, Código QR, Portal de Consulta Seguro para Clientes (v0.5.0 Fase 2) [PENDIENTE REVISIÓN POR EL MP]
 - Integración de Gestión de Órdenes, Recepción, Historial del Vehículo y Dashboard Operativo (v0.5.0 Fase 3) [PENDIENTE REVISIÓN POR EL MP]
+- Nueva Implementación: Dashboard de Agenda Operativa y Gestión de Cupos (v0.5.1) [PENDIENTE REVISIÓN POR EL MP]
