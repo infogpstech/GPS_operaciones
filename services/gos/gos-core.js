@@ -197,7 +197,7 @@ function getNextId(prefix) {
  * Actualiza el estado de la orden, guardando opcionalmente firma digital e instalación.
  */
 function handleUpdateOrderStatus(payload) {
-  const { orderId, status, firmaDigital, fechaInstalacion } = payload;
+  const { orderId, status, firmaDigital, fechaInstalacion, usuario, observaciones } = payload;
   const sheet = findOrCreateSheet("Ordenes");
   const data = sheet.getDataRange().getValues();
   const headerMap = getHeaderMap(sheet);
@@ -214,7 +214,15 @@ function handleUpdateOrderStatus(payload) {
   }
 
   if (orderRow !== -1) {
+    var oldStatus = data[orderRow - 1][estadoIdx - 1] || "Pendiente";
     sheet.getRange(orderRow, estadoIdx).setValue(status);
+
+    if (observaciones) {
+      const obsIdx = headerMap["Observaciones"];
+      if (obsIdx) {
+        sheet.getRange(orderRow, obsIdx).setValue(observaciones);
+      }
+    }
 
     if (firmaDigital) {
       const firmaIdx = headerMap["Firma Digital"];
@@ -228,6 +236,25 @@ function handleUpdateOrderStatus(payload) {
       if (fechaInstIdx) {
         sheet.getRange(orderRow, fechaInstIdx).setValue(fechaInstalacion);
       }
+    }
+
+    // Log status transition in Historial_Estados
+    try {
+      var histSheet = findOrCreateSheet("Historial_Estados", ["Fecha", "Hora", "OrdenID", "Estado Anterior", "Estado Nuevo", "Usuario", "Observaciones"]);
+      var now = new Date();
+      var dateStr = now.toISOString().split('T')[0];
+      var timeStr = now.toTimeString().split(' ')[0].substring(0, 5);
+      histSheet.appendRow([
+        dateStr,
+        timeStr,
+        orderId,
+        oldStatus,
+        status,
+        usuario || "Sistema",
+        observaciones || ""
+      ]);
+    } catch (e) {
+      console.error("Error logging state transition:", e);
     }
 
     return { status: 'success' };
@@ -358,6 +385,11 @@ function handleCreateOrder(payload) {
 }
 
 function handleGetOrders() {
+  try {
+    checkAndUpdateJobDelays();
+  } catch (e) {
+    console.error("Error auto-checking delays: " + e.message);
+  }
   const sheet = findOrCreateSheet("Ordenes");
   const data = sheet.getDataRange().getValues();
   if (data.length <= 1) return { status: 'success', data: [] };
@@ -1066,6 +1098,7 @@ function doPost(e) {
       case 'saveVehicleReception': response = handleSaveVehicleReception(request.payload); break;
       case 'getClientPortalData': response = handleGetClientPortalData(request.payload); break;
       case 'getVehicleHistory': response = handleGetVehicleHistory(request.payload); break;
+      case 'reassignNextJob': response = handleReassignNextJob(request.payload); break;
       default: response = { status: 'error', message: 'Acción no soportada' };
     }
 
@@ -1073,4 +1106,282 @@ function doPost(e) {
   } catch (error) {
     return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: error.message })).setMimeType(ContentService.MimeType.TEXT);
   }
+}
+
+function calculateEstimatedDuration(tipoTrabajo, subTipo) {
+  var t = (tipoTrabajo || '').toLowerCase().replace(/^\s+|\s+$/g, '').normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (t.indexOf('instalacion nueva') !== -1 || t.indexOf('instalación nueva') !== -1 || t === 'instalacion' || t === 'instalación') {
+    return 120; // 90 min install + 30 min traslado/margen
+  }
+  if (t.indexOf('revision por falla') !== -1 || t.indexOf('revisión por falla') !== -1) {
+    var s = (subTipo || '').toLowerCase().replace(/^\s+|\s+$/g, '').normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (s.indexOf('cambio de unidad') !== -1) {
+      if (s.indexOf('no compatible') !== -1 || s.indexOf('diferente') !== -1) {
+        return 60; // Instalación completa de 60 mins
+      }
+      return 30; // compatible -> reprogramación (e.g. 30 mins)
+    }
+    if (s.indexOf('cambio de arnes') !== -1 || s.indexOf('cambio de arnés') !== -1) {
+      return 60;
+    }
+    if (s.indexOf('reparacion de conexion') !== -1 || s.indexOf('reparación de conexión') !== -1 || s.indexOf('conexion') !== -1 || s.indexOf('conexión') !== -1) {
+      return 35; // Rango 30-40 minutos (e.g. 35 mins)
+    }
+    return 60; // Diagnóstico inicial de duración indeterminada, mostramos 60 como marcador
+  }
+  if (t.indexOf('traspaso') !== -1) return 180;
+  if (t.indexOf('desinstalacion') !== -1 || t.indexOf('desinstalación') !== -1) return 60;
+  if (t.indexOf('mantenimiento') !== -1) return 15;
+  return 30; // Por defecto
+}
+
+function checkAndUpdateJobDelays() {
+  var sheet = findOrCreateSheet("Ordenes");
+  var data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return;
+  var headerMap = getHeaderMap(sheet);
+
+  var idIdx = headerMap["ID"] - 1;
+  var estadoIdx = headerMap["Estado"] - 1;
+  var tipoIdx = headerMap["Tipo Trabajo"] - 1;
+  var obsIdx = headerMap["Observaciones"] - 1;
+
+  var histSheet = findOrCreateSheet("Historial_Estados", ["Fecha", "Hora", "OrdenID", "Estado Anterior", "Estado Nuevo", "Usuario", "Observaciones"]);
+  var histData = histSheet.getDataRange().getValues();
+
+  var now = new Date();
+
+  // Find orders currently in progress
+  for (var i = 1; i < data.length; i++) {
+    var orderId = data[i][idIdx];
+    var status = (data[i][estadoIdx] || "").toString().toLowerCase().trim();
+    var tipo = (data[i][tipoIdx] || "").toString();
+    var obs = (data[i][obsIdx] || "").toString();
+
+    // In progress states
+    var inProgressStates = [
+      "iniciando", "instalando", "haciendo pruebas", "trabajo iniciado",
+      "en proceso", "pruebas con monitoreo", "esperando autorizacion",
+      "esperando autorización", "pruebas finalizadas", "diagnostico realizado", "diagnóstico realizado"
+    ];
+
+    if (inProgressStates.indexOf(status) !== -1) {
+      // Find start time: the earliest timestamp when order became in-progress
+      var startTime = null;
+      for (var j = 1; j < histData.length; j++) {
+        if (histData[j][2].toString() == orderId.toString()) {
+          var stateNew = histData[j][4].toString().toLowerCase().trim();
+          if (inProgressStates.indexOf(stateNew) !== -1) {
+            // Found a start transition
+            var rowDate = histData[j][0];
+            var rowTime = histData[j][1];
+            startTime = parseDateTime(rowDate, rowTime);
+            break;
+          }
+        }
+      }
+
+      if (!startTime) {
+        // Fallback: use order scheduled date and time
+        var orderDate = data[i][headerMap["Fecha"] - 1];
+        var orderTime = data[i][headerMap["Hora"] - 1];
+        startTime = parseDateTime(orderDate, orderTime);
+      }
+
+      if (startTime) {
+        var elapsedMs = now.getTime() - startTime.getTime();
+        var elapsedMins = elapsedMs / (1000 * 60);
+
+        // Calculate estimated duration
+        var estDuration = calculateEstimatedDuration(tipo, obs);
+
+        // Wait, if it's "Revisión por falla" and NOT yet diagnosed, it has no fixed duration (diagnóstico indeterminado)
+        var tLower = tipo.toLowerCase().trim();
+        var isRevision = tLower.indexOf('revision por falla') !== -1 || tLower.indexOf('revisión por falla') !== -1;
+        var sLower = obs.toLowerCase().trim();
+        var hasIntervention = sLower.indexOf('cambio de unidad') !== -1 || sLower.indexOf('cambio de arnes') !== -1 || sLower.indexOf('cambio de arnés') !== -1 || sLower.indexOf('reparacion de conexion') !== -1 || sLower.indexOf('reparación de conexión') !== -1 || sLower.indexOf('conexion') !== -1 || sLower.indexOf('conexión') !== -1;
+
+        if (isRevision && !hasIntervention) {
+          // Indeterminate duration, skip delay check
+          continue;
+        }
+
+        if (elapsedMins > estDuration && status !== "trabajo retrasado") {
+          // Exceeded! Change status to "Trabajo retrasado"
+          sheet.getRange(i + 1, estadoIdx + 1).setValue("Trabajo retrasado");
+
+          // Log to history
+          histSheet.appendRow([
+            now.toISOString().split('T')[0],
+            now.toTimeString().split(' ')[0].substring(0, 5),
+            orderId,
+            data[i][estadoIdx],
+            "Trabajo retrasado",
+            "Sistema",
+            "Tiempo planificado excedido (" + Math.round(elapsedMins) + " mins transcurridos, est: " + estDuration + " mins)"
+          ]);
+
+          // Generate notification
+          var notifSheet = findOrCreateSheet("Notificaciones", ["Fecha", "Destinatario", "Tipo", "Mensaje", "Estado"]);
+          notifSheet.appendRow([
+            now.toISOString().split('T')[0],
+            data[i][headerMap["Técnico Asignado"] - 1] || "Tecnico",
+            "Retraso",
+            "El tiempo planificado para la orden #" + orderId + " ha sido excedido.",
+            "Pendiente"
+          ]);
+        }
+      }
+    }
+  }
+}
+
+function parseDateTime(dVal, tVal) {
+  var dStr = "";
+  if (dVal instanceof Date) {
+    dStr = dVal.toISOString().split('T')[0];
+  } else {
+    dStr = dVal.toString().substring(0, 10);
+  }
+
+  var tStr = "08:00";
+  if (tVal) {
+    var match = tVal.toString().match(/(\d{2}):(\d{2})/);
+    if (match) {
+      tStr = match[1] + ":" + match[2];
+    }
+  }
+  return new Date(dStr + "T" + tStr + ":00");
+}
+
+function handleReassignNextJob(payload) {
+  var currentOrderId = payload.currentOrderId;
+  var force = payload.force;
+
+  var sheet = findOrCreateSheet("Ordenes");
+  var data = sheet.getDataRange().getValues();
+  var headerMap = getHeaderMap(sheet);
+
+  var idIdx = headerMap["ID"] - 1;
+  var techIdx = headerMap["Técnico Asignado"] - 1;
+  var statusIdx = headerMap["Estado"] - 1;
+  var dateIdx = headerMap["Fecha"] - 1;
+  var hourIdx = headerMap["Hora"] - 1;
+  var sectorIdx = headerMap["Sector"] - 1;
+
+  // Find current order
+  var currentOrder = null;
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][idIdx].toString() == currentOrderId.toString()) {
+      currentOrder = {
+        id: data[i][idIdx],
+        tecnico: data[i][techIdx],
+        fecha: data[i][dateIdx],
+        hora: data[i][hourIdx],
+        sector: data[i][sectorIdx]
+      };
+      break;
+    }
+  }
+
+  if (!currentOrder) {
+    return { status: 'error', message: 'No se encontró la orden actual' };
+  }
+
+  // Find next order assigned to the SAME technician on the SAME day
+  var nextOrder = null;
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][techIdx] == currentOrder.tecnico && data[i][idIdx].toString() !== currentOrderId.toString()) {
+      var oDateStr = data[i][dateIdx] instanceof Date ? data[i][dateIdx].toISOString().split('T')[0] : data[i][dateIdx].toString().substring(0, 10);
+      var currDateStr = currentOrder.fecha instanceof Date ? currentOrder.fecha.toISOString().split('T')[0] : currentOrder.fecha.toString().substring(0, 10);
+      if (oDateStr == currDateStr) {
+        var nextHour = data[i][hourIdx].toString();
+        if (nextHour > currentOrder.hora.toString()) {
+          nextOrder = {
+            id: data[i][idIdx],
+            row: i + 1,
+            tecnico: data[i][techIdx],
+            fecha: oDateStr,
+            hora: nextHour,
+            sector: data[i][sectorIdx]
+          };
+          break;
+        }
+      }
+    }
+  }
+
+  if (!nextOrder) {
+    return { status: 'no_next_job', message: 'No tienes más asignaciones posteriores programadas para hoy.' };
+  }
+
+  // Find other available technicians for that next slot
+  var techSheet = findOrCreateSheet("Tecnicos");
+  var techData = techSheet.getDataRange().getValues();
+  var otherTechs = [];
+  for (var k = 1; k < techData.length; k++) {
+    var tName = techData[k][1];
+    if (tName !== currentOrder.tecnico && techData[k][5] == currentOrder.sector) {
+      var isFree = true;
+      for (var i = 1; i < data.length; i++) {
+        if (data[i][techIdx] == tName) {
+          var oDateStr = data[i][dateIdx] instanceof Date ? data[i][dateIdx].toISOString().split('T')[0] : data[i][dateIdx].toString().substring(0, 10);
+          if (oDateStr == nextOrder.fecha && data[i][hourIdx].toString() == nextOrder.hora) {
+            var sLower = (data[i][statusIdx] || "").toString().toLowerCase().trim();
+            if (["pendiente", "asignada", "en camino", "llego", "vehiculo recibido", "iniciando", "instalando", "haciendo pruebas", "instalacion completada"].indexOf(sLower) !== -1) {
+              isFree = false;
+              break;
+            }
+          }
+        }
+      }
+      if (isFree) {
+        otherTechs.push(tName);
+      }
+    }
+  }
+
+  if (otherTechs.length === 0) {
+    return {
+      status: 'no_tech_available',
+      nextOrderId: nextOrder.id,
+      message: 'No existe otro técnico disponible para reasignar la orden posterior #' + nextOrder.id + '. Por favor continúa con la planificación vigente.'
+    };
+  }
+
+  if (force) {
+    var selectedTech = otherTechs[0];
+    sheet.getRange(nextOrder.row, techIdx + 1).setValue(selectedTech);
+
+    // Log to history
+    try {
+      var histSheet = findOrCreateSheet("Historial_Estados", ["Fecha", "Hora", "OrdenID", "Estado Anterior", "Estado Nuevo", "Usuario", "Observaciones"]);
+      var now = new Date();
+      histSheet.appendRow([
+        now.toISOString().split('T')[0],
+        now.toTimeString().split(' ')[0].substring(0, 5),
+        nextOrder.id,
+        "Asignada",
+        "Asignada",
+        "Sistema",
+        "Reasignado automáticamente a " + selectedTech + " debido a retraso del técnico anterior (" + currentOrder.tecnico + ")"
+      ]);
+    } catch (e) {
+      console.error("Error writing reassign transition:", e);
+    }
+
+    return {
+      status: 'success',
+      nextOrderId: nextOrder.id,
+      tecnico: selectedTech,
+      message: 'La siguiente orden #' + nextOrder.id + ' ha sido reasignada exitosamente al técnico ' + selectedTech + '.'
+    };
+  }
+
+  return {
+    status: 'tech_available',
+    nextOrderId: nextOrder.id,
+    otherTechs: otherTechs,
+    message: 'Tienes una asignación posterior (Orden #' + nextOrder.id + '). ¿Podrás cumplir con ella dentro del horario previsto?'
+  };
 }

@@ -263,9 +263,14 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 // Exponer markStatus de forma inmediata a nivel global
 window.markStatus = markStatus;
 
-async function markStatus(orderId, newStatus) {
+async function markStatus(orderId, newStatus, observaciones = '') {
     try {
-        const result = await routeAction('GOS_CORE', 'updateOrderStatus', { orderId, status: newStatus });
+        const result = await routeAction('GOS_CORE', 'updateOrderStatus', {
+            orderId,
+            status: newStatus,
+            usuario: AppState.user?.Nombre_Usuario || 'Sistema',
+            observaciones: observaciones
+        });
         if (result.status === 'success') {
             // Actualizar activeOrder en AppState
             if (newStatus === 'En Camino') {
@@ -317,6 +322,13 @@ function setupNavigationListeners() {
 }
 
 function loadSection(section) {
+    const user = AppState.user;
+    if (user) {
+        const isTechnician = ['tecnico', 'técnico', 'instalador'].includes((user.Privilegios || '').toLowerCase().trim());
+        if (isTechnician && section === 'agenda') {
+            section = 'dashboard';
+        }
+    }
     AppState.currentSection = section;
     const titleEl = document.getElementById('section-title');
     const contentEl = document.getElementById('section-content');
@@ -590,13 +602,51 @@ async function renderTechniciansModule(container) {
 }
 
 async function renderAgendaModule(container) {
+    const user = AppState.user;
+    if (!user) {
+        container.innerHTML = '<p>Por favor inicie sesión para ver esta información.</p>';
+        return;
+    }
+
+    if (!AppState.activeAgendaSector) {
+        AppState.activeAgendaSector = user.Sector || 'San Pedro Sula';
+    }
+
+    const isPowerUser = ['desarrollador', 'jefe', 'gerente', 'jefe de tienda', 'administrador'].includes((user.Privilegios || '').toLowerCase().trim());
+    const isTechnician = ['tecnico', 'técnico', 'instalador'].includes((user.Privilegios || '').toLowerCase().trim());
+
+    if (isTechnician) {
+        AppState.activeAgendaSector = user.Sector || 'San Pedro Sula';
+    }
+
+    const sectores = ['San Pedro Sula', 'Tegucigalpa', 'La Ceiba', 'Choluteca', 'Occidente'];
+    let tabsHtml = '';
+    if (!isTechnician) {
+        tabsHtml = `
+            <div class="agenda-tabs" style="display:flex; gap:10px; margin-bottom:15px; border-bottom:1px solid #ddd; padding-bottom:10px;">
+                ${sectores.map(sec => {
+                    const isActive = sec.toLowerCase().trim() === AppState.activeAgendaSector.toLowerCase().trim();
+                    const btnClass = isActive ? 'btn btn-primary' : 'btn btn-secondary';
+                    const activeStyle = isActive ? 'background-color: var(--primary); color: white;' : 'background-color: #e2e8f0; color: #4a5568;';
+                    return `<button class="${btnClass}" style="${activeStyle} font-size:0.85rem; padding: 6px 12px;" onclick="changeAgendaSector('${sec}')">${sec}</button>`;
+                }).join('')}
+            </div>
+        `;
+    }
+
     container.innerHTML = `
         <div class="agenda-container-fluid" style="padding: 10px;">
+            ${tabsHtml}
             <div id="agenda-weekly-grid" class="agenda-weekly-grid">
                 <p>Cargando agenda semanal...</p>
             </div>
         </div>
     `;
+
+    window.changeAgendaSector = (sec) => {
+        AppState.activeAgendaSector = sec;
+        renderAgendaModule(container);
+    };
 
     try {
         const ordersRes = await routeAction('GOS_CORE', 'getOrders');
@@ -641,7 +691,41 @@ async function renderAgendaModule(container) {
             return 9999;
         };
 
-        daysList.forEach(day => {
+        const isRegularSlot = (dayOfWeek, slot) => {
+            if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                return ["08:00 - 10:00", "10:00 - 12:00", "13:00 - 15:00", "15:00 - 17:00"].includes(slot);
+            }
+            if (dayOfWeek === 6) {
+                return ["08:00 - 10:00", "10:00 - 12:00"].includes(slot);
+            }
+            return false; // Sundays are always extraordinary
+        };
+
+        // Filter and compile list of visible columns
+        const visibleDays = daysList.filter(day => {
+            const year = day.getFullYear();
+            const month = String(day.getMonth() + 1).padStart(2, '0');
+            const dateNum = String(day.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${dateNum}`;
+            const dayOfWeek = day.getDay();
+
+            if (dayOfWeek === 0) {
+                // Sunday: hide unless has >= 1 programmed appointment
+                const sundayOrders = orders.filter(o => o.fecha === dateStr && (o.sector || '').toLowerCase().trim() === AppState.activeAgendaSector.toLowerCase().trim());
+                const hasAppt = sundayOrders.some(o => {
+                    const stateLower = (o.estado || '').toLowerCase().trim();
+                    if (['cancelada', 'expirada'].includes(stateLower)) return false;
+                    if (stateLower === 'borrador') return !isHoldExpired(o.fecha, o.hora);
+                    return true;
+                });
+                return hasAppt || isPowerUser;
+            }
+            return true;
+        });
+
+        grid.style.gridTemplateColumns = `repeat(${visibleDays.length}, minmax(180px, 1fr))`;
+
+        visibleDays.forEach(day => {
             const year = day.getFullYear();
             const month = String(day.getMonth() + 1).padStart(2, '0');
             const dateNum = String(day.getDate()).padStart(2, '0');
@@ -658,8 +742,8 @@ async function renderAgendaModule(container) {
                 normalSlots.push("08:00 - 10:00", "10:00 - 12:00");
             }
 
-            // Find all orders on this date to extract extraordinary slots
-            const ordersOnDate = orders.filter(o => o.fecha === dateStr);
+            // Find all orders on this date for the active agenda sector to extract extraordinary slots
+            const ordersOnDate = orders.filter(o => o.fecha === dateStr && (o.sector || '').toLowerCase().trim() === AppState.activeAgendaSector.toLowerCase().trim());
             const extraSlotsSet = new Set();
             ordersOnDate.forEach(o => {
                 if (o.hora && !normalSlots.includes(o.hora)) {
@@ -694,6 +778,14 @@ async function renderAgendaModule(container) {
                 // Identify confirmed and draft active orders
                 const confirmedOrder = slotOrders.find(o => !['borrador', 'cancelada', 'expirada'].includes((o.estado || '').toLowerCase().trim()));
                 const activeDrafts = slotOrders.filter(o => (o.estado || '').toLowerCase().trim() === 'borrador' && !isHoldExpired(o.fecha, o.hora));
+
+                const isRegular = isRegularSlot(dayOfWeek, slot);
+                const hasAppt = confirmedOrder || activeDrafts.length > 0;
+
+                // Hide extraordinary hours unless there's an appointment or user is power user/authorized
+                if (!isRegular && !hasAppt && !isPowerUser) {
+                    return; // Skip rendering this slot
+                }
 
                 if (confirmedOrder) {
                     // Confirmed card
@@ -815,8 +907,15 @@ async function renderOrdersModule(container) {
         const result = await routeAction('GOS_CORE', 'getOrders');
         if (result.status === 'success') {
             const listContainer = document.getElementById('orders-list');
-            if (result.data.length === 0) {
-                listContainer.innerHTML = '<p>No hay órdenes registradas.</p>';
+            let filteredData = result.data || [];
+            const isTechnician = ['tecnico', 'técnico', 'instalador'].includes((AppState.user?.Privilegios || '').toLowerCase().trim());
+            if (isTechnician) {
+                const techSector = (AppState.user?.Sector || 'San Pedro Sula').toLowerCase().trim();
+                filteredData = filteredData.filter(order => (order.sector || '').toLowerCase().trim() === techSector);
+            }
+
+            if (filteredData.length === 0) {
+                listContainer.innerHTML = '<p>No hay órdenes registradas en esta división.</p>';
             } else {
                 let tableHtml = `
                     <table class="gos-table">
@@ -827,7 +926,7 @@ async function renderOrdersModule(container) {
                         </thead>
                         <tbody>
                 `;
-                result.data.forEach(order => {
+                filteredData.forEach(order => {
                     const status = order.estado || 'Pendiente';
                     tableHtml += `
                         <tr data-id="${order.id}" data-coords="${order.coordenadas || ''}">
@@ -991,6 +1090,66 @@ function renderOrderForm(container) {
         const payload = Object.fromEntries(formData.entries());
 
         try {
+            // 0. Validar capacidad del turno/cupo
+            const ordersRes = await routeAction('GOS_CORE', 'getOrders');
+            if (ordersRes.status === 'success') {
+                const activeOrdersInSlot = ordersRes.data.filter(o => {
+                    if (o.fecha !== payload.fecha || o.hora !== payload.hora) return false;
+                    const sectorOfUser = AppState.user?.Sector || 'San Pedro Sula';
+                    if ((o.sector || '').toLowerCase().trim() !== sectorOfUser.toLowerCase().trim()) return false;
+                    // Excluir canceladas o expiradas
+                    const stateLower = (o.estado || '').toLowerCase().trim();
+                    if (['cancelada', 'expirada'].includes(stateLower)) return false;
+                    if (stateLower === 'borrador') {
+                        // Comprobar si ya expiró el borrador (15 mins de hold)
+                        const match = (o.hora || '').match(/(\d{2}):(\d{2})/);
+                        let hours = 8, minutes = 0;
+                        if (match) {
+                            hours = parseInt(match[1]);
+                            minutes = parseInt(match[2]);
+                        }
+                        const apptDate = new Date(`${o.fecha}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`);
+                        const expDate = new Date(apptDate.getTime() + 15 * 60 * 1000);
+                        if (new Date() > expDate) return false;
+                    }
+                    return true;
+                });
+
+                // Determinar si el slot es regular o extraordinario
+                const selectedDate = new Date(payload.fecha + 'T00:00:00');
+                const dayOfWeek = selectedDate.getDay();
+
+                const isRegularSlot = (dow, slot) => {
+                    if (dow >= 1 && dow <= 5) {
+                        return ["08:00 - 10:00", "10:00 - 12:00", "13:00 - 15:00", "15:00 - 17:00"].includes(slot);
+                    }
+                    if (dow === 6) {
+                        return ["08:00 - 10:00", "10:00 - 12:00"].includes(slot);
+                    }
+                    return false; // Domingos son extraordinarios
+                };
+
+                const isRegular = isRegularSlot(dayOfWeek, payload.hora);
+                const priorityLower = (payload.prioridad || '').toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+                if (isRegular) {
+                    if (activeOrdersInSlot.length >= 4) {
+                        alert("⚠️ Error de Capacidad: El turno regular seleccionado ya cuenta con el límite máximo de 4 cupos.");
+                        return;
+                    }
+                } else {
+                    // Turno extraordinario
+                    if (!['alta', 'maxima', 'urgente'].includes(priorityLower)) {
+                        alert("⚠️ Error de Prioridad: Los cupos extraordinarios solo pueden programarse para trabajos con prioridad Alta o Máxima.");
+                        return;
+                    }
+                    if (activeOrdersInSlot.length >= 1) {
+                        alert("⚠️ Error de Capacidad: El turno extraordinario seleccionado ya está ocupado (límite de 1 cupo).");
+                        return;
+                    }
+                }
+            }
+
             // 1. Crear Orden
             const result = await routeAction('GOS_CORE', 'createOrder', payload);
             if (result.status === 'success') {
@@ -1086,6 +1245,16 @@ async function showMainView(user) {
         user.Sector = 'San Pedro Sula';
     }
 
+    const isTechnician = ['tecnico', 'técnico', 'instalador'].includes((user.Privilegios || '').toLowerCase().trim());
+    const navAgenda = document.querySelector('.nav-links [data-section="agenda"]');
+    if (navAgenda) {
+        if (isTechnician) {
+            navAgenda.style.display = 'none';
+        } else {
+            navAgenda.style.display = 'inline-block';
+        }
+    }
+
     // RBAC: Mostrar enlace a Métricas Administrativas si el rol lo amerita
     const isChiefOrManager = ['jefe', 'gerente', 'desarrollador', 'jefe de tienda', 'administrador'].includes((user.Privilegios || '').toLowerCase().trim());
     const navAdmin = document.getElementById('nav-admin-metrics');
@@ -1105,6 +1274,44 @@ let markers = [];
 
 function initMap() {
     console.log("Google Maps API inicializada");
+}
+
+function calculateEstimatedDuration(tipoTrabajo, subTipo = '') {
+    const t = (tipoTrabajo || '').toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (t.includes('instalacion nueva') || t.includes('instalación nueva') || t === 'instalacion' || t === 'instalación') {
+        return 120; // 90 min install + 30 min traslado/margen
+    }
+    if (t.includes('revision por falla') || t.includes('revisión por falla')) {
+        const s = (subTipo || '').toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        if (s.includes('cambio de unidad')) {
+            if (s.includes('no compatible') || s.includes('diferente')) {
+                return 60; // Instalación completa de 60 mins
+            }
+            return 30; // compatible -> reprogramación (e.g. 30 mins)
+        }
+        if (s.includes('cambio de arnes') || s.includes('cambio de arnés')) {
+            return 60;
+        }
+        if (s.includes('reparacion de conexion') || s.includes('reparación de conexión') || s.includes('conexion') || s.includes('conexión')) {
+            return 35; // Rango 30-40 minutos (e.g. 35 mins)
+        }
+        return 60; // Diagnóstico inicial de duración indeterminada, mostramos 60 como marcador
+    }
+    if (t.includes('traspaso')) return 180;
+    if (t.includes('desinstalacion') || t.includes('desinstalación')) return 60;
+    if (t.includes('mantenimiento')) return 15;
+    return 30; // Por defecto
+}
+
+function getWaitTimeInMinutes(order) {
+    const obs = order.observaciones || '';
+    const match = obs.match(/\[WaitStart:\s*([^\]]+)\]/);
+    if (match) {
+        const start = new Date(match[1]);
+        const elapsedMs = new Date() - start;
+        return Math.floor(elapsedMs / (1000 * 60));
+    }
+    return 0;
 }
 
 async function openDrive(orderId, cliente) {
@@ -1343,18 +1550,63 @@ async function renderDashboardModule(container) {
                         let controlBtn = '';
                         const statusLower = (status || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
-                        if (statusLower === 'llego') {
-                            controlBtn = `<button class="btn btn-sm btn-primary receive-vehicle-btn" data-id="${id}">Recibir Vehículo</button>`;
+                        if (statusLower === 'pendiente' || statusLower === 'asignada') {
+                            controlBtn = `<button class="btn btn-sm btn-secondary" onclick="markStatus('${id}', 'En Camino')">🚚 Moviéndose al lugar</button>`;
+                        } else if (statusLower === 'en camino') {
+                            controlBtn = `<small style="color:var(--primary); font-weight:bold;">🚚 En camino (Ubicación activa)</small>`;
+                        } else if (statusLower === 'llego') {
+                            controlBtn = `
+                                <div style="display:flex; flex-direction:column; gap:5px;">
+                                    <button class="btn btn-sm btn-success receive-vehicle-btn" data-id="${id}">🚗 Se recibió el vehículo</button>
+                                    <button class="btn btn-sm btn-danger not-available-btn" data-id="${id}">❌ Vehículo no disponible</button>
+                                </div>
+                            `;
                         } else if (statusLower === 'vehiculo recibido') {
                             controlBtn = `<button class="btn btn-sm btn-primary" onclick="markStatus('${id}', 'Iniciando')">➡️ Iniciar Trabajo</button>`;
                         } else if (statusLower === 'iniciando') {
-                            controlBtn = `<button class="btn btn-sm btn-primary" onclick="markStatus('${id}', 'Instalando')">➡️ Comenzar Instalación</button>`;
+                            controlBtn = `<button class="btn btn-sm btn-secondary" disabled>➡️ Iniciando Trabajo...</button>`;
+                            setTimeout(() => {
+                                markStatus(id, 'Instalando');
+                            }, 1000);
                         } else if (statusLower === 'instalando') {
-                            controlBtn = `<button class="btn btn-sm btn-primary" onclick="markStatus('${id}', 'Haciendo pruebas')">➡️ Realizar Pruebas</button>`;
-                        } else if (statusLower === 'haciendo pruebas') {
-                            controlBtn = `<button class="btn btn-sm btn-primary" onclick="markStatus('${id}', 'Instalación completada')">➡️ Completar Instalación</button>`;
-                        } else if (statusLower === 'instalacion completada') {
+                            const isRevision = (o.tipotrabajo || '').toLowerCase().includes('revision') || (o.tipotrabajo || '').toLowerCase().includes('revisión');
+                            if (isRevision && !(o.observaciones || '').toLowerCase().includes('cambio') && !(o.observaciones || '').toLowerCase().includes('conexion') && !(o.observaciones || '').toLowerCase().includes('conexión') && !(o.observaciones || '').toLowerCase().includes('reparacion') && !(o.observaciones || '').toLowerCase().includes('reparación')) {
+                                controlBtn = `<button class="btn btn-sm btn-warning diagnosis-btn" data-id="${id}">🔍 Registrar Diagnóstico</button>`;
+                            } else {
+                                controlBtn = `<button class="btn btn-sm btn-primary test-monitoreo-btn" data-id="${id}">📞 Iniciar Pruebas (Monitoreo)</button>`;
+                            }
+                        } else if (statusLower === 'diagnostico realizado' || statusLower === 'diagnóstico realizado') {
+                            controlBtn = `<button class="btn btn-sm btn-outline-primary diagnosis-btn" data-id="${id}">➡️ Seleccionar Intervención</button>`;
+                        } else if (statusLower === 'esperando autorizacion' || statusLower === 'esperando autorización') {
+                            controlBtn = `<button class="btn btn-sm btn-success" onclick="markStatus('${id}', 'Instalando', 'Autorizado por Ventas')">✅ Autorizar e Instalar</button>`;
+                        } else if (statusLower === 'haciendo pruebas' || statusLower === 'pruebas con monitoreo') {
+                            controlBtn = `<button class="btn btn-sm btn-primary" onclick="markStatus('${id}', 'Instalación completada')">➡️ Concluir Pruebas</button>`;
+                        } else if (statusLower === 'instalacion completada' || statusLower === 'terminando la instalacion' || statusLower === 'terminando la instalación') {
                             controlBtn = `<button class="btn btn-sm btn-success deliver-vehicle-btn" data-id="${id}">🤝 Entregar Vehículo</button>`;
+                        } else if (statusLower === 'vehiculo no disponible' || statusLower === 'vehículo no disponible') {
+                            const waitTime = getWaitTimeInMinutes(o);
+                            let waitStyle = '';
+                            let waitLabel = '';
+                            if (waitTime <= 40) {
+                                waitStyle = 'background: #fff9db; color: #856404; border: 1px solid #ffeeba;';
+                                waitLabel = `⏳ Espera Prudente (${waitTime} min)`;
+                            } else {
+                                waitStyle = 'background: #ffe8cc; color: #d9480f; border: 1px solid #ffd8a8;';
+                                waitLabel = `⚠️ Espera Prolongada (${waitTime} min)`;
+                            }
+                            controlBtn = `
+                                <div style="display:flex; flex-direction:column; gap:5px; padding: 5px; border-radius: 5px; ${waitStyle}">
+                                    <small style="font-weight:bold; font-size:0.75rem;">${waitLabel}</small>
+                                    <button class="btn btn-sm btn-secondary not-available-btn" data-id="${id}" style="font-size:0.75rem; padding:2px 5px;">🔄 Cambiar Estado</button>
+                                </div>
+                            `;
+                        } else if (statusLower === 'trabajo retrasado' || statusLower === 'retrasado') {
+                            controlBtn = `
+                                <div style="display:flex; flex-direction:column; gap:5px; background:#f8d7da; border:1px solid #f5c6cb; color:#721c24; padding:5px; border-radius:5px;">
+                                    <small style="font-weight:bold; font-size:0.75rem;">⚠️ ¡Trabajo Retrasado!</small>
+                                    <button class="btn btn-sm btn-danger check-subsequent-btn" data-id="${id}" style="font-size:0.75rem; padding: 2px 5px;">Revisar Siguiente</button>
+                                </div>
+                            `;
                         } else if (statusLower === 'finalizada') {
                             controlBtn = `<span class="badge" style="background:#d4edda; color:#155724;">✅ Entregado</span>`;
                         } else {
@@ -1456,6 +1708,185 @@ async function renderDashboardModule(container) {
                     const order = orders.find(ord => ord.id === orderId);
                     if (order) {
                         renderTicketPostView(container, order);
+                    }
+                });
+            });
+
+            // Enlazar botones de Diagnóstico
+            const diagBtns = container.querySelectorAll('.diagnosis-btn');
+            diagBtns.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const orderId = e.currentTarget.dataset.id;
+                    const selectHtml = `
+                        <div style="padding:15px; text-align:left;">
+                            <p style="font-weight:bold; margin-bottom:10px;">Seleccione el Tipo de Intervención Derivada del Diagnóstico:</p>
+                            <select id="diag-intervention-select" class="form-control" style="margin-bottom:15px;">
+                                <option value="Cambio de unidad (compatible)">Cambio de unidad (compatible)</option>
+                                <option value="Cambio de unidad no compatible (60 min)">Cambio de unidad (tecnología diferente / instalación completa 60 min)</option>
+                                <option value="Cambio de arnés (60 min)">Cambio de arnés (60 min)</option>
+                                <option value="Reparación de conexión (35 min)">Reparación de conexión (35 min)</option>
+                            </select>
+                        </div>
+                    `;
+                    UI_TEMPLATES.modal(
+                        'Registrar Diagnóstico',
+                        selectHtml,
+                        async () => {
+                            const selVal = document.getElementById('diag-intervention-select').value;
+                            markStatus(orderId, 'Instalando', selVal);
+                        }
+                    );
+                });
+            });
+
+            // Enlazar botones de Monitoreo / Iniciar Pruebas
+            const testBtns = container.querySelectorAll('.test-monitoreo-btn');
+            testBtns.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const orderId = e.currentTarget.dataset.id;
+                    const testHtml = `
+                        <div style="padding:15px; text-align:left; line-height: 1.5;">
+                            <p>Para realizar las pruebas del dispositivo GPS, comuníquese directamente con los números de monitoreo:</p>
+                            <ul>
+                                <li>📞 <strong>Soporte Técnico SPS:</strong> +504 2550-1234</li>
+                                <li>📞 <strong>Soporte Técnico Tegucigalpa:</strong> +504 2220-4321</li>
+                                <li>📞 <strong>Móvil Pruebas Rápidas:</strong> +504 9990-1234</li>
+                            </ul>
+                            <p style="font-weight:bold; color:var(--primary); margin-top:15px;">¿Confirmar inicio de pruebas con monitoreo?</p>
+                        </div>
+                    `;
+                    UI_TEMPLATES.modal(
+                        'Iniciar Pruebas con Monitoreo',
+                        testHtml,
+                        async () => {
+                            markStatus(orderId, 'Haciendo pruebas');
+                        }
+                    );
+                });
+            });
+
+            // Enlazar botones de Vehículo No Disponible
+            const notAvailBtns = container.querySelectorAll('.not-available-btn');
+            notAvailBtns.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const orderId = e.currentTarget.dataset.id;
+                    const notAvailHtml = `
+                        <div style="padding:15px; text-align:left;">
+                            <p style="font-weight:bold; margin-bottom:10px;">Seleccione el Motivo:</p>
+                            <div style="margin-bottom:15px;">
+                                <label><input type="radio" name="not-avail-reason" value="alistamiento" checked> 🧽 Alistamiento (Lavado, polarizado, etc.)</label><br>
+                                <label><input type="radio" name="not-avail-reason" value="taller"> 🔧 Taller (Mecánica, reparación, etc.)</label>
+                            </div>
+
+                            <div id="alistamiento-options" style="margin-bottom:15px;">
+                                <p style="font-weight:bold; margin-bottom:5px;">Proceso de Alistamiento:</p>
+                                <select id="alistamiento-process" class="form-control" style="margin-bottom:10px;">
+                                    <option value="Lavado">Lavado</option>
+                                    <option value="Polarizado">Polarizado</option>
+                                    <option value="Instalación de accesorios">Instalación de accesorios</option>
+                                    <option value="Preparación previa">Preparación previa</option>
+                                    <option value="Otros procesos">Otros procesos</option>
+                                </select>
+                                <p style="font-weight:bold; margin-bottom:5px;">Hora Estimada de Disponibilidad:</p>
+                                <input type="time" id="alistamiento-time" class="form-control" value="15:30">
+                            </div>
+
+                            <div id="taller-options" style="display:none; margin-bottom:15px;">
+                                <p style="font-weight:bold; margin-bottom:10px;">Opción del Técnico:</p>
+                                <label><input type="radio" name="taller-choice" value="esperar" checked> Esperar liberación del vehículo</label><br>
+                                <label><input type="radio" name="taller-choice" value="reasignar"> El tiempo justifica adelantar otro trabajo (Reasignar posterior)</label>
+                            </div>
+                        </div>
+                    `;
+                    UI_TEMPLATES.modal(
+                        'Vehículo No Disponible',
+                        notAvailHtml,
+                        async () => {
+                            const reason = document.querySelector('input[name="not-avail-reason"]:checked').value;
+                            if (reason === 'alistamiento') {
+                                const process = document.getElementById('alistamiento-process').value;
+                                const time = document.getElementById('alistamiento-time').value;
+                                const obs = `Motivo: Alistamiento (${process}). Disponible a las ${time}. [WaitStart: ${new Date().toISOString()}]`;
+                                markStatus(orderId, 'Vehículo no disponible', obs);
+                            } else {
+                                const tallerChoice = document.querySelector('input[name="taller-choice"]:checked').value;
+                                if (tallerChoice === 'esperar') {
+                                    const obs = `Motivo: Taller. Esperando liberación. [WaitStart: ${new Date().toISOString()}]`;
+                                    markStatus(orderId, 'Vehículo no disponible', obs);
+                                } else {
+                                    // Reasignar
+                                    const reassignRes = await routeAction('GOS_CORE', 'reassignNextJob', { currentOrderId: orderId, force: true });
+                                    alert(reassignRes.message);
+                                    markStatus(orderId, 'Vehículo no disponible', 'Taller - Reasignado por tiempo prolongado');
+                                }
+                            }
+                        }
+                    );
+
+                    // Toggle options display
+                    setTimeout(() => {
+                        const rAlist = document.querySelector('input[name="not-avail-reason"][value="alistamiento"]');
+                        const rTall = document.querySelector('input[name="not-avail-reason"][value="taller"]');
+                        if (rAlist && rTall) {
+                            rAlist.addEventListener('change', () => {
+                                document.getElementById('alistamiento-options').style.display = 'block';
+                                document.getElementById('taller-options').style.display = 'none';
+                            });
+                            rTall.addEventListener('change', () => {
+                                document.getElementById('alistamiento-options').style.display = 'none';
+                                document.getElementById('taller-options').style.display = 'block';
+                            });
+                        }
+                    }, 200);
+                });
+            });
+
+            // Enlazar botones de Revisar Siguiente (Trabajo Retrasado)
+            const checkBtns = container.querySelectorAll('.check-subsequent-btn');
+            checkBtns.forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const orderId = e.currentTarget.dataset.id;
+                    try {
+                        const checkRes = await routeAction('GOS_CORE', 'reassignNextJob', { currentOrderId: orderId });
+                        if (checkRes.status === 'no_next_job') {
+                            alert("ℹ️ " + checkRes.message);
+                        } else if (checkRes.status === 'no_tech_available') {
+                            alert("ℹ️ Recordatorio: " + checkRes.message);
+                        } else if (checkRes.status === 'tech_available') {
+                            UI_TEMPLATES.modal(
+                                'Aviso de Retraso y Reasignación',
+                                `
+                                    <div style="padding:15px; text-align:left;">
+                                        <p style="font-weight:bold; color:#721c24;">⚠️ ¡Estás retrasado en este trabajo!</p>
+                                        <p>${checkRes.message}</p>
+                                    </div>
+                                `,
+                                async () => {
+                                    // "Sí, podré" -> No hace nada, se compromete a cumplirlo
+                                    alert("Entendido. Por favor continúa lo más rápido posible.");
+                                },
+                                async () => {
+                                    // "No podré" -> Reasignar automáticamente
+                                    const reassignRes = await routeAction('GOS_CORE', 'reassignNextJob', { currentOrderId: orderId, force: true });
+                                    alert(reassignRes.message);
+                                    updateDashboard();
+                                }
+                            );
+                            // Cambiar etiqueta del botón de cancelar para que sea "No podré"
+                            setTimeout(() => {
+                                const btnCancel = document.getElementById('modal-cancel');
+                                if (btnCancel) {
+                                    btnCancel.textContent = '❌ No podré (Reasignar)';
+                                    btnCancel.className = 'btn btn-secondary';
+                                }
+                                const btnConfirm = document.getElementById('modal-confirm');
+                                if (btnConfirm) {
+                                    btnConfirm.textContent = '✅ Sí podré cumplir';
+                                }
+                            }, 100);
+                        }
+                    } catch (err) {
+                        console.error("Error check subsequent:", err);
                     }
                 });
             });
