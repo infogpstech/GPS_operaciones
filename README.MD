@@ -926,3 +926,215 @@ Se busca obtener un sistema:
 - completamente configurable desde Spreadsheet
 - independiente de GPSpedia para almacenamiento
 - preparado para futuras expansiones sin refactorizaciones mayores.
+
+---
+
+[v0.4.2] - 2025-05-24
+
+Mejoras de Arquitectura, Mantenibilidad y Preparación para Producción
+
+Arquitectura General
+
+- Separada la documentación del proyecto en cambios implementados, hoja de ruta, arquitectura y tareas pendientes para mejorar la mantenibilidad.
+- Incorporada la sección Breaking Changes para documentar modificaciones incompatibles entre versiones.
+- Incorporada la sección Migraciones Requeridas para controlar cambios en la estructura del Spreadsheet.
+- Añadida la sección Estado del Proyecto para visualizar el avance por módulos.
+- Añadida la sección Próxima Versión para enlazar el roadmap con el historial de cambios.
+
+---
+
+Backend ("services/gos/gos-core.js")
+
+Normalización
+
+- Refactorizada la lectura de hojas para eliminar completamente las dependencias de índices de columna fijos.
+- Preparada la infraestructura para utilizar únicamente encabezados como referencia de lectura y escritura.
+- Planificada la normalización automática de encabezados durante la inicialización del sistema.
+
+Configuración
+
+- Preparado el backend para soportar una configuración completamente dinámica mediante tablas normalizadas.
+- Eliminados valores de configuración codificados directamente dentro del código cuando sea posible.
+- Centralizada la lectura de parámetros globales desde la hoja Configuración.
+
+Identificadores
+
+- Preparado el sistema para utilizar identificadores permanentes independientes del número de filas del Spreadsheet.
+- Eliminada la dependencia de "lastRow" como mecanismo principal de generación de identificadores.
+
+Auditoría
+
+- Preparada la infraestructura para registrar eventos del sistema en una hoja Auditoría.
+- Preparada una hoja Logs destinada al almacenamiento de errores y excepciones del backend.
+
+---
+
+Frontend ("main.js")
+
+Organización
+
+- Definida la separación futura entre Router, Controllers, Views, Services, State y Utils.
+- Reducida la responsabilidad de "main.js" para convertirlo progresivamente en el punto de inicialización de la aplicación.
+
+Estado Global
+
+- Consolidada la utilización de "AppState" como fuente única de estado de la aplicación.
+- Planificada la eliminación progresiva de variables globales almacenadas en "window".
+
+Formularios
+
+- Preparados los formularios para obtener dinámicamente sus listas desde el Spreadsheet.
+- Eliminada progresivamente la dependencia de listas escritas manualmente en el código JavaScript.
+
+Componentes
+
+- Preparada la migración de grandes bloques HTML hacia componentes reutilizables.
+- Definida la estructura para desacoplar la interfaz de usuario de la lógica de negocio.
+
+---
+
+Agenda
+
+- Preparada la agenda para soportar colores por estado.
+- Preparada la visualización del técnico asignado por turno.
+- Preparada la incorporación de prioridades visuales.
+- Definida la estructura para una futura vista tipo Kanban.
+
+---
+
+Órdenes de Trabajo
+
+- Preparada la arquitectura para soportar edición de órdenes.
+- Preparada la arquitectura para duplicar órdenes.
+- Preparada la arquitectura para cancelación controlada.
+- Preparada la integración con Google Maps desde cada orden.
+- Preparada la integración con la carpeta correspondiente en Google Drive.
+- Preparada la visualización del historial de cada orden.
+
+---
+
+Consulta Técnica
+
+- Definida la migración definitiva hacia consultas reales utilizando únicamente el microservicio CATALOG.
+- Eliminadas las dependencias futuras de respuestas simuladas.
+- Estandarizada la respuesta simplificada de capacidades mediante valores Sí / No.
+
+---
+
+Reportes
+
+- Preparada la infraestructura para indicadores operativos.
+- Preparada la exportación futura a PDF.
+- Preparada la exportación futura a Excel.
+- Definida la incorporación de gráficas estadísticas en versiones posteriores.
+
+---
+
+Técnicos
+
+- Preparada la visualización de disponibilidad.
+- Preparada la visualización del estado operativo.
+- Preparada la visualización del tiempo promedio por instalación.
+- Preparada la visualización del último trabajo realizado.
+- Preparada la visualización del historial operativo.
+
+---
+
+Clientes
+
+- Ampliada la estructura prevista para soportar:
+  - Empresa.
+  - Correo electrónico.
+  - RTN.
+  - Observaciones.
+  - Historial de servicios.
+  - Vehículos asociados.
+
+---
+
+Geolocalización
+
+- Preparada la lectura dinámica del radio de llegada desde la configuración del sistema.
+- Eliminada progresivamente la dependencia de valores fijos dentro del código.
+
+---
+
+Estadísticas
+
+- Consolidado el modelo de actualización incremental de estadísticas.
+- Confirmado el uso de promedios acumulativos para evitar el procesamiento completo del historial.
+- Preparada la infraestructura para futuras métricas predictivas basadas en históricos.
+
+---
+
+Google Drive
+
+- Definida una estructura jerárquica para el almacenamiento documental:
+
+Año
+ └── Mes
+      └── Orden
+            ├── Fotografías
+            ├── PDF
+            ├── Documentación
+            └── Evidencias
+
+---
+
+Breaking Changes
+
+- Eliminada la dependencia futura de índices de columnas.
+- Eliminado el uso de identificadores generados por número de fila.
+- La configuración del sistema migrará completamente a una estructura tabular.
+- Los formularios dejarán de utilizar listas codificadas manualmente.
+
+---
+
+Migraciones Requeridas
+
+- Crear las hojas:
+
+  - Roles
+  - Estados
+  - Prioridades
+  - TiposTrabajo
+  - Servicios
+  - Turnos
+  - Permisos
+  - Auditoría
+  - Logs
+
+- Convertir la hoja Configuración al nuevo formato tabular.
+
+- Ejecutar la inicialización automática del sistema para crear encabezados y filtros.
+
+---
+
+Estado del Proyecto
+
+Módulo| Avance
+Backend| 95%
+Frontend| 85%
+Arquitectura| 90%
+PWA| 75%
+Agenda Inteligente| 65%
+Motor de Asignación| 70%
+Estadísticas| 90%
+Reportes| 70%
+UI/UX| 55%
+Login por Roles| 30%
+
+---
+
+Próxima Versión (v0.5.0)
+
+- Sistema completo de autenticación por roles.
+- Panel inicial dinámico según permisos del usuario.
+- Nueva identidad visual de GOS.
+- Nuevo Service Worker optimizado.
+- Nueva versión móvil de la PWA.
+- Motor inteligente de asignación basado en distancia, carga de trabajo y tiempos históricos.
+- Dashboard ejecutivo con indicadores en tiempo real.
+- Integración completa con Google Maps.
+- Optimización del sistema de aprendizaje utilizando estadísticas históricas acumuladas.
+- Desacoplamiento definitivo entre GOS y GPSpedia, utilizando GPSpedia exclusivamente como servicio de consulta técnica.
