@@ -1,22 +1,22 @@
 {
-  "name": "GOS | GPS Operations Suite",
-  "short_name": "GOS",
-  "description": "Sistema de gestión operativa para instalaciones GPS.",
+  "name": "GOs | GPS Operations Suite",
+  "short_name": "GOs",
+  "description": "Sistema de gestión operativa para instalaciones GPS independiente.",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#f4f7f6",
+  "background_color": "#ffffff",
   "theme_color": "#007bff",
-  "scope": "/",
+  "scope": "./",
   "icons": [
     {
-      "src": "icon-pwa-192x192.png",
+      "src": "icon-gos-192.svg",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/svg+xml"
     },
     {
-      "src": "icon-pwa-512x512.png",
+      "src": "icon-gos-512.svg",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/svg+xml"
     }
   ]
 }

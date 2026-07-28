@@ -260,6 +260,9 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
     return R * c;
 }
 
+// Exponer markStatus de forma inmediata a nivel global
+window.markStatus = markStatus;
+
 async function markStatus(orderId, newStatus) {
     try {
         const result = await routeAction('GOS_CORE', 'updateOrderStatus', { orderId, status: newStatus });
@@ -2507,7 +2510,7 @@ async function renderTicketPostView(container, order) {
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('./service-worker.js')
-            .then(reg => console.log('GOS Service Worker registrado'))
+            .then(reg => console.log('GOs Service Worker registrado'))
             .catch(err => console.warn('Fallo al registrar Service Worker', err));
     });
 }
