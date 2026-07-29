@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GOS - GPS Operations Suite</title>
+    <link rel="icon" type="image/svg+xml" href="logo-gos.svg">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Maps API Placeholder - Reemplazar con clave real en producción -->
+</head>
+<body>
+    <div id="app">
+<!-- Toast Notificación -->
+        <div id="toast" class="toast"></div>
+
+        <!-- Auth View -->
+        <div id="login-view" class="login-container">
+            <div class="login-card">
+                <h2>Iniciar Sesión - GOS</h2>
+                <form id="login-form">
+                    <div class="form-group">
+                        <label>Usuario</label>
+                        <input type="text" id="username" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Contraseña</label>
+                        <input type="password" id="password" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Acceder</button>
+                    <p id="login-error" style="color: var(--danger); margin-top: 10px; display: none;"></p>
+                </form>
+            </div>
+        </div>
+
+        <!-- Main View -->
+        <div id="main-view" style="display: none;">
+            <nav class="navbar">
+                <div class="brand">GOs | GPS Operations Suite</div>
+                <div class="nav-links">
+                    <a href="#" class="nav-link" data-section="dashboard">Dashboard</a>
+                    <a href="#" class="nav-link" data-section="agenda">Agenda</a>
+                    <a href="#" class="nav-link" data-section="ordenes">Órdenes</a>
+                    <a href="#" class="nav-link" data-section="consulta">Consulta Técnica</a>
+                    <a href="#" class="nav-link" data-section="clientes">Clientes</a>
+                    <a href="#" class="nav-link" data-section="tecnicos">Técnicos</a>
+                    <a href="#" class="nav-link" data-section="reportes">Reportes</a>
+                    <a href="#" class="nav-link" data-section="admin" id="nav-admin" style="display:none;">Administración</a>
+                    <a href="#" id="logout-btn" class="nav-link">Cerrar Sesión</a>
+                </div>
+            </nav>
+            <div class="container">
+                <header>
+                    <div style="display:flex; justify-content: space-between; align-items: center;">
+                        <h1 id="welcome-msg">Bienvenido</h1>
+                        <small style="opacity: 0.5;">v0.7.0</small>
+                    </div>
+                    <h2 id="section-title">Dashboard</h2>
+                </header>
+                <main id="content">
+                    <!-- Dynamic Content -->
+                    <div id="section-content">
+                        <p>Seleccione una opción del menú para comenzar.</p>
+                    </div>
+                </main>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="main.js"></script>
+</body>
+</html>
