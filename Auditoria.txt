@@ -269,3 +269,24 @@ Esta auditoría exhaustiva de cobertura total valida cada uno de los requerimien
 
 10. MÓDULO: PWA INDEPENDIENTE
 - [OK] PWA de GOs independiente de GPSpedia: Dispone de service-worker.js, manifest.json, caché exclusivo 'gos-pwa-cache-v1', iconos independientes y logotipo corporativo "GOs".
+
+
+==============================================
+AUDITORÍA INTEGRAL GOS v0.6.0
+==============================================
+Fecha: 2025-05-24
+Versión Auditada: GOS v0.5.2 / GOS-CORE v1.2.0
+
+ARCHIVO: services/gos/gos-core.js
+- Roles y Permisos: La hoja 'Permisos' y la lógica de roles no validan de forma estricta las mutaciones (creación, edición, eliminación, autorización) en el backend. Se debe restringir estas operaciones de acuerdo al rol (Desarrollador, Jefe de División, Asesor de Venta, Técnico) y divisiones asociadas.
+- Horas Extras: No existe una función para contabilizar las horas extraordinarias mensuales por técnico basándose en las reglas dadas (L-V después de 5PM/antes de 8AM, Sábados antes de 8AM/después de 12PM, Domingos todo el día).
+- Horario de Almuerzo: El control automático de retrasos (`checkAndUpdateJobDelays`) no cuenta con inserción automática de 60 minutos de descanso/almuerzo si el trabajo termina después de las 12:00 PM, ni la consecuente reorganización y actualización de la agenda posterior de forma automática en caso de falta de técnicos disponibles.
+
+ARCHIVO: main.js
+- RBAC UI: El dashboard, la agenda y las órdenes no ocultan ni validan de forma estricta los botones de acción ('Crear cupo', 'Modificar cupo', 'Eliminar cupo', 'Autorizar cupo', 'Autorizar cupo extraordinario') para los usuarios sin los permisos adecuados.
+- Dashboard Administrativo: Falta un módulo de 'Administración' estructurado con pestañas para Configuración, Preferencias locales, Administración de usuarios, Reportes y Desempeño. Faltan gráficos comparativos mensuales de línea (instalaciones) y circulares de distribución (asesores/técnicos por tipo de trabajo) usando elementos CSS, SVG o librerías internas de renderizado.
+- Dashboard del Técnico: Falta una vista operacional dedicada exclusivamente a sus órdenes asignadas, estado actual, próximas órdenes y los flujos operativos de control del vehículo (Recibí, No disponible, etc.).
+- Contraseñas: No existe un mecanismo para que el técnico modifique su contraseña de forma segura desde su información personal.
+
+ARCHIVO: index.html
+- Estructura: Es compatible con PWA y tiene un layout responsivo. Se debe asegurar la integración con el nuevo dashboard de administración y restringir secciones según el rol.
