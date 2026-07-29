@@ -179,3 +179,37 @@
   - Implementado `handleReassignNextJob` para reasignar automáticamente trabajos posteriores a técnicos libres en caso de retraso prolongado (Línea 1134).
 - **Frontend (index.html):**
   - Sincronizada la versión visible del sistema a v0.5.2 (Línea 56).
+
+## [v0.6.0] - 2025-05-24
+### Sistema de Roles, Privilegios, Administración y Control Operativo
+- **Backend (services/gos/gos-core.js):**
+  - Implementada gestión completa de usuarios para Jefes de División y Desarrolladores (Líneas 1100-1300).
+  - Implementadas restricciones por división: los Jefes de División únicamente pueden gestionar usuarios de su propia división (Líneas 1100-1300).
+  - Añadido mecanismo seguro de cambio de contraseña para técnicos y usuarios generales (Líneas 1240-1280).
+  - Desarrollado motor mensual de horas extras calculando fórmulas exactas para L-V (antes de 8AM/después de 5PM), Sábados (antes de 8AM/después de 12PM) y Domingos (todo el día) (Líneas 1315-1440).
+  - Implementada compensación automática de almuerzo de 60 minutos al finalizar tarde por retrasos, desplazando y reorganizando de forma automática los trabajos de agenda subsecuentes (Líneas 1445-1600).
+- **Frontend (main.js):**
+  - Modificado el ruteo global en `loadSection` para soportar el nuevo panel consolidado de `"admin"` en lugar de `"admin-metrics"` (Líneas 340-390, 420-460).
+  - Implementada la vista "Administración" con pestañas funcionales para Métricas, Desempeño, Usuarios, Configuración y Horas Extras (Líneas 2830-3050).
+  - Desarrollada la generación de gráficos SVG vectoriales nativos para líneas comparativas (instalaciones por mes) y circulares de distribución de ventas (advisors y técnicos) (Líneas 2720-2825).
+  - Ocultados y protegidos lógicamente todos los botones de control de cupos ('Crear', 'Cancelar', 'Autorizar') para usuarios sin permisos adecuados utilizando la utilidad de permisos `RBAC` (Líneas 950-1050, 1100-1200).
+  - Implementado visor de estado técnico y panel de cambio de contraseñas seguro desde información personal (Líneas 1680-1720, 1835-1875).
+- **Frontend (index.html):**
+  - Cambiada la sección nav-admin-metrics a nav-admin ("Administración") (Líneas 47-49).
+  - Sincronizada la versión global visible a v0.6.0 (Línea 56).
+
+## [v0.7.0] - 2025-05-24
+### Geolocalización, Persistencia, Gestión de Cupos, Arquitectura de Datos y Separación de Servicios GOS
+- **Backend (services/gos/gos-core.js):**
+  - Añadida inicialización automática de la hoja `UbicacionesGuardadas` con cabeceras correctas (Líneas 35-50).
+  - Desarrollados controladores de ubicaciones guardadas (`handleGetSavedLocations`, `handleSaveSavedLocation`) con ordenamiento y prioridad por usos (Líneas 1680-1760).
+  - Desarrollado contador dinámico de técnicos activos por división para regular la capacidad de cupos permitidos por turno (Líneas 1761-1785).
+- **Frontend (main.js):**
+  - Añadido mecanismo Screen Wake Lock API (`navigator.wakeLock.request`) para evitar suspensión de PWA durante operaciones activas en curso (Líneas 6-25, 410-430).
+  - Implementada detección automática de finalización de instalación al retirarse del lugar de trabajo (>300 metros) después de realizar las pruebas con monitoreo, actualizando estado a "Instalación completada" (Líneas 330-345).
+  - Modificado el formulario de órdenes para incluir autocompletado y sugerencias inteligentes de ubicaciones guardadas y priorizadas (Líneas 140-160, 1080-1150).
+  - Integrado selector interactivo de mapas (Google Maps API) en el formulario para capturar con un clic coordenadas geográficas exactas, dirección y enlace Maps (Líneas 1151-1225).
+  - Modificado el flujo de guardado para registrar o incrementar el uso de la ubicación guardada en la base de datos (Línea 1500).
+  - Modificada la validación de cupos en el formulario de órdenes para consultar la capacidad dinámicamente según la cantidad de técnicos activos de la división (Línea 1475).
+- **Frontend (index.html):**
+  - Sincronizada la versión de compilación visible del sistema a v0.7.0 (Línea 56).

@@ -7,3 +7,5 @@ TAREAS PENDIENTES DE REVISIÓN:
 - Integración automática, Comprobante de Recepción, Código QR, Portal de Consulta Seguro para Clientes (v0.5.0 Fase 2) [PENDIENTE REVISIÓN POR EL MP]
 - Integración de Gestión de Órdenes, Recepción, Historial del Vehículo y Dashboard Operativo (v0.5.0 Fase 3) [PENDIENTE REVISIÓN POR EL MP]
 - Nueva Implementación: Dashboard de Agenda Operativa y Gestión de Cupos (v0.5.1) [PENDIENTE REVISIÓN POR EL MP]
+- Implementación de Sistema de Roles, Privilegios, Administración y Control Operativo (v0.6.0) [PENDIENTE REVISIÓN POR EL MP]
+- Implementación de Geolocalización, Persistencia, Gestión de Cupos y Arquitectura de Datos GOS (v0.7.0) [PENDIENTE REVISIÓN POR EL MP]

@@ -1,6 +1,95 @@
 import { routeAction } from './api-config.js';
 
 const SESSION_KEY = 'gos_session';
+
+// ============================================================================
+// PWA PERSISTENCIA Y SCREEN WAKE LOCK
+// ============================================================================
+let wakeLockInstance = null;
+
+async function requestWakeLock() {
+    try {
+        if ('wakeLock' in navigator) {
+            wakeLockInstance = await navigator.wakeLock.request('screen');
+            console.log('💡 Wake Lock de pantalla adquirido con éxito para mantener la PWA activa.');
+        }
+    } catch (err) {
+        console.warn(`⚠️ No se pudo adquirir Wake Lock: ${err.message}`);
+    }
+}
+
+function releaseWakeLock() {
+    if (wakeLockInstance !== null) {
+        wakeLockInstance.release().then(() => {
+            wakeLockInstance = null;
+            console.log('💡 Wake Lock de pantalla liberado.');
+        });
+    }
+}
+
+// ============================================================================
+// RBAC UTILITY & PERMISSIONS CONFIGURATION
+// ============================================================================
+function isExtraordinarySlot(dateStr, slotStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    const dow = d.getDay();
+    if (dow === 0) return true; // Sunday is always extraordinary
+
+    const match = (slotStr || '').match(/(\d{2}):(\d{2})/);
+    if (!match) return false;
+    const hour = parseInt(match[1]);
+
+    if (dow === 6) {
+        return hour >= 12;
+    }
+    return hour < 8 || hour >= 17;
+}
+
+const RBAC = {
+    isDev() {
+        return ['desarrollador', 'administrador'].includes((AppState.user?.Privilegios || '').toLowerCase().trim());
+    },
+    isJefe() {
+        return ['jefe', 'jefe de division', 'gerente', 'jefe de tienda'].includes((AppState.user?.Privilegios || '').toLowerCase().trim());
+    },
+    isAsesor() {
+        return ['asesor', 'asesor de venta', 'vendedor', 'supervisor'].includes((AppState.user?.Privilegios || '').toLowerCase().trim());
+    },
+    isTech() {
+        return ['tecnico', 'tecnico_exterior', 'instalador', 'técnico'].includes((AppState.user?.Privilegios || '').toLowerCase().trim());
+    },
+
+    canCreateCupo() {
+        return this.isDev() || this.isJefe() || this.isAsesor();
+    },
+
+    canEditCupo(order) {
+        if (this.isDev()) return true;
+        if (this.isJefe()) {
+            const orderSector = order.sector || 'San Pedro Sula';
+            const requestorSector = AppState.user?.Sector || 'San Pedro Sula';
+            if (orderSector !== requestorSector) {
+                return false;
+            }
+            return true;
+        }
+        if (this.isAsesor()) {
+            const isOwn = (order.vendedor || '').toString().toLowerCase().trim() === (AppState.user?.Nombre_Usuario || '').toString().toLowerCase().trim();
+            const isExtra = isExtraordinarySlot(order.fecha, order.hora);
+            return isOwn && isExtra;
+        }
+        return false;
+    },
+
+    canDeleteCupo(order) {
+        return this.canEditCupo(order);
+    },
+
+    canAuthorizeCupo() {
+        return this.isDev() || this.isJefe();
+    }
+};
+
 let dashboardInterval = null;
 
 /**
@@ -85,14 +174,31 @@ const UI_TEMPLATES = {
             <h3>Crear Nueva Orden</h3>
             <form id="order-form" class="order-form">
                 <div class="form-grid">
-                    <div class="form-group"><label>Fecha</label><input type="date" name="fecha" class="form-control" required></div>
-                    <div class="form-group"><label>Hora</label><input type="time" name="hora" class="form-control" required></div>
+                    <div class="form-group"><label>Fecha</label><input type="date" name="fecha" id="order-fecha" class="form-control" required></div>
+                    <div class="form-group"><label>Hora</label><input type="time" name="hora" id="order-hora" class="form-control" required></div>
                     <div class="form-group"><label>Cliente</label><input type="text" name="cliente" class="form-control" required></div>
                     <div class="form-group"><label>Contacto</label><input type="text" name="contacto" class="form-control"></div>
                     <div class="form-group"><label>Teléfono</label><input type="text" name="telefono" class="form-control" required></div>
-                    <div class="form-group"><label>Dirección</label><input type="text" name="direccion" class="form-control" required></div>
-                    <div class="form-group"><label>Coordenadas (Lat, Lng)</label><input type="text" name="coordenadas" class="form-control" placeholder="Ej: 9.9333, -84.0833"></div>
-                    <div class="form-group"><label>Link Google Maps</label><input type="url" name="linkMaps" class="form-control"></div>
+                    <div class="form-group autocomplete-wrapper" style="position:relative;">
+                        <label>Buscar Ubicación Guardada (Sugerencia inteligente):</label>
+                        <input type="text" id="order-saved-loc-search" class="form-control" placeholder="Escriba para buscar, ej: Excel">
+                        <div id="suggestions-saved-loc" class="autocomplete-suggestions" style="display:none; position:absolute; z-index:100; width:100%; background:#fff; border:1px solid #ddd;"></div>
+                    </div>
+                    <div class="form-group"><label>Nombre Ubicación Nuevo (Opcional para guardar):</label><input type="text" id="order-location-name-save" class="form-control" placeholder="Ej: Excel Taller SPS"></div>
+                    <div class="form-group"><label>Dirección</label><input type="text" name="direccion" id="order-direccion" class="form-control" required></div>
+                    <div class="form-group"><label>Coordenadas (Lat, Lng)</label><input type="text" name="coordenadas" id="order-coords" class="form-control" placeholder="Ej: 9.9333, -84.0833"></div>
+                    <div class="form-group"><label>Link Google Maps</label><input type="url" name="linkMaps" id="order-maps-link" class="form-control"></div>
+
+                    <!-- Selector Interactivo de Mapa GOS -->
+                    <div id="form-map-picker-container" style="grid-column: 1 / -1; margin-top:10px;">
+                        <label style="font-weight:bold; color:var(--dark);">Selector de Ubicación en Mapa (Haga clic para obtener coordenadas):</label>
+                        <div id="form-map-picker" style="height:250px; border-radius:8px; border:1px solid #ddd; background:#eee; display:flex; align-items:center; justify-content:center; margin-top:5px;">
+                            <p style="font-size:0.85rem; color:#718096; text-align:center; padding:15px;">
+                                📍 Haga clic en el mapa de su división para ubicar el punto de trabajo y autocompletar coordenadas y enlace.<br>
+                                <small style="display:block; margin-top:5px; color:#a0aec0;">(Requiere API Key de Google Maps activa)</small>
+                            </p>
+                        </div>
+                    </div>
 
                     <!-- Chasis VIN (para consulta de historial automático) -->
                     <div class="form-group">
@@ -116,6 +222,17 @@ const UI_TEMPLATES = {
                     <div class="form-group"><label>Color</label><input type="text" name="color" id="order-color" class="form-control"></div>
 
                     <div class="form-group">
+                        <label>Sector / División</label>
+                        <select name="sector" id="order-sector" class="form-control" required>
+                            <option value="San Pedro Sula">San Pedro Sula</option>
+                            <option value="Tegucigalpa">Tegucigalpa</option>
+                            <option value="La Ceiba">La Ceiba</option>
+                            <option value="Choluteca">Choluteca</option>
+                            <option value="Occidente">Occidente</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
                         <label>Servicio</label>
                         <select name="servicio" class="form-control">${options.servicios || '<option>Cargando...</option>'}</select>
                     </div>
@@ -132,9 +249,12 @@ const UI_TEMPLATES = {
 
                     <!-- Contenedor dinámico de memoria histórica y validaciones de chasis -->
                     <div id="vehicle-history-container" style="grid-column: 1 / -1; margin-top: 15px; display: none;"></div>
+                    <!-- Contenedor de mensajes de advertencia de divisiones para Asesores -->
+                    <div id="order-warning-msg" style="display:none; grid-column: 1 / -1; margin-top:10px; background:#fff3cd; color:#856404; padding:10px; border-radius:5px; border:1px solid #ffeeba; font-weight:bold;"></div>
                 </div>
                 <div style="display:flex; gap:10px; margin-top:20px;">
-                    <button type="submit" class="btn btn-primary">Guardar y Asignar</button>
+                    <button type="submit" id="submit-order-assign-btn" class="btn btn-primary">Guardar y Asignar</button>
+                    <button type="button" id="submit-order-draft-btn" class="btn btn-warning">Guardar como Borrador</button>
                     <button type="button" id="cancel-order-btn" class="btn btn-secondary">Cancelar</button>
                 </div>
             </form>
@@ -192,6 +312,8 @@ async function init() {
     window.openDrive = openDrive;
     window.openMaps = openMaps;
     window.UI_TEMPLATES = UI_TEMPLATES; // Exponer para utilidades globales
+    window.AppState = AppState;
+    window.RBAC = RBAC;
 
     setupAuthListeners();
     setupNavigationListeners();
@@ -247,6 +369,21 @@ async function checkArrivalStatus(lat, lng) {
             markStatus(activeOrder.id, 'Llegó');
         }
     }
+
+    // Detección automática al retirarse del sitio después de pruebas con monitoreo
+    if (activeOrder && (activeOrder.estado === 'Haciendo pruebas' || activeOrder.estado === 'pruebas con monitoreo' || activeOrder.estado === 'Haciendo pruebas') && activeOrder.coordenadas) {
+        const [targetLat, targetLng] = activeOrder.coordenadas.split(',').map(Number);
+        const distance = calculateDistance(lat, lng, targetLat, targetLng);
+
+        let threshold = 0.3; // 300m
+        if (AppState.config && AppState.config.Sistema && AppState.config.Sistema.RadioLlegada) {
+            threshold = (parseFloat(AppState.config.Sistema.RadioLlegada) * 1.5) / 1000;
+        }
+
+        if (distance > threshold) {
+            markStatus(activeOrder.id, 'Instalación completada', `Finalización automática al retirarse del sitio de trabajo (${Math.round(distance * 1000)}m de distancia).`);
+        }
+    }
 }
 
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -272,15 +409,19 @@ async function markStatus(orderId, newStatus, observaciones = '') {
             observaciones: observaciones
         });
         if (result.status === 'success') {
-            // Actualizar activeOrder en AppState
+            // Actualizar activeOrder en AppState y administrar Screen Wake Lock de PWA
             if (newStatus === 'En Camino') {
                 AppState.activeOrder = { id: orderId, estado: newStatus };
                 const row = document.querySelector(`tr[data-id="${orderId}"]`);
                 if (row) {
                     AppState.activeOrder.coordenadas = row.dataset.coords;
                 }
+                requestWakeLock();
+            } else if (['Iniciando', 'Instalando', 'Haciendo pruebas'].includes(newStatus)) {
+                requestWakeLock();
             } else if (newStatus === 'Finalizada' || newStatus === 'Cancelada') {
                 AppState.activeOrder = null;
+                releaseWakeLock();
             } else if (AppState.activeOrder && AppState.activeOrder.id === orderId) {
                 AppState.activeOrder.estado = newStatus;
             }
@@ -346,7 +487,7 @@ function loadSection(section) {
         tecnicos: { title: 'Panel de Técnicos', content: '<p>Cargando disponibilidad de técnicos...</p>' },
         consulta: { title: 'Consulta Técnica GPSpedia', content: '<p>Cargando motor de consulta...</p>' },
         reportes: { title: 'Reportes Operativos', content: '<p>Cargando reportes...</p>' },
-        'admin-metrics': { title: 'Métricas Administrativas (Restringido)', content: '<p>Cargando métricas...</p>' }
+        'admin': { title: 'Administración', content: '<p>Cargando panel...</p>' }
     };
 
     if (sections[section]) {
@@ -367,8 +508,8 @@ function loadSection(section) {
             renderConsultationModule(contentEl);
         } else if (section === 'reportes') {
             renderReportsModule(contentEl);
-        } else if (section === 'admin-metrics') {
-            renderAdminMetricsModule(contentEl);
+        } else if (section === 'admin') {
+            renderAdminModule(contentEl);
         }
     }
 }
@@ -889,9 +1030,25 @@ window.bookSlot = (date, slot) => {
     }
 };
 
+window.authorizeOrder = async (orderId, coords) => {
+    if (confirm(`¿Desea autorizar y asignar el cupo #${orderId}?`)) {
+        await markStatus(orderId, 'Asignada', 'Cupo Autorizado por Jefatura');
+        await routeAction('GOS_CORE', 'autoAssignTechnical', { orderId, coordinates: coords });
+        loadSection('ordenes');
+    }
+};
+
+window.cancelOrder = async (orderId) => {
+    if (confirm(`¿Desea cancelar el cupo #${orderId}?`)) {
+        await markStatus(orderId, 'Cancelada', 'Cupo Cancelado por Usuario');
+        loadSection('ordenes');
+    }
+};
+
 async function renderOrdersModule(container) {
+    const showNewOrder = RBAC.canCreateCupo();
     container.innerHTML = `
-        <div class="actions-bar">
+        <div class="actions-bar" style="${showNewOrder ? '' : 'display:none;'}">
             <button id="new-order-btn" class="btn btn-primary">Nueva Orden</button>
         </div>
         <div id="orders-list" class="orders-table-container">
@@ -899,9 +1056,11 @@ async function renderOrdersModule(container) {
         </div>
     `;
 
-    document.getElementById('new-order-btn').addEventListener('click', () => {
-        renderOrderForm(container);
-    });
+    if (showNewOrder) {
+        document.getElementById('new-order-btn').addEventListener('click', () => {
+            renderOrderForm(container);
+        });
+    }
 
     try {
         const result = await routeAction('GOS_CORE', 'getOrders');
@@ -939,9 +1098,9 @@ async function renderOrdersModule(container) {
                                     ${status === 'Asignada' ? `<button class="btn btn-sm btn-secondary" title="Marcar En camino" onclick="markStatus('${order.id}', 'En Camino')">En camino</button>` : ''}
                                     ${['En Camino', 'Llegó', 'Vehículo recibido'].includes(status) ? `<button class="btn btn-sm btn-primary" title="Finalizar" onclick="markStatus('${order.id}', 'Finalizada')">Finalizar</button>` : ''}
 
-                                    <button class="btn btn-sm btn-outline" title="Ver Historial (Próximamente)" disabled>📜</button>
-                                    <button class="btn btn-sm btn-outline" title="Duplicar (Próximamente)" disabled>👯</button>
-                                    <button class="btn btn-sm btn-outline" title="Cancelar (Próximamente)" disabled>🚫</button>
+                                    ${status.toLowerCase() === 'borrador' && RBAC.canAuthorizeCupo() ? `<button class="btn btn-sm btn-success" title="Autorizar Cupo" onclick="authorizeOrder('${order.id}', '${order.coordenadas}')">✅ Autorizar</button>` : ''}
+                                    ${RBAC.canDeleteCupo(order) && status.toLowerCase() !== 'cancelada' && status.toLowerCase() !== 'finalizada' ? `<button class="btn btn-sm btn-danger" title="Cancelar Cupo" onclick="cancelOrder('${order.id}')">🚫 Cancelar</button>` : ''}
+
                                     <button class="btn btn-sm btn-outline" title="Drive" onclick="openDrive('${order.id}', '${order.cliente}')">📂</button>
                                     <button class="btn btn-sm btn-outline" title="Maps" onclick="openMaps('${order.coordenadas}')">📍</button>
                                 </div>
@@ -973,6 +1132,193 @@ function renderOrderForm(container) {
     });
 
     document.getElementById('cancel-order-btn').addEventListener('click', () => loadSection('ordenes'));
+
+    // Configuración inicial de Sector y lógica de Borrador para Asesores
+    const sectorSelect = document.getElementById('order-sector');
+    const warningMsgDiv = document.getElementById('order-warning-msg');
+    const assignBtn = document.getElementById('submit-order-assign-btn');
+    const draftBtn = document.getElementById('submit-order-draft-btn');
+
+    if (sectorSelect) {
+        // Pre-poblar con el sector del usuario
+        sectorSelect.value = AppState.user?.Sector || 'San Pedro Sula';
+
+        const checkSectorPermission = () => {
+            const selectedSector = sectorSelect.value;
+            const userSector = AppState.user?.Sector || 'San Pedro Sula';
+            const isAsesor = RBAC.isAsesor();
+
+            if (isAsesor && selectedSector !== userSector) {
+                if (assignBtn) assignBtn.style.display = 'none';
+                if (warningMsgDiv) {
+                    warningMsgDiv.textContent = '⚠️ Estás programando en otra división. Debes guardar como Borrador para esperar la autorización del Jefe de División correspondiente.';
+                    warningMsgDiv.style.display = 'block';
+                }
+            } else {
+                if (assignBtn) assignBtn.style.display = 'inline-block';
+                if (warningMsgDiv) warningMsgDiv.style.display = 'none';
+            }
+        };
+
+        sectorSelect.addEventListener('change', checkSectorPermission);
+        checkSectorPermission();
+
+        // --------------------------------------------------------------------
+        // BÚSQUEDA INTELIGENTE DE UBICACIONES GUARDADAS & SUGERENCIAS
+        // --------------------------------------------------------------------
+        const savedLocInput = document.getElementById('order-saved-loc-search');
+        const savedLocSuggestions = document.getElementById('suggestions-saved-loc');
+        const locationNameSaveInput = document.getElementById('order-location-name-save');
+        const orderDireccionInput = document.getElementById('order-direccion');
+        const orderCoordsInput = document.getElementById('order-coords');
+        const orderMapsLinkInput = document.getElementById('order-maps-link');
+
+        let allSavedLocations = [];
+
+        const loadSavedLocations = async () => {
+            try {
+                const res = await routeAction('GOS_CORE', 'getSavedLocations');
+                if (res.status === 'success') {
+                    allSavedLocations = res.data || [];
+                }
+            } catch (err) {
+                console.error("Error al cargar ubicaciones guardadas:", err);
+            }
+        };
+
+        loadSavedLocations();
+
+        if (savedLocInput) {
+            savedLocInput.addEventListener('input', () => {
+                const val = savedLocInput.value.trim().toLowerCase();
+                savedLocSuggestions.innerHTML = '';
+                if (!val) {
+                    savedLocSuggestions.style.display = 'none';
+                    return;
+                }
+
+                const matches = allSavedLocations.filter(loc =>
+                    (loc.nombre || '').toLowerCase().includes(val) ||
+                    (loc.direccion || '').toLowerCase().includes(val)
+                );
+
+                if (matches.length > 0) {
+                    savedLocSuggestions.style.display = 'block';
+                    matches.forEach(loc => {
+                        const div = document.createElement('div');
+                        div.className = 'suggestion-item';
+                        div.style.padding = '8px';
+                        div.style.cursor = 'pointer';
+                        div.style.borderBottom = '1px solid #eee';
+                        div.innerHTML = `📍 <strong>${loc.nombre}</strong><br><small style="color:#718096;">${loc.direccion || 'Sin dirección'}</small>`;
+
+                        div.onclick = () => {
+                            savedLocInput.value = loc.nombre;
+                            if (locationNameSaveInput) locationNameSaveInput.value = loc.nombre;
+                            if (orderDireccionInput) orderDireccionInput.value = loc.direccion || '';
+                            if (orderCoordsInput) {
+                                orderCoordsInput.value = loc.coordenadas || '';
+                                // Mover marcador en mapa de formulario si está instanciado
+                                if (formMap && formMarker && loc.coordenadas) {
+                                    const [latVal, lngVal] = loc.coordenadas.split(',').map(Number);
+                                    const pos = { lat: latVal, lng: lngVal };
+                                    formMarker.setPosition(pos);
+                                    formMarker.setMap(formMap);
+                                    formMap.setCenter(pos);
+                                    formMap.setZoom(15);
+                                }
+                            }
+                            if (orderMapsLinkInput) orderMapsLinkInput.value = loc.linkmaps || `https://www.google.com/maps/search/?api=1&query=${loc.coordenadas}`;
+
+                            savedLocSuggestions.style.display = 'none';
+                        };
+                        savedLocSuggestions.appendChild(div);
+                    });
+                } else {
+                    savedLocSuggestions.style.display = 'none';
+                }
+            });
+
+            document.addEventListener('click', (e) => {
+                if (e.target !== savedLocInput) {
+                    savedLocSuggestions.style.display = 'none';
+                }
+            });
+        }
+
+        // --------------------------------------------------------------------
+        // SELECTOR INTERACTIVO DE MAPA GOOGLE MAPS
+        // --------------------------------------------------------------------
+        const mapPickerEl = document.getElementById('form-map-picker');
+        let formMap = null;
+        let formMarker = null;
+
+        const cityCenters = {
+            'San Pedro Sula': { lat: 15.5042, lng: -88.0250 },
+            'Tegucigalpa': { lat: 14.0818, lng: -87.2068 },
+            'La Ceiba': { lat: 15.7597, lng: -86.7865 },
+            'Choluteca': { lat: 13.3000, lng: -87.1833 },
+            'Occidente': { lat: 14.7667, lng: -88.7833 }
+        };
+
+        const initFormMapPicker = () => {
+            if (window.google && mapPickerEl) {
+                const selectedSector = sectorSelect ? sectorSelect.value : 'San Pedro Sula';
+                const center = cityCenters[selectedSector] || cityCenters['San Pedro Sula'];
+
+                mapPickerEl.innerHTML = ''; // Limpiar indicador texto
+                formMap = new google.maps.Map(mapPickerEl, {
+                    center: center,
+                    zoom: 13,
+                    mapTypeControl: false,
+                    streetViewControl: false
+                });
+
+                formMarker = new google.maps.Marker({
+                    map: null,
+                    draggable: true
+                });
+
+                const handleMapClick = (latLng) => {
+                    const lat = latLng.lat();
+                    const lng = latLng.lng();
+                    if (orderCoordsInput) orderCoordsInput.value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+                    if (orderMapsLinkInput) orderMapsLinkInput.value = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+
+                    formMarker.setPosition(latLng);
+                    formMarker.setMap(formMap);
+
+                    // Reverse geocoding básico (simulado) si Dirección está vacía
+                    if (orderDireccionInput && !orderDireccionInput.value.trim()) {
+                        orderDireccionInput.value = `📍 Ubicación seleccionada en división ${sectorSelect.value}`;
+                    }
+                };
+
+                google.maps.event.addListener(formMap, 'click', (e) => {
+                    handleMapClick(e.latLng);
+                });
+
+                google.maps.event.addListener(formMarker, 'dragend', (e) => {
+                    handleMapClick(e.latLng);
+                });
+            }
+        };
+
+        // Escuchar cambios de sector para re-centrar mapapicker
+        if (sectorSelect) {
+            sectorSelect.addEventListener('change', () => {
+                if (formMap && window.google) {
+                    const center = cityCenters[sectorSelect.value] || cityCenters['San Pedro Sula'];
+                    formMap.setCenter(center);
+                    formMap.setZoom(13);
+                    if (formMarker) formMarker.setMap(null); // Limpiar marcador previo
+                }
+            });
+        }
+
+        // Ejecutar inicialización de mapa de formulario con retraso
+        setTimeout(initFormMapPicker, 600);
+    }
 
     const vinInput = document.getElementById('order-vin');
     const historyContainer = document.getElementById('vehicle-history-container');
@@ -1084,10 +1430,30 @@ function renderOrderForm(container) {
         }
     });
 
+    let isDraftMode = false;
+    const btnDraftSubmit = document.getElementById('submit-order-draft-btn');
+    const btnAssignSubmit = document.getElementById('submit-order-assign-btn');
+
+    if (btnDraftSubmit) {
+        btnDraftSubmit.addEventListener('click', (e) => {
+            isDraftMode = true;
+            const form = document.getElementById('order-form');
+            if (form.reportValidity()) {
+                form.dispatchEvent(new Event('submit', { cancelable: true }));
+            }
+        });
+    }
+    if (btnAssignSubmit) {
+        btnAssignSubmit.addEventListener('click', (e) => {
+            isDraftMode = false;
+        });
+    }
+
     document.getElementById('order-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const formData = new FormData(e.target);
         const payload = Object.fromEntries(formData.entries());
+        payload.vendedor = AppState.user?.Nombre_Usuario || 'Carlos Ruiz';
 
         try {
             // 0. Validar capacidad del turno/cupo
@@ -1133,8 +1499,18 @@ function renderOrderForm(container) {
                 const priorityLower = (payload.prioridad || '').toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
                 if (isRegular) {
-                    if (activeOrdersInSlot.length >= 4) {
-                        alert("⚠️ Error de Capacidad: El turno regular seleccionado ya cuenta con el límite máximo de 4 cupos.");
+                    let maxTechCount = 4;
+                    try {
+                        const techCountRes = await routeAction('GOS_CORE', 'getDivisionTechniciansCount', { sector: payload.sector });
+                        if (techCountRes.status === 'success') {
+                            maxTechCount = techCountRes.count || 4;
+                        }
+                    } catch (errTech) {
+                        console.error("Error al obtener capacidad de técnicos:", errTech);
+                    }
+
+                    if (activeOrdersInSlot.length >= maxTechCount) {
+                        alert(`⚠️ Error de Capacidad: El turno regular seleccionado ya cuenta con el límite máximo de ${maxTechCount} cupos, correspondiente a la cantidad de técnicos activos de esta división (${payload.sector}).`);
                         return;
                     }
                 } else {
@@ -1151,9 +1527,33 @@ function renderOrderForm(container) {
             }
 
             // 1. Crear Orden
+            if (isDraftMode) {
+                payload.estado = 'Borrador';
+            }
             const result = await routeAction('GOS_CORE', 'createOrder', payload);
             if (result.status === 'success') {
                 const orderId = result.orderId;
+
+                // Guardar/Incrementar Uso de Ubicación en Base de Datos
+                const locationNameVal = document.getElementById('order-location-name-save')?.value.trim();
+                if (locationNameVal) {
+                    try {
+                        await routeAction('GOS_CORE', 'saveSavedLocation', {
+                            nombre: locationNameVal,
+                            direccion: payload.direccion,
+                            coordenadas: payload.coordenadas,
+                            division: payload.sector
+                        });
+                    } catch (errLoc) {
+                        console.error("Error al registrar ubicación guardada:", errLoc);
+                    }
+                }
+
+                if (isDraftMode) {
+                    alert(`Cupo apartado como Borrador exitosamente (Orden #${orderId}). Espere autorización de Jefatura.`);
+                    loadSection('ordenes');
+                    return;
+                }
 
                 // 2. Disparar Auto-Asignación
                 const assignResult = await routeAction('GOS_CORE', 'autoAssignTechnical', {
@@ -1257,7 +1657,7 @@ async function showMainView(user) {
 
     // RBAC: Mostrar enlace a Métricas Administrativas si el rol lo amerita
     const isChiefOrManager = ['jefe', 'gerente', 'desarrollador', 'jefe de tienda', 'administrador'].includes((user.Privilegios || '').toLowerCase().trim());
-    const navAdmin = document.getElementById('nav-admin-metrics');
+    const navAdmin = document.getElementById('nav-admin');
     if (navAdmin) {
         if (isChiefOrManager) {
             navAdmin.style.display = 'inline-block';
@@ -1503,11 +1903,46 @@ async function renderDashboardModule(container) {
                     </div>
                 `;
             } else {
-                // DASHBOARD PARA TÉCNICOS Y OPERATIVOS: Instalaciones asignadas, Trabajos programados, Estado de órdenes
+                // DASHBOARD PARA TÉCNICOS Y OPERATIVOS: Personal Technician Dashboard
+                const isTech = RBAC.isTech();
                 const activeJobs = filteredOrders.filter(o => {
                     const statusLower = (o.estado || '').toLowerCase().trim();
-                    return ['pendiente', 'asignada', 'en camino', 'llego', 'vehiculo recibido', 'iniciando', 'instalando', 'haciendo pruebas', 'instalacion completada', 'finalizada'].includes(statusLower);
+                    const statusMatch = ['pendiente', 'asignada', 'en camino', 'llego', 'vehiculo recibido', 'iniciando', 'instalando', 'haciendo pruebas', 'instalacion completada', 'finalizada', 'trabajo retrasado', 'vehiculo no disponible', 'vehículo no disponible'].includes(statusLower);
+                    if (!statusMatch) return false;
+
+                    if (isTech) {
+                        const tAsignado = (o.tecnicoasignado || '').toString().toLowerCase().trim();
+                        const userName = (user.Nombre_Completo || '').toString().toLowerCase().trim();
+                        const userLogin = (user.Nombre_Usuario || '').toString().toLowerCase().trim();
+                        return tAsignado === userName || tAsignado === userLogin || tAsignado.includes(userLogin) || userName.includes(tAsignado);
+                    }
+                    return true;
                 });
+
+                // Sincronizar activeOrder en AppState para persistencia
+                if (isTech) {
+                    const activeTechJob = activeJobs.find(o => !['finalizada', 'cancelada', 'expirada'].includes((o.estado || '').toLowerCase().trim()));
+                    if (activeTechJob) {
+                        AppState.activeOrder = {
+                            id: activeTechJob.id,
+                            estado: activeTechJob.estado,
+                            coordenadas: activeTechJob.coordenadas
+                        };
+                    } else {
+                        AppState.activeOrder = null;
+                    }
+                }
+
+                // Personal Info and Password Change for Technician
+                html += `
+                    <div style="background: #f8f9fa; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <span style="font-weight:bold; color:var(--dark); font-size:1.1rem;">🛠️ Panel de Técnico: ${user.Nombre_Completo || user.Nombre_Usuario}</span><br>
+                            <small style="color:var(--secondary);">Rol: ${user.Privilegios} | Sector: ${user.Sector}</small>
+                        </div>
+                        <button class="btn btn-secondary" id="btn-tech-change-pass" style="padding: 6px 12px; font-size:0.85rem;">🔄 Cambiar Mi Contraseña</button>
+                    </div>
+                `;
 
                 html += `
                     <div class="orders-table-container">
@@ -1655,6 +2090,46 @@ async function renderDashboardModule(container) {
             }
 
             container.innerHTML = html;
+
+            const btnChangePass = container.querySelector('#btn-tech-change-pass');
+            if (btnChangePass) {
+                btnChangePass.onclick = () => {
+                    const modalHtml = `
+                        <div style="padding:15px; text-align:left;">
+                            <div class="form-group" style="margin-bottom:12px;">
+                                <label style="font-weight:bold; font-size:0.85rem;">Contraseña Actual:</label>
+                                <input type="password" id="tech-current-pass" class="form-control" required>
+                            </div>
+                            <div class="form-group" style="margin-bottom:12px;">
+                                <label style="font-weight:bold; font-size:0.85rem;">Nueva Contraseña:</label>
+                                <input type="password" id="tech-new-pass" class="form-control" required>
+                            </div>
+                        </div>
+                    `;
+                    UI_TEMPLATES.modal(
+                        'Modificar Mi Contraseña',
+                        modalHtml,
+                        async () => {
+                            const currentPassword = document.getElementById('tech-current-pass').value;
+                            const newPassword = document.getElementById('tech-new-pass').value;
+                            if (!currentPassword || !newPassword) {
+                                alert("Todos los campos son obligatorios.");
+                                return;
+                            }
+                            try {
+                                const res = await routeAction('GOS_CORE', 'changePassword', {
+                                    username: user.Nombre_Usuario,
+                                    currentPassword,
+                                    newPassword
+                                });
+                                alert(res.message);
+                            } catch (err) {
+                                alert("Error: " + err.message);
+                            }
+                        }
+                    );
+                };
+            }
 
             const selector = document.getElementById('sector-selector');
             if (selector) {
@@ -2560,6 +3035,614 @@ ${portalUrl}
 /**
  * Renderiza las métricas administrativas de acceso restringido.
  */
+
+// ============================================================================
+// MODULO DE ADMINISTRACIÓN (v0.6.0)
+// ============================================================================
+function getCoordinatesForPercent(percent) {
+    const x = 50 + 40 * Math.cos(2 * Math.PI * percent - Math.PI / 2);
+    const y = 50 + 40 * Math.sin(2 * Math.PI * percent - Math.PI / 2);
+    return [x, y];
+}
+
+function drawSvgPieChart(slices) {
+    if (!slices || slices.length === 0) return '<p style="color:var(--secondary); font-style:italic;">No hay datos para graficar.</p>';
+    const total = slices.reduce((acc, s) => acc + s.value, 0) || 1;
+    let cumulativePercent = 0;
+
+    let html = `<div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap; justify-content:center;">
+        <svg viewBox="0 0 100 100" style="width:160px; height:160px; overflow:visible;">`;
+
+    const colors = ['#007bff', '#28a745', '#ffc107', '#dc3545', '#17a2b8', '#6610f2', '#e83e8c', '#fd7e14'];
+
+    slices.forEach((slice, idx) => {
+        const percent = slice.value / total;
+        const color = colors[idx % colors.length];
+
+        if (percent === 1) {
+            html += `<circle cx="50" cy="50" r="40" fill="${color}"><title>${slice.label}: 100% (${slice.value})</title></circle>`;
+            return;
+        }
+
+        const [startX, startY] = getCoordinatesForPercent(cumulativePercent);
+        cumulativePercent += percent;
+        const [endX, endY] = getCoordinatesForPercent(cumulativePercent);
+        const largeArcFlag = percent > 0.5 ? 1 : 0;
+
+        const pathData = [
+            `M 50 50`,
+            `L ${startX} ${startY}`,
+            `A 40 40 0 ${largeArcFlag} 1 ${endX} ${endY}`,
+            `Z`
+        ].join(' ');
+
+        html += `<path d="${pathData}" fill="${color}">
+            <title>${slice.label}: ${Math.round(percent * 100)}% (${slice.value})</title>
+        </path>`;
+    });
+
+    html += `</svg>
+        <div style="text-align:left; font-size:0.85rem;">`;
+
+    slices.forEach((slice, idx) => {
+        const percent = Math.round((slice.value / total) * 100);
+        const color = colors[idx % colors.length];
+        html += `
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px;">
+                <span style="display:inline-block; width:12px; height:12px; border-radius:3px; background-color:${color};"></span>
+                <span><strong>${slice.label}:</strong> ${percent}% (${slice.value})</span>
+            </div>
+        `;
+    });
+
+    html += `</div></div>`;
+    return html;
+}
+
+function drawSvgLineChart(points) {
+    if (!points || points.length === 0) return '<p style="color:var(--secondary); font-style:italic;">No hay datos para graficar.</p>';
+    const maxVal = Math.max(...points.map(p => p.value)) || 1;
+    const height = 150;
+    const width = 450;
+    const padding = 35;
+
+    let chartHtml = `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; overflow:visible;">`;
+
+    for (let i = 0; i <= 4; i++) {
+        const y = padding + (i * (height - 2 * padding)) / 4;
+        chartHtml += `<line x1="${padding}" y1="${y}" x2="${width - padding}" y2="${y}" stroke="#e2e8f0" stroke-width="1" />`;
+    }
+
+    const stepX = (width - 2 * padding) / (points.length - 1 || 1);
+    const coords = points.map((p, idx) => {
+        const x = padding + idx * stepX;
+        const y = height - padding - (p.value / maxVal) * (height - 2 * padding);
+        return { x, y, label: p.label, value: p.value };
+    });
+
+    let pathData = `M ${coords[0].x} ${coords[0].y}`;
+    for (let i = 1; i < coords.length; i++) {
+        pathData += ` L ${coords[i].x} ${coords[i].y}`;
+    }
+    chartHtml += `<path d="${pathData}" fill="none" stroke="#007bff" stroke-width="3" />`;
+
+    coords.forEach(c => {
+        chartHtml += `
+            <circle cx="${c.x}" cy="${c.y}" r="5" fill="#007bff" stroke="#fff" stroke-width="1.5">
+                <title>${c.label}: ${c.value}</title>
+            </circle>
+            <text x="${c.x}" y="${height - 10}" font-size="9" fill="#718096" text-anchor="middle">${c.label}</text>
+            <text x="${c.x}" y="${c.y - 10}" font-size="9" font-weight="bold" fill="#2d3748" text-anchor="middle">${c.value}</text>
+        `;
+    });
+
+    chartHtml += '</svg>';
+    return chartHtml;
+}
+
+async function renderAdminModule(container) {
+    const user = AppState.user;
+    if (!user) {
+        container.innerHTML = '<p>Por favor inicie sesión para ver esta información.</p>';
+        return;
+    }
+
+    let activeSubTab = 'metricas';
+
+    const renderLayout = () => {
+        container.innerHTML = `
+            <div class="admin-tabs-bar" style="display:flex; gap:10px; margin-bottom:20px; border-bottom:2px solid var(--light); padding-bottom:10px; flex-wrap:wrap;">
+                <button class="btn sub-tab-btn active" data-subtab="metricas">📊 Métricas</button>
+                <button class="btn sub-tab-btn" data-subtab="desempeno">📈 Desempeño</button>
+                <button class="btn sub-tab-btn" data-subtab="usuarios">👥 Usuarios</button>
+                <button class="btn sub-tab-btn" data-subtab="configuracion">⚙️ Configuración</button>
+                <button class="btn sub-tab-btn" data-subtab="horas-extras">⏱️ Horas Extras</button>
+            </div>
+            <div id="admin-subtab-content">
+                <p>Cargando panel...</p>
+            </div>
+        `;
+
+        const tabBtns = container.querySelectorAll('.sub-tab-btn');
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                tabBtns.forEach(b => {
+                    b.classList.remove('active');
+                    b.style.backgroundColor = '#e2e8f0';
+                    b.style.color = '#4a5568';
+                });
+                btn.classList.add('active');
+                btn.style.backgroundColor = 'var(--primary)';
+                btn.style.color = 'white';
+
+                activeSubTab = btn.dataset.subtab;
+                loadSubTabContent();
+            });
+        });
+
+        // Set initial styling for active tab button
+        const activeBtn = container.querySelector('.sub-tab-btn.active');
+        if (activeBtn) {
+            activeBtn.style.backgroundColor = 'var(--primary)';
+            activeBtn.style.color = 'white';
+        }
+
+        loadSubTabContent();
+    };
+
+    const loadSubTabContent = async () => {
+        const subContentEl = document.getElementById('admin-subtab-content');
+        if (!subContentEl) return;
+        subContentEl.innerHTML = UI_TEMPLATES.loading;
+
+        try {
+            const ordersRes = await routeAction('GOS_CORE', 'getOrders');
+            if (ordersRes.status !== 'success') {
+                subContentEl.innerHTML = `<p class="error-msg">Error al cargar datos: ${ordersRes.message}</p>`;
+                return;
+            }
+            const orders = ordersRes.data;
+
+            if (activeSubTab === 'metricas') {
+                renderMetricasTab(subContentEl, orders);
+            } else if (activeSubTab === 'desempeno') {
+                renderDesempenoTab(subContentEl, orders);
+            } else if (activeSubTab === 'usuarios') {
+                renderUsuariosTab(subContentEl);
+            } else if (activeSubTab === 'configuracion') {
+                renderConfiguracionTab(subContentEl);
+            } else if (activeSubTab === 'horas-extras') {
+                renderHorasExtrasTab(subContentEl);
+            }
+        } catch (err) {
+            subContentEl.innerHTML = `<p class="error-msg">Error de conexión: ${err.message}</p>`;
+        }
+    };
+
+    const renderMetricasTab = (subEl, orders) => {
+        const isJefe = RBAC.isJefe();
+        const requestorSector = user.Sector || 'San Pedro Sula';
+
+        // Filter orders by sector if Jefe
+        const filtered = orders.filter(o => {
+            if (!isJefe) return true;
+            return (o.sector || '').toLowerCase().trim() === requestorSector.toLowerCase().trim();
+        });
+
+        // Computations
+        const installs = filtered.filter(o => (o.tipotrabajo || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes('instalacion nueva')).length;
+        const deinstalls = filtered.filter(o => (o.tipotrabajo || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes('desinstalacion')).length;
+        const revisions = filtered.filter(o => (o.tipotrabajo || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes('revision por falla')).length;
+        const maintenance = filtered.filter(o => (o.tipotrabajo || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes('mantenimiento')).length;
+        const reinstalls = filtered.filter(o => (o.tipotrabajo || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes('reinstalacion')).length;
+
+        // Line chart data (Installations per month)
+        const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+        const monthlyCounts = Array(12).fill(0);
+
+        filtered.forEach(o => {
+            const isInstall = (o.tipotrabajo || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes('instalacion');
+            if (isInstall && o.fecha) {
+                const parts = o.fecha.split('-');
+                const mIdx = parseInt(parts[1]) - 1;
+                if (mIdx >= 0 && mIdx < 12) {
+                    monthlyCounts[mIdx]++;
+                }
+            }
+        });
+
+        const lineChartData = months.map((label, idx) => ({
+            label,
+            value: monthlyCounts[idx]
+        }));
+
+        subEl.innerHTML = `
+            <div class="dashboard-grid" style="margin-bottom:30px;">
+                <div class="dashboard-card" style="border-top: 4px solid #007bff;">
+                    <h3>Instalaciones Nuevas</h3>
+                    <div class="value" style="color:#007bff;">${installs}</div>
+                </div>
+                <div class="dashboard-card" style="border-top: 4px solid #fd7e14;">
+                    <h3>Desinstalaciones</h3>
+                    <div class="value" style="color:#fd7e14;">${deinstalls}</div>
+                </div>
+                <div class="dashboard-card" style="border-top: 4px solid #dc3545;">
+                    <h3>Revisiones por Falla</h3>
+                    <div class="value" style="color:#dc3545;">${revisions}</div>
+                </div>
+                <div class="dashboard-card" style="border-top: 4px solid #28a745;">
+                    <h3>Mantenimiento Preventivo</h3>
+                    <div class="value" style="color:#28a745;">${maintenance}</div>
+                </div>
+                <div class="dashboard-card" style="border-top: 4px solid #17a2b8;">
+                    <h3>Reinstalaciones</h3>
+                    <div class="value" style="color:#17a2b8;">${reinstalls}</div>
+                </div>
+            </div>
+
+            <div class="orders-table-container" style="background:#fff; padding:20px; border-radius:8px; border:1px solid #ddd;">
+                <h3 style="margin-top:0; margin-bottom:20px; border-bottom:2px solid var(--light); padding-bottom:10px; color:var(--dark);">
+                    📈 Cantidad de Instalaciones Realizadas por Mes (${new Date().getFullYear()})
+                </h3>
+                <div style="max-width:600px; margin:0 auto;">
+                    ${drawSvgLineChart(lineChartData)}
+                </div>
+            </div>
+        `;
+    };
+
+    const renderDesempenoTab = (subEl, orders) => {
+        const isJefe = RBAC.isJefe();
+        const requestorSector = user.Sector || 'San Pedro Sula';
+
+        const filtered = orders.filter(o => {
+            if (!isJefe) return true;
+            return (o.sector || '').toLowerCase().trim() === requestorSector.toLowerCase().trim();
+        });
+
+        // Compute advisor total jobs of the month and technician total jobs of the month
+        const advisorsData = {};
+        const techniciansData = {};
+
+        filtered.forEach(o => {
+            const advisor = o.vendedor || 'Carlos Ruiz';
+            const tech = o.tecnicoasignado || 'Sin asignar';
+            const type = o.tipotrabajo || 'Otros';
+
+            advisorsData[advisor] = (advisorsData[advisor] || 0) + 1;
+            if ((o.estado || '').toLowerCase().trim() === 'finalizada') {
+                techniciansData[tech] = (techniciansData[tech] || 0) + 1;
+            }
+        });
+
+        const advisorSlices = Object.entries(advisorsData).map(([label, value]) => ({ label, value }));
+        const techSlices = Object.entries(techniciansData).map(([label, value]) => ({ label, value }));
+
+        subEl.innerHTML = `
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; flex-wrap:wrap; margin-bottom:30px;">
+                <!-- Productividad Asesores -->
+                <div class="orders-table-container" style="background:#fff; padding:20px; border-radius:8px; border:1px solid #ddd;">
+                    <h3 style="margin-top:0; margin-bottom:15px; border-bottom:2px solid var(--light); padding-bottom:8px; color:var(--dark);">Productividad de Asesores</h3>
+                    <table class="gos-table" style="font-size:0.85rem; margin-bottom:20px;">
+                        <thead>
+                            <tr><th>Asesor de Venta</th><th>Trabajos Asignados</th></tr>
+                        </thead>
+                        <tbody>
+                            ${Object.entries(advisorsData).map(([name, count]) => `<tr><td><strong>${name}</strong></td><td>${count}</td></tr>`).join('')}
+                            ${Object.keys(advisorsData).length === 0 ? '<tr><td colspan="2" style="text-align:center; color:var(--secondary);">No hay datos registrados.</td></tr>' : ''}
+                        </tbody>
+                    </table>
+
+                    <h4 style="margin-top:20px; margin-bottom:10px; color:var(--secondary); font-size:0.95rem;">Distribución de Ventas (Gráfico Circular)</h4>
+                    ${drawSvgPieChart(advisorSlices)}
+                </div>
+
+                <!-- Productividad Técnicos -->
+                <div class="orders-table-container" style="background:#fff; padding:20px; border-radius:8px; border:1px solid #ddd;">
+                    <h3 style="margin-top:0; margin-bottom:15px; border-bottom:2px solid var(--light); padding-bottom:8px; color:var(--dark);">Productividad de Técnicos</h3>
+                    <table class="gos-table" style="font-size:0.85rem; margin-bottom:20px;">
+                        <thead>
+                            <tr><th>Técnico de Instalación</th><th>Trabajos Realizados</th></tr>
+                        </thead>
+                        <tbody>
+                            ${Object.entries(techniciansData).map(([name, count]) => `<tr><td><strong>${name}</strong></td><td>${count}</td></tr>`).join('')}
+                            ${Object.keys(techniciansData).length === 0 ? '<tr><td colspan="2" style="text-align:center; color:var(--secondary);">No hay datos registrados.</td></tr>' : ''}
+                        </tbody>
+                    </table>
+
+                    <h4 style="margin-top:20px; margin-bottom:10px; color:var(--secondary); font-size:0.95rem;">Distribución de Trabajo Técnico (Gráfico Circular)</h4>
+                    ${drawSvgPieChart(techSlices)}
+                </div>
+            </div>
+        `;
+    };
+
+    const renderUsuariosTab = async (subEl) => {
+        subEl.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h3 style="margin:0; color:var(--dark);">Administración de Usuarios</h3>
+            <button class="btn btn-primary" id="btn-admin-new-user" style="padding: 6px 12px; font-size:0.85rem;">+ Nuevo Usuario</button>
+        </div>
+        <div id="admin-users-list">Cargando lista de usuarios...</div>`;
+
+        const listDiv = document.getElementById('admin-users-list');
+
+        const loadUsers = async () => {
+            try {
+                const res = await routeAction('GOS_CORE', 'getUsersList', { requestorUsername: user.Nombre_Usuario });
+                if (res.status === 'success') {
+                    let html = `<table class="gos-table" style="font-size:0.85rem;">
+                        <thead>
+                            <tr><th>Usuario</th><th>Nombre Completo</th><th>Rol/Privilegios</th><th>División/Sector</th><th>Contacto</th><th>Acciones</th></tr>
+                        </thead>
+                        <tbody>`;
+                    res.data.forEach(u => {
+                        html += `
+                            <tr>
+                                <td><strong>${u.nombre_usuario}</strong></td>
+                                <td>${u.nombre_completo}</td>
+                                <td><span class="badge" style="background:#e8f4fd; color:#1a73e8;">${u.privilegios}</span></td>
+                                <td><span class="badge" style="background:#f1f3f5; color:#495057;">${u.sector}</span></td>
+                                <td><small>${u.telefono}<br>${u.correo_electronico}</small></td>
+                                <td>
+                                    <div style="display:flex; gap:5px;">
+                                        <button class="btn btn-sm btn-secondary btn-edit-user" data-user='${JSON.stringify(u)}' style="padding: 2px 6px; font-size:0.75rem;">Editar</button>
+                                        <button class="btn btn-sm btn-danger btn-delete-user" data-username="${u.nombre_usuario}" style="padding: 2px 6px; font-size:0.75rem;">Eliminar</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    html += `</tbody></table>`;
+                    listDiv.innerHTML = html;
+
+                    // Bind listeners
+                    listDiv.querySelectorAll('.btn-edit-user').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            const uObj = JSON.parse(e.currentTarget.dataset.user);
+                            renderUserFormModal(uObj);
+                        });
+                    });
+
+                    listDiv.querySelectorAll('.btn-delete-user').forEach(btn => {
+                        btn.addEventListener('click', async (e) => {
+                            const uName = e.currentTarget.dataset.username;
+                            if (confirm(`¿Desea eliminar el usuario "${uName}" de forma permanente?`)) {
+                                const delRes = await routeAction('GOS_CORE', 'deleteUser', { requestorUsername: user.Nombre_Usuario, username: uName });
+                                alert(delRes.message);
+                                loadUsers();
+                            }
+                        });
+                    });
+
+                } else {
+                    listDiv.innerHTML = `<p class="error-msg">Error: ${res.message}</p>`;
+                }
+            } catch (err) {
+                listDiv.innerHTML = `<p class="error-msg">Error de conexión: ${err.message}</p>`;
+            }
+        };
+
+        const renderUserFormModal = (uObj = null) => {
+            const isEdit = !!uObj;
+            const title = isEdit ? 'Modificar Usuario' : 'Crear Nuevo Usuario';
+
+            const roles = ['desarrollador', 'jefe', 'asesor', 'tecnico', 'tecnico_exterior'];
+            const sectors = ['San Pedro Sula', 'Tegucigalpa', 'La Ceiba', 'Choluteca', 'Occidente'];
+
+            const modalHtml = `
+                <div style="padding:15px; text-align:left;">
+                    <form id="admin-user-form">
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <label style="font-weight:bold; font-size:0.85rem;">Nombre de Usuario (Log-in):</label>
+                            <input type="text" id="m-user-username" class="form-control" value="${isEdit ? uObj.nombre_usuario : ''}" required ${isEdit ? 'readonly' : ''}>
+                        </div>
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <label style="font-weight:bold; font-size:0.85rem;">Contraseña:</label>
+                            <input type="password" id="m-user-pass" class="form-control" placeholder="${isEdit ? 'Dejar vacío para no modificar' : 'Requerida'}" ${isEdit ? '' : 'required'}>
+                        </div>
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <label style="font-weight:bold; font-size:0.85rem;">Nombre Completo:</label>
+                            <input type="text" id="m-user-fullname" class="form-control" value="${isEdit ? uObj.nombre_completo : ''}" required>
+                        </div>
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <label style="font-weight:bold; font-size:0.85rem;">Rol / Privilegios:</label>
+                            <select id="m-user-priv" class="form-control" required>
+                                ${roles.map(r => `<option value="${r}" ${isEdit && uObj.privilegios.toLowerCase() === r ? 'selected' : ''}>${r.toUpperCase()}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <label style="font-weight:bold; font-size:0.85rem;">División / Sector:</label>
+                            <select id="m-user-sector" class="form-control" required>
+                                ${sectors.map(s => `<option value="${s}" ${isEdit && uObj.sector === s ? 'selected' : ''}>${s}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <label style="font-weight:bold; font-size:0.85rem;">Teléfono:</label>
+                            <input type="text" id="m-user-phone" class="form-control" value="${isEdit ? uObj.telefono : ''}">
+                        </div>
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <label style="font-weight:bold; font-size:0.85rem;">Correo Electrónico:</label>
+                            <input type="email" id="m-user-email" class="form-control" value="${isEdit ? uObj.correo_electronico : ''}">
+                        </div>
+                    </form>
+                </div>
+            `;
+
+            UI_TEMPLATES.modal(
+                title,
+                modalHtml,
+                async () => {
+                    const username = document.getElementById('m-user-username').value;
+                    const password = document.getElementById('m-user-pass').value;
+                    const nombre_completo = document.getElementById('m-user-fullname').value;
+                    const privilegios = document.getElementById('m-user-priv').value;
+                    const sector = document.getElementById('m-user-sector').value;
+                    const telefono = document.getElementById('m-user-phone').value;
+                    const correo_electronico = document.getElementById('m-user-email').value;
+
+                    const payload = {
+                        requestorUsername: user.Nombre_Usuario,
+                        username,
+                        password,
+                        nombre_completo,
+                        privilegios,
+                        sector,
+                        telefono,
+                        correo_electronico
+                    };
+
+                    if (isEdit) {
+                        payload.id = uObj.id;
+                        const res = await routeAction('GOS_CORE', 'updateUser', payload);
+                        alert(res.message);
+                    } else {
+                        const res = await routeAction('GOS_CORE', 'createUser', payload);
+                        alert(res.message);
+                    }
+                    loadUsers();
+                }
+            );
+        };
+
+        document.getElementById('btn-admin-new-user').onclick = () => renderUserFormModal();
+
+        loadUsers();
+    };
+
+    const renderConfiguracionTab = async (subEl) => {
+        const isJefe = RBAC.isJefe();
+        const requestorSector = user.Sector || 'San Pedro Sula';
+
+        subEl.innerHTML = `
+            <div class="orders-table-container" style="background:#fff; padding:20px; border-radius:8px; border:1px solid #ddd; max-width:600px; margin:0 auto;">
+                <h3 style="margin-top:0; margin-bottom:20px; border-bottom:2px solid var(--light); padding-bottom:10px; color:var(--dark);">⚙️ Preferencias Locales y Configuración de División</h3>
+                <form id="admin-config-form">
+                    <div class="form-group" style="margin-bottom:15px;">
+                        <label style="font-weight:bold; font-size:0.9rem;">Ámbito de Modificación:</label>
+                        <input type="text" class="form-control" value="${isJefe ? 'División de Gestión Local: ' + requestorSector : 'Gestión Global (Desarrollador)'}" readonly style="background:#eee;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:15px;">
+                        <label style="font-weight:bold; font-size:0.9rem;">Radio de Llegada Geocerca (Metros):</label>
+                        <input type="number" id="cfg-radio-llegada" class="form-control" value="${AppState.config?.Sistema?.RadioLlegada || 200}" required>
+                    </div>
+                    <div class="form-group" style="margin-bottom:15px;">
+                        <label style="font-weight:bold; font-size:0.9rem;">Tiempo de Espera para Confirmación Técnica (Segundos):</label>
+                        <input type="number" id="cfg-tiempo-confirmacion" class="form-control" value="${AppState.config?.Sistema?.TiempoConfirmacion || 60}" required>
+                    </div>
+                    <div class="form-group" style="margin-bottom:15px;">
+                        <label style="font-weight:bold; font-size:0.9rem;">ID Carpeta Raíz de Almacenamiento (Google Drive):</label>
+                        <input type="text" id="cfg-drive-root" class="form-control" value="${AppState.config?.Sistema?.RootFolderId || ''}" required ${isJefe ? 'readonly style="background:#eee;"' : ''}>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width:100%; margin-top:10px; padding:10px;">Guardar Cambios de Configuración</button>
+                </form>
+            </div>
+        `;
+
+        document.getElementById('admin-config-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const radio = document.getElementById('cfg-radio-llegada').value;
+            const time = document.getElementById('cfg-tiempo-confirmacion').value;
+            const drive = document.getElementById('cfg-drive-root').value;
+
+            // Restricción Jefe de División:
+            if (isJefe) {
+                alert(`Guardando configuración local únicamente para la división: ${requestorSector}. Las carpetas globales de Drive permanecen restringidas.`);
+            }
+
+            // Update configuration in AppState memory
+            if (!AppState.config) AppState.config = {};
+            if (!AppState.config.Sistema) AppState.config.Sistema = {};
+
+            AppState.config.Sistema.RadioLlegada = radio;
+            AppState.config.Sistema.TiempoConfirmacion = time;
+            if (!isJefe) AppState.config.Sistema.RootFolderId = drive;
+
+            alert("Configuraciones de la división guardadas correctamente de forma local en la sesión.");
+        });
+    };
+
+    const renderHorasExtrasTab = (subEl) => {
+        const currentMonthStr = new Date().toISOString().substring(0, 7);
+        subEl.innerHTML = `
+            <div class="orders-table-container" style="background:#fff; padding:20px; border-radius:8px; border:1px solid #ddd; margin-bottom:20px;">
+                <h3 style="margin-top:0; margin-bottom:15px; color:var(--dark);">Reporte Mensual de Horas Extras de Técnicos</h3>
+                <div style="display:flex; gap:10px; align-items:center; margin-bottom:20px;">
+                    <label style="font-weight:bold;">Seleccione Mes:</label>
+                    <input type="month" id="extra-hours-month" class="form-control" value="${currentMonthStr}" style="width:auto;">
+                    <button class="btn btn-primary" id="btn-get-extra-hours" style="padding: 6px 15px;">Calcular Horas Extras</button>
+                    <button class="btn btn-secondary" id="btn-export-extra-hours" style="display:none; padding: 6px 15px;">📥 Exportar Reporte</button>
+                </div>
+
+                <div id="extra-hours-report-results">
+                    <p style="color:var(--secondary); font-style:italic;">Seleccione el mes y haga clic en Calcular Horas Extras.</p>
+                </div>
+            </div>
+        `;
+
+        let lastReportData = null;
+
+        document.getElementById('btn-get-extra-hours').onclick = async () => {
+            const mStr = document.getElementById('extra-hours-month').value;
+            const resDiv = document.getElementById('extra-hours-report-results');
+            const expBtn = document.getElementById('btn-export-extra-hours');
+            expBtn.style.display = 'none';
+
+            resDiv.innerHTML = UI_TEMPLATES.loading;
+
+            try {
+                const res = await routeAction('GOS_CORE', 'getOvertimeReport', { monthStr: mStr, requestorUsername: user.Nombre_Usuario });
+                if (res.status === 'success') {
+                    lastReportData = res.data;
+                    if (res.data.length === 0) {
+                        resDiv.innerHTML = `<p style="color:var(--secondary); font-style:italic;">No hay horas extraordinarias registradas para los técnicos en este mes.</p>`;
+                        return;
+                    }
+
+                    expBtn.style.display = 'inline-block';
+                    let html = `<table class="gos-table" style="font-size:0.85rem;">
+                        <thead>
+                            <tr><th>Técnico</th><th>Horas Extraordinarias Acumuladas</th></tr>
+                        </thead>
+                        <tbody>`;
+                    res.data.forEach(item => {
+                        html += `
+                            <tr>
+                                <td><strong>${item.tecnico}</strong></td>
+                                <td><span style="font-size:1.1rem; font-weight:bold; color:var(--primary);">${item.horas_extras} hrs</span></td>
+                            </tr>
+                        `;
+                    });
+                    html += `</tbody></table>`;
+                    resDiv.innerHTML = html;
+                } else {
+                    resDiv.innerHTML = `<p class="error-msg">Error: ${res.message}</p>`;
+                }
+            } catch (err) {
+                resDiv.innerHTML = `<p class="error-msg">Error de conexión: ${err.message}</p>`;
+            }
+        };
+
+        document.getElementById('btn-export-extra-hours').onclick = () => {
+            if (!lastReportData) return;
+            const mStr = document.getElementById('extra-hours-month').value;
+            const csvRows = [["Tecnico", "Horas Extras Acumuladas", "Mes"]];
+            lastReportData.forEach(item => {
+                csvRows.push([item.tecnico, item.horas_extras, mStr]);
+            });
+            const csvContent = "data:text/csv;charset=utf-8," + csvRows.map(e => e.join(",")).join("\n");
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `GOS_Horas_Extras_${mStr}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+    };
+
+    renderLayout();
+}
+
 async function renderAdminMetricsModule(container) {
     const user = AppState.user;
     if (!user) {

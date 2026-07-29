@@ -45,7 +45,8 @@ function initializeSystem() {
     { sheet: "Logs", headers: ["Fecha", "Usuario", "Módulo", "Nivel", "Mensaje", "Stack"] },
     { sheet: "Sectores", headers: ["ID", "Nombre", "Estado"] },
     { sheet: "Usuarios_Sectores", headers: ["Usuario", "Sector", "Estado"] },
-    { sheet: "RecepcionVehiculos", headers: ["ID", "OrdenID", "Tecnico", "FechaHora", "Sector", "ClienteInfo", "VehiculoInfo", "Fotos", "Danos", "CalidadCheck"] }
+    { sheet: "RecepcionVehiculos", headers: ["ID", "OrdenID", "Tecnico", "FechaHora", "Sector", "ClienteInfo", "VehiculoInfo", "Fotos", "Danos", "CalidadCheck"] },
+    { sheet: "UbicacionesGuardadas", headers: ["ID", "Nombre", "Dirección", "Coordenadas", "División", "Usos", "Historial"] }
   ];
 
   config.forEach(item => {
@@ -255,6 +256,17 @@ function handleUpdateOrderStatus(payload) {
       ]);
     } catch (e) {
       console.error("Error logging state transition:", e);
+    }
+
+    // Compensación de Almuerzo por retrasos / reajuste de agenda
+    if (status === 'Finalizada' || status === 'Instalación completada' || status === 'Instalacion completada') {
+      try {
+        var technicianName = data[orderRow - 1][headerMap["Técnico Asignado"] - 1] || "";
+        var sector = data[orderRow - 1][headerMap["Sector"] - 1] || "San Pedro Sula";
+        handleLunchAndRescheduling(orderId, technicianName, sector, new Date());
+      } catch (err) {
+        console.error("Error running lunch rescheduling:", err);
+      }
     }
 
     return { status: 'success' };
@@ -1046,6 +1058,653 @@ function handleGetClientPortalData(payload) {
   };
 }
 
+
+// ============================================================================
+// RBAC, USUARIOS Y CONTROL DE ACCESO
+// ============================================================================
+const GPSPEDIA_SPREADSHEET_ID = "1M6zAVch_EGKGGRXIo74Nbn_ihH1APZ7cdr2kNdWfiDs";
+
+function getGpsPediaUsersSheet() {
+  return SpreadsheetApp.openById(GPSPEDIA_SPREADSHEET_ID).getSheetByName("Users");
+}
+
+function handleGetUsersList(payload) {
+  const { requestorUsername } = payload;
+  if (!requestorUsername) return { status: 'error', message: 'Usuario solicitante es requerido' };
+
+  const requestorSector = handleGetUserSector({ username: requestorUsername }).sector;
+  const requestorRole = getUserRole(requestorUsername);
+
+  const sheet = getGpsPediaUsersSheet();
+  const data = sheet.getDataRange().getValues();
+  data.shift(); // remove headers
+
+  const users = [];
+  data.forEach(row => {
+    const username = (row[1] || '').toString().trim();
+    if (!username) return;
+
+    const userSector = handleGetUserSector({ username: username }).sector;
+
+    const isJefe = ['jefe', 'jefe de division', 'gerente'].includes(requestorRole.toLowerCase());
+    const isDev = ['desarrollador', 'administrador'].includes(requestorRole.toLowerCase());
+
+    if (isJefe && userSector !== requestorSector) return;
+    if (!isDev && !isJefe && username !== requestorUsername) return;
+
+    users.push({
+      id: row[0],
+      nombre_usuario: username,
+      privilegios: row[3] || '',
+      telefono: row[4] || '',
+      correo_electronico: row[5] || '',
+      nombre_completo: row[6] || '',
+      sector: userSector
+    });
+  });
+
+  return { status: 'success', data: users };
+}
+
+function getUserRole(username) {
+  const sheet = getGpsPediaUsersSheet();
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if ((data[i][1] || '').toString().trim().toLowerCase() === username.trim().toLowerCase()) {
+      return (data[i][3] || '').toString().trim();
+    }
+  }
+  return '';
+}
+
+function handleCreateUser(payload) {
+  const { requestorUsername, username, password, privilegios, telefono, correo_electronico, nombre_completo, sector } = payload;
+  if (!requestorUsername || !username || !password || !privilegios || !sector) {
+    return { status: 'error', message: 'Datos incompletos para creación de usuario' };
+  }
+
+  const requestorRole = getUserRole(requestorUsername);
+  const requestorSector = handleGetUserSector({ username: requestorUsername }).sector;
+
+  const isDev = ['desarrollador', 'administrador'].includes(requestorRole.toLowerCase());
+  const isJefe = ['jefe', 'jefe de division', 'gerente'].includes(requestorRole.toLowerCase());
+
+  if (!isDev && !isJefe) {
+    return { status: 'error', message: 'No tiene privilegios para crear usuarios' };
+  }
+
+  if (isJefe && requestorSector !== sector) {
+    return { status: 'error', message: 'Un Jefe de división solo puede crear usuarios dentro de su propia división' };
+  }
+
+  const sheet = getGpsPediaUsersSheet();
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    if ((data[i][1] || '').toString().trim().toLowerCase() === username.trim().toLowerCase()) {
+      return { status: 'error', message: 'El nombre de usuario ya existe' };
+    }
+  }
+
+  const newId = data.length;
+  const newRow = [
+    newId,
+    username.trim(),
+    password,
+    privilegios,
+    telefono || '',
+    correo_electronico || '',
+    nombre_completo || '',
+    ''
+  ];
+
+  sheet.appendRow(newRow);
+  handleUpdateUserSector({ username, sector });
+
+  logToSheet("Auditoria", "Usuarios", "createUser", "success", "", `Usuario creado: ${username} por ${requestorUsername}`);
+  return { status: 'success', message: 'Usuario creado exitosamente' };
+}
+
+function handleUpdateUser(payload) {
+  const { requestorUsername, id, username, password, privilegios, telefono, correo_electronico, nombre_completo, sector } = payload;
+  if (!requestorUsername || !id || !username) {
+    return { status: 'error', message: 'Parámetros incompletos para actualizar usuario' };
+  }
+
+  const requestorRole = getUserRole(requestorUsername);
+  const requestorSector = handleGetUserSector({ username: requestorUsername }).sector;
+
+  const isDev = ['desarrollador', 'administrador'].includes(requestorRole.toLowerCase());
+  const isJefe = ['jefe', 'jefe de division', 'gerente'].includes(requestorRole.toLowerCase());
+
+  if (!isDev && !isJefe && requestorUsername !== username) {
+    return { status: 'error', message: 'No tiene privilegios para modificar este usuario' };
+  }
+
+  const userSector = handleGetUserSector({ username }).sector;
+  if (isJefe && (requestorSector !== userSector || requestorSector !== sector)) {
+    return { status: 'error', message: 'Un Jefe de división no puede modificar usuarios de otras divisiones' };
+  }
+
+  const sheet = getGpsPediaUsersSheet();
+  const data = sheet.getDataRange().getValues();
+
+  let foundRow = -1;
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0].toString() === id.toString()) {
+      foundRow = i + 1;
+      break;
+    }
+  }
+
+  if (foundRow === -1) {
+    return { status: 'error', message: 'Usuario no encontrado' };
+  }
+
+  sheet.getRange(foundRow, 2).setValue(username);
+  if (password) sheet.getRange(foundRow, 3).setValue(password);
+  if (isDev || isJefe) sheet.getRange(foundRow, 4).setValue(privilegios);
+  sheet.getRange(foundRow, 5).setValue(telefono || '');
+  sheet.getRange(foundRow, 6).setValue(correo_electronico || '');
+  sheet.getRange(foundRow, 7).setValue(nombre_completo || '');
+
+  handleUpdateUserSector({ username, sector });
+
+  logToSheet("Auditoria", "Usuarios", "updateUser", "success", "", `Usuario actualizado: ${username} por ${requestorUsername}`);
+  return { status: 'success', message: 'Usuario actualizado correctamente' };
+}
+
+function handleDeleteUser(payload) {
+  const { requestorUsername, username } = payload;
+  if (!requestorUsername || !username) {
+    return { status: 'error', message: 'Parámetros incompletos para eliminación' };
+  }
+
+  const requestorRole = getUserRole(requestorUsername);
+  const requestorSector = handleGetUserSector({ username: requestorUsername }).sector;
+
+  const isDev = ['desarrollador', 'administrador'].includes(requestorRole.toLowerCase());
+  const isJefe = ['jefe', 'jefe de division', 'gerente'].includes(requestorRole.toLowerCase());
+
+  if (!isDev && !isJefe) {
+    return { status: 'error', message: 'No tiene privilegios para eliminar usuarios' };
+  }
+
+  const userSector = handleGetUserSector({ username }).sector;
+  if (isJefe && requestorSector !== userSector) {
+    return { status: 'error', message: 'Un Jefe de división no puede eliminar usuarios de otras divisiones' };
+  }
+
+  const sheet = getGpsPediaUsersSheet();
+  const data = sheet.getDataRange().getValues();
+
+  let foundRow = -1;
+  for (let i = 1; i < data.length; i++) {
+    if ((data[i][1] || '').toString().trim().toLowerCase() === username.trim().toLowerCase()) {
+      foundRow = i + 1;
+      break;
+    }
+  }
+
+  if (foundRow === -1) {
+    return { status: 'error', message: 'Usuario no encontrado en la base de datos' };
+  }
+
+  sheet.deleteRow(foundRow);
+
+  const userSectoresSheet = findOrCreateSheet("Usuarios_Sectores");
+  const usData = userSectoresSheet.getDataRange().getValues();
+  for (let i = 1; i < usData.length; i++) {
+    if ((usData[i][0] || '').toString().trim().toLowerCase() === username.trim().toLowerCase()) {
+      userSectoresSheet.getRange(i + 1, 3).setValue("Inactivo");
+    }
+  }
+
+  logToSheet("Auditoria", "Usuarios", "deleteUser", "success", "", `Usuario eliminado: ${username} por ${requestorUsername}`);
+  return { status: 'success', message: 'Usuario eliminado exitosamente' };
+}
+
+function handleChangePassword(payload) {
+  const { username, currentPassword, newPassword } = payload;
+  if (!username || !newPassword) {
+    return { status: 'error', message: 'Datos incompletos para cambio de contraseña' };
+  }
+
+  const sheet = getGpsPediaUsersSheet();
+  const data = sheet.getDataRange().getValues();
+
+  let foundRow = -1;
+  for (let i = 1; i < data.length; i++) {
+    if ((data[i][1] || '').toString().trim().toLowerCase() === username.trim().toLowerCase()) {
+      foundRow = i + 1;
+      if (currentPassword && data[i][2].toString() !== currentPassword.toString()) {
+        return { status: 'error', message: 'La contraseña actual es incorrecta' };
+      }
+      break;
+    }
+  }
+
+  if (foundRow === -1) {
+    return { status: 'error', message: 'Usuario no encontrado' };
+  }
+
+  sheet.getRange(foundRow, 3).setValue(newPassword);
+  logToSheet("Auditoria", "Usuarios", "changePassword", "success", "", `Contraseña modificada para usuario: ${username}`);
+  return { status: 'success', message: 'Contraseña actualizada exitosamente' };
+}
+
+
+
+// ============================================================================
+// HORAS EXTRAS Y REPORTE MENSUAL
+// ============================================================================
+function handleGetOvertimeReport(payload) {
+  const { monthStr, requestorUsername } = payload;
+  if (!monthStr) return { status: 'error', message: 'Mes es requerido' };
+
+  const requestorRole = getUserRole(requestorUsername);
+  const isJefe = ['jefe', 'jefe de division', 'gerente'].includes(requestorRole.toLowerCase());
+  const isDev = ['desarrollador', 'administrador'].includes(requestorRole.toLowerCase());
+
+  if (!isJefe && !isDev) {
+    return { status: 'error', message: 'No tiene permisos para consultar reportes de horas extras' };
+  }
+
+  const requestorSector = handleGetUserSector({ username: requestorUsername }).sector;
+
+  const ordersSheet = findOrCreateSheet("Ordenes");
+  const ordersData = ordersSheet.getDataRange().getValues();
+  const ordersHeaderMap = getHeaderMap(ordersSheet);
+  const orderIdIdx = ordersHeaderMap["ID"] - 1;
+  const orderTechIdx = ordersHeaderMap["Técnico Asignado"] - 1;
+  const orderSectorIdx = ordersHeaderMap["Sector"] - 1;
+
+  const orderMap = {};
+  for (let i = 1; i < ordersData.length; i++) {
+    orderMap[ordersData[i][orderIdIdx].toString()] = {
+      tech: ordersData[i][orderTechIdx] || 'Sin asignar',
+      sector: ordersData[i][orderSectorIdx] || 'San Pedro Sula'
+    };
+  }
+
+  const histSheet = findOrCreateSheet("Historial_Estados");
+  const histData = histSheet.getDataRange().getValues();
+  histData.shift();
+
+  const orderEvents = {};
+  histData.forEach(row => {
+    const orderId = row[2] ? row[2].toString() : '';
+    if (!orderId) return;
+    if (!orderEvents[orderId]) orderEvents[orderId] = [];
+    orderEvents[orderId].push({
+      date: row[0],
+      time: row[1],
+      state: (row[4] || '').toString().toLowerCase().trim()
+    });
+  });
+
+  const techOvertime = {};
+
+  Object.entries(orderEvents).forEach(([orderId, events]) => {
+    const orderInfo = orderMap[orderId];
+    if (!orderInfo) return;
+
+    if (isJefe && orderInfo.sector !== requestorSector) return;
+
+    let startEvent = null;
+    let endEvent = null;
+
+    events.forEach(ev => {
+      const state = ev.state;
+      if (['iniciando', 'instalando', 'vehiculo recibido', 'vehículo recibido'].includes(state)) {
+        if (!startEvent) startEvent = ev;
+      }
+      if (['finalizada', 'instalacion completada', 'instalación completada'].includes(state)) {
+        endEvent = ev;
+      }
+    });
+
+    if (startEvent && endEvent) {
+      const startDateTime = parseDateTime(startEvent.date, startEvent.time);
+      const endDateTime = parseDateTime(endEvent.date, endEvent.time);
+
+      if (startDateTime && endDateTime && startDateTime < endDateTime) {
+        const yearMonth = startDateTime.getFullYear() + '-' + String(startDateTime.getMonth() + 1).padStart(2, '0');
+        if (yearMonth === monthStr) {
+          const tech = orderInfo.tech;
+          const chunks = splitRangeByDays(startDateTime, endDateTime);
+          let itemOvertime = 0;
+
+          chunks.forEach(chunk => {
+            const dayOfWeek = chunk.start.getDay();
+            if (dayOfWeek === 0) {
+              itemOvertime += (chunk.end - chunk.start) / (1000 * 60 * 60);
+            } else if (dayOfWeek === 6) {
+              itemOvertime += getOverlapInHours(chunk.start, chunk.end, '00:00', '08:00');
+              itemOvertime += getOverlapInHours(chunk.start, chunk.end, '12:00', '23:59');
+            } else {
+              itemOvertime += getOverlapInHours(chunk.start, chunk.end, '00:00', '08:00');
+              itemOvertime += getOverlapInHours(chunk.start, chunk.end, '17:00', '23:59');
+            }
+          });
+
+          if (itemOvertime > 0) {
+            techOvertime[tech] = (techOvertime[tech] || 0) + itemOvertime;
+          }
+        }
+      }
+    }
+  });
+
+  const reportList = Object.entries(techOvertime).map(([tech, hours]) => ({
+    tecnico: tech,
+    horas_extras: Math.round(hours * 100) / 100
+  }));
+
+  try {
+    const rSheet = findOrCreateSheet("Reporte_Horas_Extras", ["Mes", "Técnico", "Horas Extras", "Fecha Generación"]);
+    const rData = rSheet.getDataRange().getValues();
+    let exists = false;
+    for (let j = 1; j < rData.length; j++) {
+      if (rData[j][0] === monthStr) {
+        exists = true;
+        break;
+      }
+    }
+    if (!exists && reportList.length > 0) {
+      reportList.forEach(item => {
+        rSheet.appendRow([monthStr, item.tecnico, item.horas_extras, new Date().toISOString()]);
+      });
+    }
+  } catch (e) {
+    console.error("Error saving overtime report:", e);
+  }
+
+  return { status: 'success', data: reportList };
+}
+
+function splitRangeByDays(start, end) {
+  const chunks = [];
+  let current = new Date(start.getTime());
+  while (current < end) {
+    const dayEnd = new Date(current.getFullYear(), current.getMonth(), current.getDate(), 23, 59, 59, 999);
+    const chunkEnd = new Date(Math.min(end.getTime(), dayEnd.getTime()));
+    chunks.push({ start: new Date(current.getTime()), end: chunkEnd });
+    current = new Date(dayEnd.getTime() + 1);
+  }
+  return chunks;
+}
+
+function getOverlapInHours(start, end, limitStartStr, limitEndStr) {
+  const baseDateStr = start.toISOString().split('T')[0];
+  const limitStart = new Date(baseDateStr + 'T' + limitStartStr + ':00');
+  const limitEnd = new Date(baseDateStr + 'T' + limitEndStr + ':00');
+
+  const maxStart = new Date(Math.max(start.getTime(), limitStart.getTime()));
+  const minEnd = new Date(Math.min(end.getTime(), limitEnd.getTime()));
+
+  if (maxStart < minEnd) {
+    return (minEnd.getTime() - maxStart.getTime()) / (1000 * 60 * 60);
+  }
+  return 0;
+}
+
+
+// ============================================================================
+// COMPENSACIÓN DE ALMUERZO Y REORGANIZACIÓN DE AGENDA
+// ============================================================================
+function handleLunchAndRescheduling(orderId, technicianName, sector, finishTime) {
+  const now = finishTime || new Date();
+  const finishHour = now.getHours();
+  const finishMinutes = now.getMinutes();
+  const finishTimeDecimal = finishHour + finishMinutes / 60;
+
+  if (finishTimeDecimal < 12.0) {
+    return;
+  }
+
+  const lunchEndTime = new Date(now.getTime() + 60 * 60 * 1000);
+  const sheet = findOrCreateSheet("Ordenes");
+  const data = sheet.getDataRange().getValues();
+  const headerMap = getHeaderMap(sheet);
+
+  const idIdx = headerMap["ID"] - 1;
+  const techIdx = headerMap["Técnico Asignado"] - 1;
+  const statusIdx = headerMap["Estado"] - 1;
+  const dateIdx = headerMap["Fecha"] - 1;
+  const hourIdx = headerMap["Hora"] - 1;
+  const sectorIdx = headerMap["Sector"] - 1;
+  const tipoIdx = headerMap["Tipo Trabajo"] - 1;
+  const obsIdx = headerMap["Observaciones"] - 1;
+
+  const todayStr = now.toISOString().split('T')[0];
+
+  const subOrders = [];
+  for (let i = 1; i < data.length; i++) {
+    if ((data[i][techIdx] || '').toString() === technicianName && data[i][idIdx].toString() !== orderId.toString()) {
+      const oDateStr = data[i][dateIdx] instanceof Date ? data[i][dateIdx].toISOString().split('T')[0] : data[i][dateIdx].toString().substring(0, 10);
+      if (oDateStr === todayStr) {
+        const sLower = (data[i][statusIdx] || '').toString().toLowerCase().trim();
+        if (['pendiente', 'asignada', 'en camino', 'llego', 'vehiculo recibido', 'iniciando', 'instalando', 'haciendo pruebas', 'instalacion completada', 'trabajo retrasado'].includes(sLower)) {
+          const slotStr = data[i][hourIdx].toString();
+          const match = slotStr.match(/(\d{2}):(\d{2})/);
+          let startMin = 0;
+          if (match) {
+            startMin = parseInt(match[1]) * 60 + parseInt(match[2]);
+          }
+          subOrders.push({
+            id: data[i][idIdx],
+            row: i + 1,
+            slotStr: slotStr,
+            startMin: startMin,
+            tipo: data[i][tipoIdx],
+            obs: data[i][obsIdx],
+            status: data[i][statusIdx]
+          });
+        }
+      }
+    }
+  }
+
+  subOrders.sort((a, b) => a.startMin - b.startMin);
+
+  if (subOrders.length === 0) {
+    return;
+  }
+
+  let currentAvailableTime = lunchEndTime;
+
+  subOrders.forEach(subOrder => {
+    const subStartMin = subOrder.startMin;
+    const currentAvailableMin = currentAvailableTime.getHours() * 60 + currentAvailableTime.getMinutes();
+
+    if (subStartMin < currentAvailableMin) {
+      const techSheet = findOrCreateSheet("Tecnicos");
+      const techData = techSheet.getDataRange().getValues();
+      const otherTechs = [];
+      for (let k = 1; k < techData.length; k++) {
+        const tName = techData[k][1];
+        const tSector = techData[k][5];
+        if (tName !== technicianName && tSector === sector) {
+          let isFree = true;
+          for (let i = 1; i < data.length; i++) {
+            if ((data[i][techIdx] || '').toString() === tName) {
+              const oDateStr = data[i][dateIdx] instanceof Date ? data[i][dateIdx].toISOString().split('T')[0] : data[i][dateIdx].toString().substring(0, 10);
+              if (oDateStr === todayStr && data[i][hourIdx].toString() === subOrder.slotStr) {
+                const sLower = (data[i][statusIdx] || '').toString().toLowerCase().trim();
+                if (['pendiente', 'asignada', 'en camino', 'llego', 'vehiculo recibido', 'iniciando', 'instalando', 'haciendo pruebas', 'instalacion completada'].includes(sLower)) {
+                  isFree = false;
+                  break;
+                }
+              }
+            }
+          }
+          if (isFree) {
+            otherTechs.push(tName);
+          }
+        }
+      }
+
+      if (otherTechs.length > 0) {
+        const selectedTech = otherTechs[0];
+        sheet.getRange(subOrder.row, techIdx + 1).setValue(selectedTech);
+
+        try {
+          const histSheet = findOrCreateSheet("Historial_Estados", ["Fecha", "Hora", "OrdenID", "Estado Anterior", "Estado Nuevo", "Usuario", "Observaciones"]);
+          histSheet.appendRow([
+            todayStr,
+            String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0'),
+            subOrder.id,
+            subOrder.status,
+            subOrder.status,
+            "Sistema",
+            `Reasignado automáticamente a ${selectedTech} debido a compensación de almuerzo del técnico anterior (${technicianName}).`
+          ]);
+        } catch (e) {
+          console.error("Error writing reassign transition:", e);
+        }
+
+        const notifSheet = findOrCreateSheet("Notificaciones", ["Fecha", "Destinatario", "Tipo", "Mensaje", "Estado"]);
+        notifSheet.appendRow([
+          new Date().toISOString(),
+          selectedTech,
+          "Asignación",
+          `Se te ha reasignado la orden #${subOrder.id} debido a retraso operativo.`,
+          "Pendiente"
+        ]);
+      } else {
+        const newStartStr = String(currentAvailableTime.getHours()).padStart(2, '0') + ":" + String(currentAvailableTime.getMinutes()).padStart(2, '0');
+        const duration = calculateEstimatedDuration(subOrder.tipo, subOrder.obs);
+        const newEndMin = currentAvailableMin + duration;
+
+        const nextFreeTime = new Date(now.getTime());
+        nextFreeTime.setHours(Math.floor(newEndMin / 60));
+        nextFreeTime.setMinutes(newEndMin % 60);
+
+        const newEndStr = String(nextFreeTime.getHours()).padStart(2, '0') + ":" + String(nextFreeTime.getMinutes()).padStart(2, '0');
+        const newSlotRangeStr = `${newStartStr} - ${newEndStr}`;
+
+        sheet.getRange(subOrder.row, hourIdx + 1).setValue(newSlotRangeStr);
+
+        try {
+          const histSheet = findOrCreateSheet("Historial_Estados", ["Fecha", "Hora", "OrdenID", "Estado Anterior", "Estado Nuevo", "Usuario", "Observaciones"]);
+          histSheet.appendRow([
+            todayStr,
+            String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0'),
+            subOrder.id,
+            subOrder.status,
+            subOrder.status,
+            "Sistema",
+            `Horario reajustado a ${newSlotRangeStr} para garantizar almuerzo del técnico (${technicianName}).`
+          ]);
+        } catch (e) {
+          console.error("Error writing reschedule transition:", e);
+        }
+
+        currentAvailableTime = nextFreeTime;
+      }
+    } else {
+      const duration = calculateEstimatedDuration(subOrder.tipo, subOrder.obs);
+      const endMin = subStartMin + duration;
+      currentAvailableTime = new Date(now.getTime());
+      currentAvailableTime.setHours(Math.floor(endMin / 60));
+      currentAvailableTime.setMinutes(endMin % 60);
+    }
+  });
+}
+
+
+// ============================================================================
+// SISTEMA DE UBICACIONES GUARDADAS Y CAPACIDAD DINÁMICA
+// ============================================================================
+function handleGetSavedLocations() {
+  const sheet = findOrCreateSheet("UbicacionesGuardadas");
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return { status: 'success', data: [] };
+  const headers = data.shift();
+
+  const locations = data.map(row => {
+    let obj = {};
+    headers.forEach((header, index) => {
+      const key = header.toLowerCase()
+        .replace(/\s+/g, '')
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+      obj[key] = row[index];
+    });
+    return obj;
+  });
+
+  // Ordenar por usos descendente (Priorización)
+  locations.sort((a, b) => (parseInt(b.usos) || 0) - (parseInt(a.usos) || 0));
+
+  return { status: 'success', data: locations };
+}
+
+function handleSaveSavedLocation(payload) {
+  const { nombre, direccion, coordenadas, division } = payload;
+  if (!nombre || !coordenadas) return { status: 'error', message: 'Nombre y coordenadas son requeridos.' };
+
+  const sheet = findOrCreateSheet("UbicacionesGuardadas", ["ID", "Nombre", "Dirección", "Coordenadas", "División", "Usos", "Historial"]);
+  const data = sheet.getDataRange().getValues();
+  const headerMap = getHeaderMap(sheet);
+
+  const nameIdx = headerMap["Nombre"] - 1;
+  const usosIdx = headerMap["Usos"] - 1;
+  const histIdx = headerMap["Historial"] - 1;
+
+  let foundRow = -1;
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][nameIdx].toString().toLowerCase().trim() === nombre.toLowerCase().trim()) {
+      foundRow = i + 1;
+      break;
+    }
+  }
+
+  const timestamp = new Date().toISOString();
+
+  if (foundRow !== -1) {
+    const currentUsos = parseInt(data[foundRow - 1][usosIdx]) || 0;
+    const currentHist = data[foundRow - 1][histIdx] || "";
+    const updatedHist = currentHist ? `${currentHist}, ${timestamp}` : timestamp;
+
+    sheet.getRange(foundRow, usosIdx + 1).setValue(currentUsos + 1);
+    sheet.getRange(foundRow, histIdx + 1).setValue(updatedHist);
+  } else {
+    const nextId = getNextId("LOC");
+    sheet.appendRow([
+      nextId,
+      nombre.trim(),
+      direccion || "",
+      coordenadas,
+      division || "San Pedro Sula",
+      1,
+      timestamp
+    ]);
+  }
+
+  return { status: 'success', message: 'Ubicación guardada con éxito.' };
+}
+
+function handleGetDivisionTechniciansCount(payload) {
+  const { sector } = payload;
+  if (!sector) return { status: 'error', message: 'Sector es requerido' };
+
+  const sheet = findOrCreateSheet("Tecnicos");
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return { status: 'success', count: 4 }; // Fallback regular
+
+  let count = 0;
+  for (let i = 1; i < data.length; i++) {
+    const techSector = data[i][5] || '';
+    if (techSector.toLowerCase().trim() === sector.toLowerCase().trim()) {
+      count++;
+    }
+  }
+
+  return { status: 'success', count: count || 4 };
+}
+
 function doGet(e) {
   return ContentService.createTextOutput("GOS-CORE Service: v1.1.0 OK")
     .setMimeType(ContentService.MimeType.TEXT);
@@ -1077,6 +1736,15 @@ function doPost(e) {
 
     switch (request.action) {
       case 'getTechnicalConsultation': response = handleGetTechnicalConsultation(request.payload); break;
+      case 'getSavedLocations': response = handleGetSavedLocations(); break;
+      case 'saveSavedLocation': response = handleSaveSavedLocation(request.payload); break;
+      case 'getDivisionTechniciansCount': response = handleGetDivisionTechniciansCount(request.payload); break;
+      case 'getOvertimeReport': response = handleGetOvertimeReport(request.payload); break;
+      case 'getUsersList': response = handleGetUsersList(request.payload); break;
+      case 'createUser': response = handleCreateUser(request.payload); break;
+      case 'updateUser': response = handleUpdateUser(request.payload); break;
+      case 'deleteUser': response = handleDeleteUser(request.payload); break;
+      case 'changePassword': response = handleChangePassword(request.payload); break;
       case 'createOrder': response = handleCreateOrder(request.payload); break;
       case 'getOrders': response = handleGetOrders(); break;
       case 'getSystemConfig': response = handleGetSystemConfig(); break;
