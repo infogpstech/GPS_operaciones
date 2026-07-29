@@ -4,7 +4,7 @@ export const API_ENDPOINTS = {
     WRITE: "https://script.google.com/macros/s/AKfycbwgpSXDpF9jW20mqvK8jP9clxs1Gacz-o6caOEBm1hBweAxkBe1lAW9hJTh1fMFcOvP/exec",
     USERS: "https://script.google.com/macros/s/AKfycbxAqyEcAHetH6yN4qccGILL-L3IzMSPVuVJ1kpuO86GqfDXTKP8cHrrB7UkKN1r_0g5/exec",
     FEEDBACK: "https://script.google.com/macros/s/AKfycbwHTr8MSFuNio8rky8tflcErlRlAb1YSH2jmszZp77SM5e_-SVMO2pBU1UmeGOH1Aig/exec",
-    GOS_CORE: "https://script.google.com/macros/s/AKfycbwFgKnq0-HCR77XQ1e96b3nbNQ_6oHEwReYPNYobroySnyDZxMYuebSIqa8Evi7RdKw/exec"
+    GOS_CORE: "https://script.google.com/macros/s/AKfycbxyiBiuOLGmcu8HjISj18gjA4j0P_RLF0BTdXpT0aluL2d0zGvAUwAOb7C1bVsEoZ-8/exec"
 };
 
 export async function routeAction(service, action, payload = {}) {
