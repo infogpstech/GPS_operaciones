@@ -112,7 +112,7 @@
   - Agregado pre-poblado automático de sectores y usuarios-sectores por defecto (Líneas 51-78).
   - Expandida la creación de órdenes `handleCreateOrder` con campos `Vendedor`, `Color`, `Fecha Instalacion` y generación automática de un `Token` UUID de seguridad (Líneas 191-230).
   - Implementados manejadores `handleGetUserSector` (Líneas 655-690), `handleUpdateUserSector` (Líneas 691-720) y `handleSaveVehicleReception` (Líneas 721-758).
-  - Implementado parseador de nombres `parseName` (Líneas 761-771) y el manejador seguro de consulta de cliente `handleGetClientPortalData` (Líneas 772-888).
+  - Implementado parseador de nombres `parseName` (Líneas 761-771) and el manejador seguro de consulta de cliente `handleGetClientPortalData` (Líneas 772-888).
   - Mapeadas las nuevas acciones en `doPost` (Línea 936).
 - **Frontend (main.js):**
   - Declarado `dashboardInterval` global (Línea 2).
@@ -235,3 +235,17 @@
   - Reemplazado el campo 'Contacto' por 'Dirección del cliente' (Línea 194).
   - Integrado el mapa abierto de Leaflet en el formulario de creación de órdenes para captura interactiva de coordenadas, geocodificación reversa de direcciones vía Nominatim, detección de duplicados en radio de 50-100m, y parseo automático de enlaces Google Maps (Líneas 1420-1530).
   - Ocultados de la vista del usuario los campos coordenadas, división, enlace y removida categoría del vehículo.
+
+## [v0.8.0] - 2025-05-24
+### Bloque Catorceavo de Formulario Unificado, Gestión de Borradores e Integración de Autocompletados Inteligentes
+- **services/gos/gos-core.js:**
+  - Implementada la función `checkAndExpireDrafts` (Línea 1810) que localiza borradores con más de 60 minutos transcurridos tras su inicio y actualiza su estado a "Expirada", registrando la transición en `Historial_Estados`.
+  - Integrada la invocación automática de `checkAndExpireDrafts` en el punto de obtención de órdenes `handleGetOrders` (Línea 400).
+- **main.js:**
+  - Actualizado el motor de plantillas `UI_TEMPLATES.orderForm` (Líneas 220-305) para unificar la orden de trabajo y sustituir la selección de servicios por casillas de verificación de Tracklink y Controlcar, y agregar el dropdown condicional para el Tipo de servicio.
+  - Modificado el gestor `window.bookSlot` (Línea 1145) para presentar un selector interactivo del tipo de trabajo (overlay modal) antes de abrir el formulario, autocompletando la opción elegida.
+  - Implementado el ajuste de expiración y vigencia de borradores a 60 minutos en la lógica de filtrado de Agenda semanal y en el validador de envío (Líneas 922, 1892).
+  - Añadido controlador de cambio para `#order-anio` (Línea 1960) para mostrar u ocultar dinámicamente el campo Placa.
+  - Implementados los autocompletados en tiempo real para el campo de Cliente y Marca del vehículo (Líneas 1980-2100), con carga automatizada de la información de contacto y validación de inventario condicional para clientes con Empresa.
+  - Integrada la lógica de rellenado automático de campos de vehículos en el formulario cuando el cliente tiene un único registro en el historial o selección guiada mediante formato "Marca | Modelo | Placa | Chasis" cuando tiene múltiples unidades.
+  - Rediseñada la validación programática de envío en el listener `submit` de `#order-form` (Línea 2195) para validar rigurosamente campos obligatorios según el modo de guardado (Borrador vs. Confirmación).
