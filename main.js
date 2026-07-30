@@ -175,19 +175,37 @@ const UI_TEMPLATES = {
             <form id="order-form" class="order-form">
                 <div class="form-grid">
                     <div class="form-group"><label>Fecha</label><input type="date" name="fecha" id="order-fecha" class="form-control" required></div>
-                    <div class="form-group"><label>Hora</label><input type="time" name="hora" id="order-hora" class="form-control" required></div>
-                    <div class="form-group"><label>Cliente</label><input type="text" name="cliente" class="form-control" required></div>
-                    <div class="form-group"><label>Contacto</label><input type="text" name="contacto" class="form-control"></div>
-                    <div class="form-group"><label>Teléfono</label><input type="text" name="telefono" class="form-control" required></div>
-                    <div class="form-group autocomplete-wrapper" style="position:relative;">
-                        <label>Buscar Ubicación Guardada (Sugerencia inteligente):</label>
-                        <input type="text" id="order-saved-loc-search" class="form-control" placeholder="Escriba para buscar, ej: Excel">
-                        <div id="suggestions-saved-loc" class="autocomplete-suggestions" style="display:none; position:absolute; z-index:100; width:100%; background:#fff; border:1px solid #ddd;"></div>
+                    <div class="form-group">
+                        <label>Hora (Turno)</label>
+                        <select name="hora" id="order-hora" class="form-control" required>
+                            <option value="">Seleccione...</option>
+                            <!-- Normal Slots -->
+                            <option value="08:00 - 10:00">08:00 - 10:00</option>
+                            <option value="10:00 - 12:00">10:00 - 12:00</option>
+                            <option value="13:00 - 15:00">13:00 - 15:00</option>
+                            <option value="15:00 - 17:00">15:00 - 17:00</option>
+                            <!-- Extraordinary Slots -->
+                            <option value="06:00 - 08:00">06:00 - 08:00 (Extraordinario Mañana)</option>
+                            <option value="12:00 - 13:00">12:00 - 13:00 (Extraordinario Mediodía)</option>
+                            <option value="17:00 - 19:00">17:00 - 19:00 (Extraordinario Tarde)</option>
+                        </select>
                     </div>
-                    <div class="form-group"><label>Nombre Ubicación Nuevo (Opcional para guardar):</label><input type="text" id="order-location-name-save" class="form-control" placeholder="Ej: Excel Taller SPS"></div>
-                    <div class="form-group"><label>Dirección</label><input type="text" name="direccion" id="order-direccion" class="form-control" required></div>
-                    <div class="form-group"><label>Coordenadas (Lat, Lng)</label><input type="text" name="coordenadas" id="order-coords" class="form-control" placeholder="Ej: 9.9333, -84.0833"></div>
-                    <div class="form-group"><label>Link Google Maps</label><input type="url" name="linkMaps" id="order-maps-link" class="form-control"></div>
+                    <div class="form-group"><label>Cliente</label><input type="text" name="cliente" class="form-control" required></div>
+                    <div class="form-group"><label>Dirección del cliente (Domicilio)</label><input type="text" name="contacto" class="form-control"></div>
+                    <div class="form-group"><label>Teléfono</label><input type="text" name="telefono" class="form-control" required></div>
+                    <div class="form-group autocomplete-wrapper" style="position:relative; grid-column: 1 / -1;">
+                        <label style="font-weight:bold;">Ubicación de la instalación</label>
+                        <input type="text" id="order-saved-loc-search" class="form-control" placeholder="Escriba la dirección o busque ubicación guardada, ej: Excel">
+                        <div id="suggestions-saved-loc" class="autocomplete-suggestions" style="display:none; position:absolute; z-index:100; width:100%; background:#fff; border:1px solid #ddd;"></div>
+                        <!-- Botón oculto por defecto para Guardar Ubicación -->
+                        <button type="button" id="save-location-btn" class="btn btn-sm btn-outline-primary" style="display:none; margin-top:10px;">💾 Guardar ubicación</button>
+                        <p style="font-size:0.8rem; color:var(--secondary); margin-top:5px; margin-bottom:0;">Dejar vacío si el cliente llevará el vehículo a la oficina.</p>
+                        <!-- Campo oculto para guardar nombre de la nueva ubicación -->
+                        <input type="hidden" id="order-location-name-save" name="location_name_save">
+                    </div>
+                    <div class="form-group" style="display:none;"><label>Dirección</label><input type="text" name="direccion" id="order-direccion" class="form-control"></div>
+                    <div class="form-group" style="display:none;"><label>Coordenadas (Lat, Lng)</label><input type="text" name="coordenadas" id="order-coords" class="form-control"></div>
+                    <div class="form-group" style="display:none;"><label>Link Google Maps</label><input type="url" name="linkMaps" id="order-maps-link" class="form-control"></div>
 
                     <!-- Selector Interactivo de Mapa GOS -->
                     <div id="form-map-picker-container" style="grid-column: 1 / -1; margin-top:10px;">
@@ -221,7 +239,7 @@ const UI_TEMPLATES = {
                     <div class="form-group"><label>Placa</label><input type="text" name="placa" id="order-placa" class="form-control"></div>
                     <div class="form-group"><label>Color</label><input type="text" name="color" id="order-color" class="form-control"></div>
 
-                    <div class="form-group">
+                    <div class="form-group" style="display:none;">
                         <label>Sector / División</label>
                         <select name="sector" id="order-sector" class="form-control" required>
                             <option value="San Pedro Sula">San Pedro Sula</option>
@@ -251,6 +269,8 @@ const UI_TEMPLATES = {
                     <div id="vehicle-history-container" style="grid-column: 1 / -1; margin-top: 15px; display: none;"></div>
                     <!-- Contenedor de mensajes de advertencia de divisiones para Asesores -->
                     <div id="order-warning-msg" style="display:none; grid-column: 1 / -1; margin-top:10px; background:#fff3cd; color:#856404; padding:10px; border-radius:5px; border:1px solid #ffeeba; font-weight:bold;"></div>
+                    <!-- Contenedor de advertencia de retraso de horario -->
+                    <div id="retraso-warning-msg" style="display:none; grid-column: 1 / -1; margin-top:10px; background:#f8d7da; color:#721c24; padding:10px; border-radius:5px; border:1px solid #f5c6cb; font-weight:bold;"></div>
                 </div>
                 <div style="display:flex; gap:10px; margin-top:20px;">
                     <button type="submit" id="submit-order-assign-btn" class="btn btn-primary">Guardar y Asignar</button>
@@ -464,12 +484,6 @@ function setupNavigationListeners() {
 
 function loadSection(section) {
     const user = AppState.user;
-    if (user) {
-        const isTechnician = ['tecnico', 'técnico', 'instalador'].includes((user.Privilegios || '').toLowerCase().trim());
-        if (isTechnician && section === 'agenda') {
-            section = 'dashboard';
-        }
-    }
     AppState.currentSection = section;
     const titleEl = document.getElementById('section-title');
     const contentEl = document.getElementById('section-content');
@@ -480,7 +494,7 @@ function loadSection(section) {
     }
 
     const sections = {
-        dashboard: { title: 'Dashboard Operativo', content: '<p>Cargando dashboard...</p>' },
+        dashboard: { title: 'Planificación de la semana', content: '<p>Cargando planificación...</p>' },
         agenda: { title: 'Agenda de Instalaciones', content: '<p>Cargando turnos...</p>' },
         ordenes: { title: 'Gestión de Órdenes', content: '<p>Cargando órdenes de trabajo...</p>' },
         clientes: { title: 'Directorio de Clientes', content: '<p>Cargando base de datos de clientes...</p>' },
@@ -518,18 +532,36 @@ async function renderReportsModule(container) {
     const config = AppState.config || {};
     const reportOptions = config.Reportes ? Object.values(config.Reportes) : ['diario', 'semanal', 'mensual'];
 
+    const isChiefOrManager = ['jefe', 'gerente', 'desarrollador', 'jefe de tienda', 'administrador'].includes((AppState.user?.Privilegios || '').toLowerCase().trim());
+
+    let statsHtml = '';
+    if (isChiefOrManager) {
+        statsHtml = `<div id="admin-stats-container" style="margin-bottom: 30px;"></div>`;
+    }
+
     container.innerHTML = `
-        <div class="actions-bar">
-            <select id="report-type" class="form-control" style="width:auto; display:inline-block;">
-                ${reportOptions.map(opt => `<option value="${opt.toLowerCase()}">${opt.charAt(0).toUpperCase() + opt.slice(1)}</option>`).join('')}
-            </select>
-            <button id="generate-report-btn" class="btn btn-primary">Generar Reporte</button>
-            <button id="export-report-btn" class="btn btn-secondary" style="display:none;">Exportar CSV</button>
-        </div>
-        <div id="report-results" style="margin-top:20px;">
-            <p>Seleccione el tipo de reporte y presione generar.</p>
+        ${statsHtml}
+        <div class="orders-table-container" style="background:#fff; padding:20px; border-radius:8px; border:1px solid #ddd;">
+            <h3 style="margin-top:0; margin-bottom:15px; border-bottom:2px solid var(--light); padding-bottom:8px; color:var(--dark);">Generador de Reportes Operativos</h3>
+            <div class="actions-bar" style="display:flex; justify-content:flex-start; gap:10px; align-items:center; margin-bottom:15px;">
+                <select id="report-type" class="form-control" style="width:auto; display:inline-block;">
+                    ${reportOptions.map(opt => `<option value="${opt.toLowerCase()}">${opt.charAt(0).toUpperCase() + opt.slice(1)}</option>`).join('')}
+                </select>
+                <button id="generate-report-btn" class="btn btn-primary">Generar Reporte</button>
+                <button id="export-report-btn" class="btn btn-secondary" style="display:none;">Exportar CSV</button>
+            </div>
+            <div id="report-results" style="margin-top:20px;">
+                <p>Seleccione el tipo de reporte y presione generar.</p>
+            </div>
         </div>
     `;
+
+    if (isChiefOrManager) {
+        const statsDiv = document.getElementById('admin-stats-container');
+        if (statsDiv) {
+            await renderAdminMetricsModule(statsDiv);
+        }
+    }
 
     const exportBtn = document.getElementById('export-report-btn');
     let currentReportData = null;
@@ -859,7 +891,7 @@ async function renderAgendaModule(container) {
                     if (stateLower === 'borrador') return !isHoldExpired(o.fecha, o.hora);
                     return true;
                 });
-                return hasAppt || isPowerUser;
+                return hasAppt;
             }
             return true;
         });
@@ -905,6 +937,8 @@ async function renderAgendaModule(container) {
                 col.classList.add('agenda-column-today');
             }
 
+            const canManageExtraordinary = RBAC.isAsesor() || RBAC.isJefe() || RBAC.isDev();
+
             let colHtml = `
                 <div class="agenda-column-header ${isToday ? 'header-today' : ''}">
                     <div class="agenda-column-dayname">${weekdayName}</div>
@@ -912,6 +946,16 @@ async function renderAgendaModule(container) {
                 </div>
                 <div class="agenda-column-body">
             `;
+
+            if (canManageExtraordinary) {
+                colHtml += `
+                    <div class="extra-slot-btn-container" style="text-align: center; margin-bottom: 8px;">
+                        <button class="btn btn-sm btn-outline-primary" style="width: 100%; font-size: 0.75rem; border-style: dashed; padding: 2px 4px;" onclick="bookExtraordinarySlot('${dateStr}', 'before')">
+                            ➕ Cupo Extraordinario Temprano
+                        </button>
+                    </div>
+                `;
+            }
 
             allSlots.forEach(slot => {
                 const slotOrders = ordersOnDate.filter(o => o.hora === slot);
@@ -1000,6 +1044,25 @@ async function renderAgendaModule(container) {
                 }
             });
 
+            if (canManageExtraordinary) {
+                if (dayOfWeek === 6) {
+                    colHtml += `
+                        <div class="extra-slot-btn-container" style="text-align: center; margin-top: 8px; margin-bottom: 8px;">
+                            <button class="btn btn-sm btn-outline-warning" style="width: 100%; font-size: 0.75rem; border-style: dashed; padding: 2px 4px;" onclick="bookExtraordinarySlot('${dateStr}', 'saturday_late')">
+                                ➕ Sábado Tarde / Domingo
+                            </button>
+                        </div>
+                    `;
+                }
+                colHtml += `
+                    <div class="extra-slot-btn-container" style="text-align: center; margin-top: 8px;">
+                        <button class="btn btn-sm btn-outline-primary" style="width: 100%; font-size: 0.75rem; border-style: dashed; padding: 2px 4px;" onclick="bookExtraordinarySlot('${dateStr}', 'after')">
+                            ➕ Cupo Extraordinario Tarde
+                        </button>
+                    </div>
+                `;
+            }
+
             colHtml += `
                 </div>
             `;
@@ -1024,10 +1087,34 @@ window.bookSlot = (date, slot) => {
         setTimeout(() => {
             const horaSelect = document.getElementById('order-hora');
             if (horaSelect) {
+                // Ensure slot is dynamically added to dropdown option list if not exists
+                let exists = false;
+                for (let option of horaSelect.options) {
+                    if (option.value === slot) {
+                        exists = true;
+                        break;
+                    }
+                }
+                if (!exists) {
+                    const newOpt = document.createElement('option');
+                    newOpt.value = slot;
+                    newOpt.textContent = slot;
+                    horaSelect.appendChild(newOpt);
+                }
                 horaSelect.value = slot;
             }
         }, 400);
     }
+};
+
+window.bookExtraordinarySlot = (date, position) => {
+    let slot = '17:00 - 19:00';
+    if (position === 'before') {
+        slot = '06:00 - 08:00';
+    } else if (position === 'saturday_late') {
+        slot = '12:00 - 14:00';
+    }
+    window.bookSlot(date, slot);
 };
 
 window.authorizeOrder = async (orderId, coords) => {
@@ -1133,6 +1220,71 @@ function renderOrderForm(container) {
 
     document.getElementById('cancel-order-btn').addEventListener('click', () => loadSection('ordenes'));
 
+    // Auto-fill Date logic:
+    const initDateAutocomplete = async () => {
+        const dateInput = document.getElementById('order-fecha');
+        if (!dateInput || dateInput.value) return; // Only auto-fill if empty
+
+        try {
+            const ordersRes = await routeAction('GOS_CORE', 'getOrders');
+            if (ordersRes.status === 'success') {
+                const orders = ordersRes.data;
+                const sector = AppState.user?.Sector || 'San Pedro Sula';
+                let maxTechCount = 4;
+                const techCountRes = await routeAction('GOS_CORE', 'getDivisionTechniciansCount', { sector });
+                if (techCountRes.status === 'success' && techCountRes.count) {
+                    maxTechCount = techCountRes.count;
+                }
+
+                const hasAvailableNormalSlots = (dateStr) => {
+                    const d = new Date(dateStr + 'T00:00:00');
+                    const dow = d.getDay();
+                    if (dow === 0) return false;
+
+                    const normalSlots = [];
+                    if (dow >= 1 && dow <= 5) {
+                        normalSlots.push("08:00 - 10:00", "10:00 - 12:00", "13:00 - 15:00", "15:00 - 17:00");
+                    } else if (dow === 6) {
+                        normalSlots.push("08:00 - 10:00", "10:00 - 12:00");
+                    }
+
+                    const sectorOrders = orders.filter(o => o.fecha === dateStr && (o.sector || '').toLowerCase().trim() === sector.toLowerCase().trim());
+                    return normalSlots.some(slot => {
+                        const slotOrders = sectorOrders.filter(o => o.hora === slot);
+                        const activeOrders = slotOrders.filter(o => !['cancelada', 'expirada'].includes((o.estado || '').toLowerCase().trim()));
+                        return activeOrders.length < maxTechCount;
+                    });
+                };
+
+                const findFirstAvailableDate = () => {
+                    const today = new Date();
+                    for (let i = 0; i < 30; i++) {
+                        const d = new Date();
+                        d.setDate(today.getDate() + i);
+                        const dateStr = d.toISOString().split('T')[0];
+                        if (hasAvailableNormalSlots(dateStr)) {
+                            return dateStr;
+                        }
+                    }
+                    return today.toISOString().split('T')[0];
+                };
+
+                const autoDate = findFirstAvailableDate();
+                if (dateInput && !dateInput.value) {
+                    dateInput.value = autoDate;
+                    dateInput.dispatchEvent(new Event('change'));
+                }
+            }
+        } catch (err) {
+            console.error("Error autocomplete date:", err);
+            if (dateInput && !dateInput.value) {
+                dateInput.value = new Date().toISOString().split('T')[0];
+                dateInput.dispatchEvent(new Event('change'));
+            }
+        }
+    };
+    initDateAutocomplete();
+
     // Configuración inicial de Sector y lógica de Borrador para Asesores
     const sectorSelect = document.getElementById('order-sector');
     const warningMsgDiv = document.getElementById('order-warning-msg');
@@ -1143,12 +1295,36 @@ function renderOrderForm(container) {
         // Pre-poblar con el sector del usuario
         sectorSelect.value = AppState.user?.Sector || 'San Pedro Sula';
 
+        const isRegularSlot = (dow, slot) => {
+            if (dow >= 1 && dow <= 5) {
+                return ["08:00 - 10:00", "10:00 - 12:00", "13:00 - 15:00", "15:00 - 17:00"].includes(slot);
+            }
+            if (dow === 6) {
+                return ["08:00 - 10:00", "10:00 - 12:00"].includes(slot);
+            }
+            return false;
+        };
+
         const checkSectorPermission = () => {
             const selectedSector = sectorSelect.value;
             const userSector = AppState.user?.Sector || 'San Pedro Sula';
             const isAsesor = RBAC.isAsesor();
 
-            if (isAsesor && selectedSector !== userSector) {
+            const fechaVal = document.getElementById('order-fecha')?.value;
+            const horaVal = document.getElementById('order-hora')?.value;
+            let isExtraordinary = false;
+            if (fechaVal && horaVal) {
+                const d = new Date(fechaVal + 'T00:00:00');
+                isExtraordinary = !isRegularSlot(d.getDay(), horaVal);
+            }
+
+            if (isAsesor && isExtraordinary) {
+                if (assignBtn) assignBtn.style.display = 'none';
+                if (warningMsgDiv) {
+                    warningMsgDiv.textContent = '⚠️ Los cupos extraordinarios solo pueden ser guardados como Borrador por Asesores. La confirmación y asignación requiere la autorización de un Jefe de División.';
+                    warningMsgDiv.style.display = 'block';
+                }
+            } else if (isAsesor && selectedSector !== userSector) {
                 if (assignBtn) assignBtn.style.display = 'none';
                 if (warningMsgDiv) {
                     warningMsgDiv.textContent = '⚠️ Estás programando en otra división. Debes guardar como Borrador para esperar la autorización del Jefe de División correspondiente.';
@@ -1160,8 +1336,65 @@ function renderOrderForm(container) {
             }
         };
 
+        const checkRetrasoWarning = async () => {
+            const fechaVal = document.getElementById('order-fecha')?.value;
+            const horaVal = document.getElementById('order-hora')?.value;
+            const sectorVal = sectorSelect?.value || 'San Pedro Sula';
+            const retrasoDiv = document.getElementById('retraso-warning-msg');
+            if (!retrasoDiv) return;
+
+            if (!fechaVal || !horaVal) {
+                retrasoDiv.style.display = 'none';
+                return;
+            }
+
+            const match = horaVal.match(/^(\d{2}):(\d{2})/);
+            if (!match) {
+                retrasoDiv.style.display = 'none';
+                return;
+            }
+
+            const hours = parseInt(match[1]);
+            const minutes = parseInt(match[2]);
+            const turnStart = new Date(`${fechaVal}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`);
+            const now = new Date();
+            const tenMinsAfter = new Date(turnStart.getTime() + 10 * 60 * 1000);
+
+            if (now >= tenMinsAfter) {
+                try {
+                    const res = await routeAction('GOS_CORE', 'getOrders');
+                    if (res.status === 'success') {
+                        const orders = res.data;
+                        const currentSlotMin = getSlotMinutes(horaVal);
+                        const hasSubsequent = orders.some(o => {
+                            if (o.fecha !== fechaVal) return false;
+                            if ((o.sector || '').toLowerCase().trim() !== sectorVal.toLowerCase().trim()) return false;
+                            if (['cancelada', 'expirada'].includes((o.estado || '').toLowerCase().trim())) return false;
+                            return getSlotMinutes(o.hora) > currentSlotMin;
+                        });
+
+                        if (hasSubsequent) {
+                            retrasoDiv.innerHTML = `⚠️ Advertencia de Horario: La instalación iniciará con retraso debido a que la reserva se realiza 10 minutos o más después del inicio del turno. Existe la posibilidad de que el técnico finalice más tarde de lo previsto, ya que tiene otra asignación programada posteriormente.`;
+                            retrasoDiv.style.display = 'block';
+                            return;
+                        }
+                    }
+                } catch (err) {
+                    console.error("Error checking subsequent bookings:", err);
+                }
+            }
+            retrasoDiv.style.display = 'none';
+        };
+
         sectorSelect.addEventListener('change', checkSectorPermission);
+        document.getElementById('order-fecha')?.addEventListener('change', checkSectorPermission);
+        document.getElementById('order-hora')?.addEventListener('change', checkSectorPermission);
         checkSectorPermission();
+
+        sectorSelect.addEventListener('change', checkRetrasoWarning);
+        document.getElementById('order-fecha')?.addEventListener('change', checkRetrasoWarning);
+        document.getElementById('order-hora')?.addEventListener('change', checkRetrasoWarning);
+        checkRetrasoWarning();
 
         // --------------------------------------------------------------------
         // BÚSQUEDA INTELIGENTE DE UBICACIONES GUARDADAS & SUGERENCIAS
@@ -1188,22 +1421,82 @@ function renderOrderForm(container) {
 
         loadSavedLocations();
 
+        const levenshteinDistance = (s, t) => {
+            if (!s || !t) return 99;
+            const d = [];
+            const n = s.length;
+            const m = t.length;
+            if (n === 0) return m;
+            if (m === 0) return n;
+            for (let i = 0; i <= n; i++) d[i] = [i];
+            for (let j = 0; j <= m; j++) d[0][j] = j;
+            for (let i = 1; i <= n; i++) {
+                for (let j = 1; j <= m; j++) {
+                    const cost = s[i - 1] === t[j - 1] ? 0 : 1;
+                    d[i][j] = Math.min(
+                        d[i - 1][j] + 1,
+                        d[i][j - 1] + 1,
+                        d[i - 1][j - 1] + cost
+                    );
+                }
+            }
+            return d[n][m];
+        };
+
+        const isApproximateMatch = (query, text) => {
+            const q = query.toLowerCase().trim();
+            const t = text.toLowerCase().trim();
+            if (t.includes(q)) return true;
+
+            const wordsQ = q.split(/\s+/);
+            const wordsT = t.split(/\s+/);
+
+            for (let wq of wordsQ) {
+                if (wq.length < 3) continue;
+                for (let wt of wordsT) {
+                    if (wt.length < 3) continue;
+                    const dist = levenshteinDistance(wq, wt);
+                    if (dist <= 1 || (wq.length > 5 && dist <= 2)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        };
+
+        const saveLocationBtn = document.getElementById('save-location-btn');
+        if (saveLocationBtn) {
+            saveLocationBtn.addEventListener('click', () => {
+                const name = prompt("Ingrese el nombre para guardar esta ubicación:");
+                if (name) {
+                    if (locationNameSaveInput) locationNameSaveInput.value = name;
+                    saveLocationBtn.textContent = `✔️ Guardado: ${name}`;
+                    saveLocationBtn.className = "btn btn-sm btn-success";
+                }
+            });
+        }
+
         if (savedLocInput) {
             savedLocInput.addEventListener('input', () => {
-                const val = savedLocInput.value.trim().toLowerCase();
+                const val = savedLocInput.value.trim();
+                if (orderDireccionInput) orderDireccionInput.value = val;
+
                 savedLocSuggestions.innerHTML = '';
                 if (!val) {
                     savedLocSuggestions.style.display = 'none';
+                    if (saveLocationBtn) saveLocationBtn.style.display = 'none';
                     return;
                 }
 
                 const matches = allSavedLocations.filter(loc =>
-                    (loc.nombre || '').toLowerCase().includes(val) ||
-                    (loc.direccion || '').toLowerCase().includes(val)
+                    isApproximateMatch(val, loc.nombre || '') ||
+                    isApproximateMatch(val, loc.direccion || '')
                 );
 
                 if (matches.length > 0) {
                     savedLocSuggestions.style.display = 'block';
+                    if (saveLocationBtn) saveLocationBtn.style.display = 'none';
+
                     matches.forEach(loc => {
                         const div = document.createElement('div');
                         div.className = 'suggestion-item';
@@ -1213,19 +1506,16 @@ function renderOrderForm(container) {
                         div.innerHTML = `📍 <strong>${loc.nombre}</strong><br><small style="color:#718096;">${loc.direccion || 'Sin dirección'}</small>`;
 
                         div.onclick = () => {
-                            savedLocInput.value = loc.nombre;
+                            savedLocInput.value = loc.direccion || loc.nombre;
                             if (locationNameSaveInput) locationNameSaveInput.value = loc.nombre;
                             if (orderDireccionInput) orderDireccionInput.value = loc.direccion || '';
                             if (orderCoordsInput) {
                                 orderCoordsInput.value = loc.coordenadas || '';
-                                // Mover marcador en mapa de formulario si está instanciado
                                 if (formMap && formMarker && loc.coordenadas) {
                                     const [latVal, lngVal] = loc.coordenadas.split(',').map(Number);
-                                    const pos = { lat: latVal, lng: lngVal };
-                                    formMarker.setPosition(pos);
-                                    formMarker.setMap(formMap);
-                                    formMap.setCenter(pos);
-                                    formMap.setZoom(15);
+                                    const pos = [latVal, lngVal];
+                                    formMarker.setLatLng(pos);
+                                    formMap.setView(pos, 15);
                                 }
                             }
                             if (orderMapsLinkInput) orderMapsLinkInput.value = loc.linkmaps || `https://www.google.com/maps/search/?api=1&query=${loc.coordenadas}`;
@@ -1236,6 +1526,11 @@ function renderOrderForm(container) {
                     });
                 } else {
                     savedLocSuggestions.style.display = 'none';
+                    if (saveLocationBtn) {
+                        saveLocationBtn.style.display = 'inline-block';
+                        saveLocationBtn.textContent = '💾 Guardar ubicación';
+                        saveLocationBtn.className = "btn btn-sm btn-outline-primary";
+                    }
                 }
             });
 
@@ -1247,7 +1542,91 @@ function renderOrderForm(container) {
         }
 
         // --------------------------------------------------------------------
-        // SELECTOR INTERACTIVO DE MAPA GOOGLE MAPS
+        // UTILERIAS DE GEOLOCALIZACION Y MAPAS ABIERTOS (LEAFLET / NOMINATIM)
+        // --------------------------------------------------------------------
+        const calculateDistanceMeters = (lat1, lon1, lat2, lon2) => {
+            const R = 6371000; // Earth radius in meters
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        };
+
+        const isNearExistingSavedLocation = (lat, lng, allLocations) => {
+            return allLocations.some(loc => {
+                if (!loc.coordenadas) return false;
+                const [lLat, lLng] = loc.coordenadas.split(',').map(Number);
+                const dist = calculateDistanceMeters(lat, lng, lLat, lLng);
+                return dist >= 50 && dist <= 100;
+            });
+        };
+
+        const parseGoogleMapsLink = (url) => {
+            const regex = /@(-?\d+\.\d+),(-?\d+\.\d+)|query=(-?\d+\.\d+),(-?\d+\.\d+)|q=(-?\d+\.\d+),(-?\d+\.\d+)/;
+            const match = url.match(regex);
+            if (match) {
+                const lat = parseFloat(match[1] || match[3] || match[5]);
+                const lng = parseFloat(match[2] || match[4] || match[6]);
+                return { lat, lng };
+            }
+            return null;
+        };
+
+        const reverseGeocode = async (lat, lng) => {
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`, {
+                    headers: {
+                        'User-Agent': 'GOS-GPS-Operations-Suite'
+                    }
+                });
+                const data = await res.json();
+                return data.display_name || `📍 Coordenadas: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+            } catch (err) {
+                console.error("Error reverse geocoding:", err);
+                return `📍 Coordenadas: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+            }
+        };
+
+        // Listen for Google Maps pasted links in the Location search field:
+        if (savedLocInput) {
+            savedLocInput.addEventListener('change', async () => {
+                const val = savedLocInput.value.trim();
+                if (val.startsWith('http') && (val.includes('google.com/maps') || val.includes('maps.google') || val.includes('goo.gl/maps'))) {
+                    const parsedCoords = parseGoogleMapsLink(val);
+                    if (parsedCoords) {
+                        const { lat, lng } = parsedCoords;
+                        if (orderCoordsInput) orderCoordsInput.value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+                        if (orderMapsLinkInput) orderMapsLinkInput.value = val;
+
+                        if (formMap && formMarker) {
+                            formMarker.setLatLng([lat, lng]);
+                            formMap.setView([lat, lng], 15);
+                        }
+
+                        const address = await reverseGeocode(lat, lng);
+                        savedLocInput.value = address;
+                        if (orderDireccionInput) orderDireccionInput.value = address;
+
+                        const isNear = isNearExistingSavedLocation(lat, lng, allSavedLocations);
+                        if (isNear) {
+                            if (saveLocationBtn) saveLocationBtn.style.display = 'none';
+                        } else {
+                            if (saveLocationBtn) {
+                                saveLocationBtn.style.display = 'inline-block';
+                                saveLocationBtn.textContent = '💾 Guardar ubicación';
+                                saveLocationBtn.className = "btn btn-sm btn-outline-primary";
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // --------------------------------------------------------------------
+        // SELECTOR INTERACTIVO DE MAPA LEAFLET (OPENSTREETMAP)
         // --------------------------------------------------------------------
         const mapPickerEl = document.getElementById('form-map-picker');
         let formMap = null;
@@ -1262,56 +1641,76 @@ function renderOrderForm(container) {
         };
 
         const initFormMapPicker = () => {
-            if (window.google && mapPickerEl) {
+            if (window.L && mapPickerEl) {
                 const selectedSector = sectorSelect ? sectorSelect.value : 'San Pedro Sula';
                 const center = cityCenters[selectedSector] || cityCenters['San Pedro Sula'];
 
                 mapPickerEl.innerHTML = ''; // Limpiar indicador texto
-                formMap = new google.maps.Map(mapPickerEl, {
-                    center: center,
-                    zoom: 13,
-                    mapTypeControl: false,
-                    streetViewControl: false
-                });
 
-                formMarker = new google.maps.Marker({
-                    map: null,
-                    draggable: true
-                });
+                formMap = L.map(mapPickerEl).setView([center.lat, center.lng], 13);
 
-                const handleMapClick = (latLng) => {
-                    const lat = latLng.lat();
-                    const lng = latLng.lng();
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(formMap);
+
+                formMarker = L.marker([center.lat, center.lng], { draggable: true }).addTo(formMap);
+
+                const handleMapClick = async (lat, lng) => {
                     if (orderCoordsInput) orderCoordsInput.value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
                     if (orderMapsLinkInput) orderMapsLinkInput.value = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
 
-                    formMarker.setPosition(latLng);
-                    formMarker.setMap(formMap);
+                    formMarker.setLatLng([lat, lng]);
 
-                    // Reverse geocoding básico (simulado) si Dirección está vacía
-                    if (orderDireccionInput && !orderDireccionInput.value.trim()) {
-                        orderDireccionInput.value = `📍 Ubicación seleccionada en división ${sectorSelect.value}`;
+                    const address = await reverseGeocode(lat, lng);
+                    if (savedLocInput) {
+                        savedLocInput.value = address;
+                    }
+                    if (orderDireccionInput) {
+                        orderDireccionInput.value = address;
+                    }
+
+                    const isNear = isNearExistingSavedLocation(lat, lng, allSavedLocations);
+                    if (isNear) {
+                        if (saveLocationBtn) saveLocationBtn.style.display = 'none';
+                    } else {
+                        if (saveLocationBtn && savedLocInput.value.trim()) {
+                            saveLocationBtn.style.display = 'inline-block';
+                            saveLocationBtn.textContent = '💾 Guardar ubicación';
+                            saveLocationBtn.className = "btn btn-sm btn-outline-primary";
+                        }
                     }
                 };
 
-                google.maps.event.addListener(formMap, 'click', (e) => {
-                    handleMapClick(e.latLng);
+                formMap.on('click', (e) => {
+                    handleMapClick(e.latlng.lat, e.latlng.lng);
                 });
 
-                google.maps.event.addListener(formMarker, 'dragend', (e) => {
-                    handleMapClick(e.latLng);
+                formMarker.on('dragend', (e) => {
+                    const pos = formMarker.getLatLng();
+                    handleMapClick(pos.lat, pos.lng);
                 });
+
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition((pos) => {
+                        const userLat = pos.coords.latitude;
+                        const userLng = pos.coords.longitude;
+                        if (!orderCoordsInput.value) {
+                            formMap.setView([userLat, userLng], 14);
+                            formMarker.setLatLng([userLat, userLng]);
+                        }
+                    }, (err) => console.log("Geolocation center error:", err));
+                }
             }
         };
 
         // Escuchar cambios de sector para re-centrar mapapicker
         if (sectorSelect) {
             sectorSelect.addEventListener('change', () => {
-                if (formMap && window.google) {
+                if (formMap && window.L) {
                     const center = cityCenters[sectorSelect.value] || cityCenters['San Pedro Sula'];
-                    formMap.setCenter(center);
-                    formMap.setZoom(13);
-                    if (formMarker) formMarker.setMap(null); // Limpiar marcador previo
+                    formMap.setView([center.lat, center.lng], 13);
+                    formMarker.setLatLng([center.lat, center.lng]);
                 }
             });
         }
@@ -1496,6 +1895,13 @@ function renderOrderForm(container) {
                 };
 
                 const isRegular = isRegularSlot(dayOfWeek, payload.hora);
+
+                const isAsesor = RBAC.isAsesor();
+                if (!isRegular && isAsesor && !isDraftMode) {
+                    alert("⚠️ Error: Como Asesor de Venta, únicamente tienes permitido guardar cupos extraordinarios como Borrador. La confirmación y asignación requiere la autorización de un Jefe de División.");
+                    return;
+                }
+
                 const priorityLower = (payload.prioridad || '').toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
                 if (isRegular) {
@@ -1645,14 +2051,9 @@ async function showMainView(user) {
         user.Sector = 'San Pedro Sula';
     }
 
-    const isTechnician = ['tecnico', 'técnico', 'instalador'].includes((user.Privilegios || '').toLowerCase().trim());
     const navAgenda = document.querySelector('.nav-links [data-section="agenda"]');
     if (navAgenda) {
-        if (isTechnician) {
-            navAgenda.style.display = 'none';
-        } else {
-            navAgenda.style.display = 'inline-block';
-        }
+        navAgenda.style.display = 'inline-block';
     }
 
     // RBAC: Mostrar enlace a Métricas Administrativas si el rol lo amerita
@@ -1666,7 +2067,7 @@ async function showMainView(user) {
         }
     }
 
-    loadSection('dashboard');
+    loadSection('agenda');
 }
 
 let mapInstance = null;

@@ -6,6 +6,8 @@
     <title>GOS - GPS Operations Suite</title>
     <link rel="icon" type="image/svg+xml" href="logo-gos.svg">
     <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <link rel="stylesheet" href="style.css">
     <!-- Google Maps API Placeholder - Reemplazar con clave real en producción -->
 </head>
@@ -38,13 +40,13 @@
             <nav class="navbar">
                 <div class="brand">GOs | GPS Operations Suite</div>
                 <div class="nav-links">
-                    <a href="#" class="nav-link" data-section="dashboard">Dashboard</a>
                     <a href="#" class="nav-link" data-section="agenda">Agenda</a>
+                    <a href="#" class="nav-link" data-section="dashboard">Planificación de la semana</a>
+                    <a href="#" class="nav-link" data-section="reportes">Reportes</a>
                     <a href="#" class="nav-link" data-section="ordenes">Órdenes</a>
                     <a href="#" class="nav-link" data-section="consulta">Consulta Técnica</a>
                     <a href="#" class="nav-link" data-section="clientes">Clientes</a>
                     <a href="#" class="nav-link" data-section="tecnicos">Técnicos</a>
-                    <a href="#" class="nav-link" data-section="reportes">Reportes</a>
                     <a href="#" class="nav-link" data-section="admin" id="nav-admin" style="display:none;">Administración</a>
                     <a href="#" id="logout-btn" class="nav-link">Cerrar Sesión</a>
                 </div>
