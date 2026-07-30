@@ -1,8 +1,7 @@
 # Procedimiento Obligatorio de Desarrollo
 
-> **IMPORTANTE**
->
-> **PROHIBIDO agregar cualquier contenido antes de este bloque.**
+> [!IMPORTANT]
+> **Prohibido agregar cualquier contenido antes de este bloque.**
 >
 > Este procedimiento es de **cumplimiento obligatorio** para toda tarea de desarrollo, mantenimiento, corrección, refactorización o documentación del proyecto.
 >
@@ -14,215 +13,210 @@
 
 ## 1. Auditoría Inicial
 
-Antes de realizar cualquier modificación efectuar una auditoría técnica completa del alcance de la tarea.
+Antes de modificar cualquier archivo, realizar una auditoría técnica completa del alcance de la tarea.
 
-Como parte obligatoria de cada nueva auditoría, el desarrollador deberá revisar el registro generado en la auditoría inmediatamente anterior y comprobar que **todas las solicitudes documentadas en Instrucciones.txt y en Auditoria.txt fueron implementadas correctamente**.
+Como parte de esta etapa, se deberá:
 
-La auditoría no podrá considerarse finalizada mientras exista al menos una solicitud registrada anteriormente que continúe pendiente, haya sido implementada parcialmente o no cumpla el alcance solicitado.
-
-Registrar en Instrucciones.txt una nueva entrada con las implementaciones solicitadas en este prompt, conservando exactamente la redacción original.
-Auditar que los requerimientos registrados previamente en Instrucciones.txt hayan sido implementados correctamente.
-Registrar en la sección de auditoría los nuevos requerimientos, describiéndolos tal como fueron comprendidos y planificados por el agente desarrollador.
-No solicitar confirmación al usuario sobre el enfoque de implementación; completar el trabajo sin interrupciones.
-Finalizar todas las implementaciones en un único commit, siempre que sea posible. Si no es posible, registrar en Instrucciones.txt las tareas o implementaciones que queden pendientes.
+* Revisar la auditoría inmediatamente anterior.
+* Verificar que **todas las solicitudes registradas previamente en `Instrucciones.txt` y `Auditoria.txt` hayan sido implementadas correctamente**.
+* Registrar en `Instrucciones.txt` una nueva entrada con **las implementaciones solicitadas en el prompt**, conservando exactamente la redacción original.
+* Registrar en `Auditoria.txt` los nuevos requerimientos, describiendo cómo fueron interpretados y planificados por el desarrollador.
+* Auditar nuevamente todos los requerimientos pendientes o previamente registrados antes de iniciar cualquier implementación.
+* No solicitar confirmación al usuario sobre el enfoque de trabajo. La tarea deberá completarse en un solo proceso.
+* Finalizar el trabajo en un único **commit** siempre que sea posible. Si no lo es, registrar en `Instrucciones.txt` las tareas pendientes.
 
 La auditoría deberá realizarse:
 
-- Archivo por archivo.
-- Línea por línea.
-- Función por función.
-- Bloque por bloque.
+* Archivo por archivo.
+* Línea por línea.
+* Función por función.
+* Bloque por bloque.
 
-Durante la etapa de auditoría, **antes del registro de hallazgos**, el desarrollador deberá documentar todas las solicitudes que originan tal y como se escribio el prompt, Se registraran en Instrucciones.txt y en el archivo de Auditoría.txt tal y como el desarollador entendio la asignacion, los cambios y las implemenraciones, la auditoría debe contener, incluyendo, entre otras:
+Antes de registrar cualquier hallazgo, documentar todas las solicitudes que originan la tarea.
 
-- Nuevas implementaciones.
-- Reportes de errores.
-- Cambios funcionales.
-- Cambios visuales.
-- Cambios arquitectónicos.
-- Solicitudes de optimización.
-- Refactorizaciones.
-- Requerimientos de documentación.
+Los registros deberán incluir, cuando corresponda:
 
-Este registro constituirá la justificación formal de la auditoría
+* Nuevas implementaciones.
+* Correcciones.
+* Reportes de errores.
+* Cambios funcionales.
+* Cambios visuales.
+* Cambios arquitectónicos.
+* Refactorizaciones.
+* Optimizaciones solicitadas.
+* Actualización de documentación.
 
-despues de esa primera etapa se deberá identificar como mínimo:
+Posteriormente identificar como mínimo:
 
+* Estado actual.
+* Dependencias directas e indirectas.
+* Relaciones entre módulos.
+* Flujo de ejecución.
+* Alcance real de la modificación.
+* Riesgos potenciales.
+* Posibles efectos colaterales.
+* Código relacionado que pueda verse afectado.
 
-- Estado actual.
-- Dependencias directas e indirectas.
-- Relaciones entre módulos.
-- Flujo de ejecución.
-- Alcance real de la modificación.
-- Riesgos potenciales.
-- Posibles efectos colaterales.
-- Código relacionado que pueda verse afectado.
-
-La auditoría es exclusivamente de análisis.
-
-**Está estrictamente prohibido modificar código durante esta etapa.**
+> [!WARNING]
+> Durante esta etapa está **prohibido modificar código**.
 
 ---
 
 ## 2. Registro de Hallazgos
 
-Todos los hallazgos deberán documentarse antes de iniciar cualquier cambio.
+Documentar todos los hallazgos antes de iniciar cualquier implementación.
 
-Cada registro deberá indicar como mínimo:
+Cada registro deberá incluir:
 
-- Descripción objetiva.
-- Archivo involucrado.
-- Línea o bloque afectado.
-- Dependencias identificadas.
-- Funciones relacionadas.
-- Alcance estimado.
-- Riesgos detectados.
+* Descripción objetiva.
+* Archivo involucrado.
+* Línea o bloque afectado.
+* Dependencias identificadas.
+* Funciones relacionadas.
+* Alcance estimado.
+* Riesgos detectados.
 
-No se permite eliminar información previamente registrada.
-
-No se realizarán correcciones durante el proceso de auditoría.
+No eliminar registros previos.
 
 ---
 
 ## 3. Conversión de Hallazgos en Tareas
 
-Finalizada la auditoría, cada hallazgo deberá transformarse en una tarea técnica claramente definida.
+Cada hallazgo deberá convertirse en una tarea técnica.
 
-Cada tarea deberá especificar:
+Cada tarea deberá definir:
 
-- Objetivo.
-- Alcance.
-- Restricciones.
-- Componentes afectados.
-- Resultado esperado.
+* Objetivo.
+* Alcance.
+* Restricciones.
+* Componentes afectados.
+* Resultado esperado.
 
-No se permitirá ejecutar cambios cuya finalidad no haya sido previamente documentada.
+No se implementarán cambios que no hayan sido documentados previamente.
 
 ---
 
 ## 4. Hallazgos Fuera del Alcance
 
-Si durante la auditoría se detectan problemas ajenos a la tarea solicitada:
+Si durante la auditoría se detectan problemas ajenos a la solicitud:
 
-- Solo podrán corregirse cuando el riesgo sea mínimo y no alteren el alcance del trabajo.
-- En cualquier otro caso deberán registrarse como tareas independientes para su futura atención.
+* Corregirlos únicamente cuando representen un riesgo mínimo y no modifiquen el alcance.
+* En cualquier otro caso, registrarlos como tareas independientes.
 
-Bajo ninguna circunstancia se ampliará el alcance original sin autorización.
+No ampliar el alcance original sin autorización.
 
 ---
 
 ## 5. Respaldo Obligatorio
 
-Antes de editar cualquier archivo deberá generarse un respaldo íntegro.
+Antes de editar cualquier archivo, generar un respaldo íntegro.
 
-El respaldo deberá conservar exactamente:
+El respaldo deberá conservar:
 
-- Contenido.
-- Estructura.
-- Estado previo.
+* Contenido.
+* Estructura.
+* Estado original.
 
-Su única finalidad será permitir una comparación posterior y facilitar una eventual reversión.
+Su finalidad será facilitar la comparación y una posible reversión.
 
 ---
 
-## 6. Ejecución de la Tarea
+## 6. Implementación
 
-La implementación deberá limitarse exclusivamente al alcance aprobado.
+La implementación deberá limitarse al alcance documentado.
 
 Está prohibido:
 
-- Modificar código no relacionado.
-- Reestructurar componentes sin justificación.
-- Cambiar estilos ajenos.
-- Introducir optimizaciones no solicitadas.
-- Alterar flujos existentes sin necesidad técnica.
+* Modificar código no relacionado.
+* Reestructurar componentes sin justificación.
+* Alterar estilos ajenos.
+* Introducir optimizaciones no solicitadas.
+* Modificar flujos existentes sin necesidad técnica.
 
-Toda modificación deberá estar directamente relacionada con la tarea documentada.
+Cada cambio deberá estar respaldado por una tarea previamente documentada.
 
 ---
 
-## 7. Comparación Contra el Respaldo
+## 7. Comparación con el Respaldo
 
-Finalizada la implementación se realizará una comparación manual entre la versión modificada y el respaldo.
+Al finalizar la implementación, comparar manualmente los archivos modificados con el respaldo.
 
-Se verificará:
+Verificar:
 
-- Líneas agregadas.
-- Líneas eliminadas.
-- Líneas modificadas.
-- Bloques reemplazados.
+* Líneas agregadas.
+* Líneas eliminadas.
+* Líneas modificadas.
+* Bloques reemplazados.
 
-Cada diferencia deberá justificarse por la tarea ejecutada.
+Cada diferencia deberá justificarse.
 
 Si se detectan cambios fuera del alcance:
 
-- Deberán revertirse inmediatamente.
-- La comparación deberá repetirse hasta eliminar todas las modificaciones no justificadas.
+* Revertirlos.
+* Repetir la comparación hasta eliminarlos.
 
-Las comparaciones automáticas no sustituyen esta revisión.
+Las herramientas automáticas no sustituyen esta revisión.
 
 ---
 
 ## 8. Verificación Funcional
 
-Se comprobará el correcto funcionamiento de:
+Comprobar el funcionamiento de:
 
-- La funcionalidad implementada.
-- Los flujos relacionados.
-- Las dependencias directas.
-- Las dependencias indirectas.
-- La compatibilidad con el resto del sistema.
+* La funcionalidad implementada.
+* Los flujos relacionados.
+* Dependencias directas.
+* Dependencias indirectas.
+* Compatibilidad con el resto del sistema.
 
-Las pruebas deberán incluir escenarios normales, límites y casos relacionados.
-
-Cuando sea posible deberán utilizarse entornos de prueba o mecanismos de *mocking* para evitar afectar información real.
+Siempre que sea posible, utilizar entornos de prueba o mecanismos de *mocking* para evitar afectar información real.
 
 ---
 
 ## 9. Revisión de Integridad
 
-Antes de finalizar la tarea deberá verificarse que:
+Antes de finalizar la tarea verificar que:
 
-- No existan regresiones.
-- No se hayan introducido efectos colaterales.
-- No existan inconsistencias lógicas.
-- No se hayan roto dependencias.
-- Se conserve la coherencia arquitectónica del proyecto.
+* No existan regresiones.
+* No existan efectos colaterales.
+* No existan inconsistencias lógicas.
+* No se hayan roto dependencias.
+* Se conserve la arquitectura del proyecto.
 
 ---
 
 ## 10. Code Review Obligatorio
 
-Toda modificación deberá someterse obligatoriamente a un proceso de Code Review.
+Toda modificación deberá pasar por un **Code Review**.
 
-El informe deberá analizarse completamente antes de continuar.
+El informe deberá revisarse completamente antes de continuar.
 
-No podrá omitirse ninguna observación.
+Ninguna observación podrá omitirse.
 
 ---
 
-# Tratamiento del Resultado del Code Review
+# Tratamiento del Code Review
 
 ## Observaciones sin cambios requeridos
 
-Si el Code Review únicamente contiene recomendaciones, sugerencias o mejoras no obligatorias, estas podrán evaluarse sin reiniciar el proceso.
+Las recomendaciones o sugerencias podrán evaluarse sin reiniciar el procedimiento.
 
 ---
 
-## Observaciones que requieren cambios
+## Observaciones que requieren modificaciones
 
 Si el Code Review detecta:
 
-- Errores.
-- Riesgos.
-- Defectos.
-- Regresiones.
-- Observaciones bloqueantes.
-- Problemas de integración.
-- Merge Assessment desfavorable.
-- Flaws que impliquen modificaciones.
+* Errores.
+* Riesgos.
+* Defectos.
+* Regresiones.
+* Observaciones bloqueantes.
+* Problemas de integración.
+* *Merge Assessment* desfavorable.
+* *Flaws* que requieran modificaciones.
 
-Entonces deberá reiniciarse el procedimiento completo desde la **Auditoría Inicial**.
+Se deberá reiniciar el procedimiento completo desde la **Auditoría Inicial**.
 
 No se permiten correcciones parciales.
 
@@ -230,33 +224,29 @@ No se permiten correcciones parciales.
 
 ## Solicitudes de Reversión
 
-Cuando el Code Review recomiende revertir cambios, deberá realizarse una verificación obligatoria.
+### Cambios pertenecientes a trabajos anteriores
 
-### Caso 1
+Si la reversión afecta:
 
-Si los cambios sugeridos para revertirse pertenecen a:
+* Commits anteriores.
+* Tareas previamente aprobadas.
+* Funcionalidades fuera del alcance.
 
-- Commits anteriores.
-- Tareas previamente aprobadas.
-- Funcionalidades fuera del alcance actual.
+La solicitud deberá documentarse e ignorarse.
 
-La solicitud deberá ignorarse y documentarse el motivo.
+### Cambios realizados durante la tarea actual
 
-No se modificarán trabajos previamente validados.
+Si los cambios no forman parte del alcance aprobado:
 
-### Caso 2
-
-Si los cambios fueron introducidos durante la tarea actual y no forman parte del alcance aprobado:
-
-- Deberán revertirse.
-- Se documentará el motivo.
-- Se repetirá el proceso completo de verificación.
+* Revertirlos.
+* Documentar el motivo.
+* Repetir el procedimiento de verificación.
 
 ---
 
 ## Repetición del Ciclo
 
-Después de aplicar cualquier corrección derivada del Code Review deberá ejecutarse nuevamente:
+Después de cualquier corrección derivada del Code Review deberá repetirse:
 
 1. Auditoría.
 2. Registro de hallazgos.
@@ -266,64 +256,62 @@ Después de aplicar cualquier corrección derivada del Code Review deberá ejecu
 6. Comparación.
 7. Verificación funcional.
 8. Revisión de integridad.
-9. Nuevo Code Review.
+9. Code Review.
 
-El ciclo finalizará únicamente cuando el Code Review no reporte observaciones que requieran modificaciones.
+El proceso concluirá únicamente cuando el Code Review no requiera nuevas modificaciones.
 
 ---
 
 ## Limpieza del Repositorio
 
-Antes de finalizar el trabajo deberán eliminarse todos los archivos temporales generados durante el proceso, incluyendo, cuando corresponda:
+Antes de finalizar el trabajo eliminar todos los archivos temporales generados durante el desarrollo, incluyendo:
 
-- Respaldos.
-- Scripts de verificación.
-- Capturas.
-- Archivos de prueba.
-- Recursos temporales.
-- Evidencias utilizadas únicamente durante el desarrollo.
+* Respaldos.
+* Scripts temporales.
+* Capturas.
+* Archivos de prueba.
+* Recursos temporales.
+* Evidencias utilizadas únicamente durante el desarrollo.
 
-No deberán permanecer archivos temporales dentro del repositorio.
+El repositorio no deberá contener archivos temporales.
 
 ---
 
 ## Organización del Proyecto
 
-Toda nueva implementación deberá respetar la arquitectura establecida.
+Toda implementación deberá respetar la arquitectura existente.
 
-Las funciones, módulos y componentes deberán permanecer organizados por responsabilidad, evitando mezclar áreas funcionales.
+Los módulos, componentes y funciones deberán mantenerse organizados por responsabilidad, favoreciendo:
 
-La estructura del proyecto deberá favorecer:
-
-- Modularidad.
-- Bajo acoplamiento.
-- Alta cohesión.
-- Reutilización.
-- Escalabilidad.
-- Mantenibilidad.
+* Modularidad.
+* Bajo acoplamiento.
+* Alta cohesión.
+* Reutilización.
+* Escalabilidad.
+* Mantenibilidad.
 
 ---
 
 # Principios Generales
 
-Durante todo el proceso deberán respetarse las siguientes reglas:
+Durante todo el proceso deberán cumplirse las siguientes reglas:
 
-- No asumir comportamientos del código.
-- No asumir dependencias.
-- No asumir el impacto de una modificación.
-- Verificar antes de modificar.
-- Documentar antes de implementar.
-- Justificar cada cambio realizado.
-- Mantener el menor impacto posible sobre el sistema existente.
-
+* No asumir el comportamiento del código.
+* No asumir dependencias.
+* No asumir el impacto de una modificación.
+* Verificar antes de modificar.
+* Documentar antes de implementar.
+* Justificar cada cambio realizado.
+* Mantener el menor impacto posible sobre el sistema.
+* No confundir los archivos backup .bkp con los archivos oficiales.
 ---
 
 # Regla Final
 
-**Si no se audita, no se modifica.**
-
-**Si no se documenta, no existe.**
-
-**Si no se verifica, no se considera terminado.**
+> **Si no se audita, no se modifica.**
+>
+> **Si no se documenta, no existe.**
+>
+> **Si no se verifica, no se considera terminado.**
 
 El incumplimiento de cualquiera de estas etapas invalida el proceso de desarrollo.
