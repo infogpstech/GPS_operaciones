@@ -28,6 +28,52 @@ function releaseWakeLock() {
 }
 
 // ============================================================================
+// UTILERIAS COMPARTIDAS DE COINCIDENCIA Y DISTANCIA
+// ============================================================================
+function levenshteinDistance(s, t) {
+    if (!s || !t) return 99;
+    const d = [];
+    const n = s.length;
+    const m = t.length;
+    if (n === 0) return m;
+    if (m === 0) return n;
+    for (let i = 0; i <= n; i++) d[i] = [i];
+    for (let j = 0; j <= m; j++) d[0][j] = j;
+    for (let i = 1; i <= n; i++) {
+        for (let j = 1; j <= m; j++) {
+            const cost = s[i - 1] === t[j - 1] ? 0 : 1;
+            d[i][j] = Math.min(
+                d[i - 1][j] + 1,
+                d[i][j - 1] + 1,
+                d[i - 1][j - 1] + cost
+            );
+        }
+    }
+    return d[n][m];
+}
+
+function isApproximateMatch(query, text) {
+    const q = query.toLowerCase().trim();
+    const t = text.toLowerCase().trim();
+    if (t.includes(q)) return true;
+
+    const wordsQ = q.split(/\s+/);
+    const wordsT = t.split(/\s+/);
+
+    for (let wq of wordsQ) {
+        if (wq.length < 3) continue;
+        for (let wt of wordsT) {
+            if (wt.length < 3) continue;
+            const dist = levenshteinDistance(wq, wt);
+            if (dist <= 1 || (wq.length > 5 && dist <= 2)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// ============================================================================
 // RBAC UTILITY & PERMISSIONS CONFIGURATION
 // ============================================================================
 function isExtraordinarySlot(dateStr, slotStr) {
@@ -338,6 +384,8 @@ async function init() {
     setupAuthListeners();
     setupNavigationListeners();
     setupGeolocation();
+    setupGlobalSearch();
+    setupNotificationCenter();
 
     const session = localStorage.getItem(SESSION_KEY);
     if (session) {
@@ -1421,48 +1469,6 @@ function renderOrderForm(container) {
 
         loadSavedLocations();
 
-        const levenshteinDistance = (s, t) => {
-            if (!s || !t) return 99;
-            const d = [];
-            const n = s.length;
-            const m = t.length;
-            if (n === 0) return m;
-            if (m === 0) return n;
-            for (let i = 0; i <= n; i++) d[i] = [i];
-            for (let j = 0; j <= m; j++) d[0][j] = j;
-            for (let i = 1; i <= n; i++) {
-                for (let j = 1; j <= m; j++) {
-                    const cost = s[i - 1] === t[j - 1] ? 0 : 1;
-                    d[i][j] = Math.min(
-                        d[i - 1][j] + 1,
-                        d[i][j - 1] + 1,
-                        d[i - 1][j - 1] + cost
-                    );
-                }
-            }
-            return d[n][m];
-        };
-
-        const isApproximateMatch = (query, text) => {
-            const q = query.toLowerCase().trim();
-            const t = text.toLowerCase().trim();
-            if (t.includes(q)) return true;
-
-            const wordsQ = q.split(/\s+/);
-            const wordsT = t.split(/\s+/);
-
-            for (let wq of wordsQ) {
-                if (wq.length < 3) continue;
-                for (let wt of wordsT) {
-                    if (wt.length < 3) continue;
-                    const dist = levenshteinDistance(wq, wt);
-                    if (dist <= 1 || (wq.length > 5 && dist <= 2)) {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        };
 
         const saveLocationBtn = document.getElementById('save-location-btn');
         if (saveLocationBtn) {
@@ -4573,6 +4579,349 @@ async function renderTicketPostView(container, order) {
     } catch (e) {
         container.innerHTML = `<p class="error-msg">Error al conectar con el servidor: ${e.message}</p>`;
     }
+}
+
+// ============================================================================
+// BUSQUEDA GLOBAL Y ACCIONES RAPIDAS (TRECEAVO)
+// ============================================================================
+function setupGlobalSearch() {
+    const searchInput = document.getElementById('global-search-input');
+    const searchResults = document.getElementById('global-search-results');
+    if (!searchInput || !searchResults) return;
+
+    searchInput.addEventListener('input', async () => {
+        const val = searchInput.value.trim().toLowerCase();
+        searchResults.innerHTML = '';
+        if (val.length < 2) {
+            searchResults.style.display = 'none';
+            return;
+        }
+
+        try {
+            const res = await routeAction('GOS_CORE', 'getOrders');
+            if (res.status === 'success') {
+                const orders = res.data || [];
+
+                const matches = orders.filter(o => {
+                    const fields = [
+                        o.id?.toString(),
+                        o.cliente,
+                        o.contacto,
+                        o.vin,
+                        o.placa,
+                        o.marca,
+                        o.modelo,
+                        o.tecnicoasignado,
+                        o.vendedor,
+                        o.direccion,
+                        o.servicio,
+                        o.estado
+                    ];
+                    return fields.some(f => {
+                        const valStr = (f || '').toString().toLowerCase().trim();
+                        return valStr.includes(val) || (val.length >= 3 && levenshteinDistance(val, valStr) <= 2);
+                    });
+                });
+
+                if (matches.length > 0) {
+                    searchResults.style.display = 'block';
+                    matches.forEach(o => {
+                        const div = document.createElement('div');
+                        div.className = 'suggestion-item';
+                        div.style.padding = '10px';
+                        div.style.cursor = 'pointer';
+                        div.style.borderBottom = '1px solid #eee';
+                        div.innerHTML = `
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <span style="font-weight:bold; color:var(--primary);">OT-#${o.id}</span>
+                                <span class="badge" style="background:#e8f4fd; color:#1a73e8; font-size:0.7rem;">${o.estado}</span>
+                            </div>
+                            <div style="font-size:0.8rem; color:var(--dark); margin-top:2px;">
+                                👤 <strong>Clte:</strong> ${o.cliente || 'S/N'} | 🚗 ${o.marca || ''} ${o.modelo || ''} (${o.placa || 'Sin placa'})
+                            </div>
+                            <div style="font-size:0.75rem; color:var(--secondary); margin-top:2px;">
+                                🛠️ <strong>Téc:</strong> ${o.tecnicoasignado || 'Sin asignar'} | 📅 ${o.fecha || ''} ${o.hora || ''}
+                            </div>
+                        `;
+
+                        div.onclick = () => {
+                            searchInput.value = '';
+                            searchResults.style.display = 'none';
+                            showOrderDetailsModal(o);
+                        };
+                        searchResults.appendChild(div);
+                    });
+                } else {
+                    searchResults.innerHTML = '<p style="color:var(--secondary); font-style:italic; font-size:0.8rem; padding:10px; margin:0; text-align:center;">No se encontraron resultados aproximados</p>';
+                    searchResults.style.display = 'block';
+                }
+            }
+        } catch (err) {
+            console.error("Error global search:", err);
+        }
+    });
+
+    document.addEventListener('click', (e) => {
+        if (e.target !== searchInput) {
+            searchResults.style.display = 'none';
+        }
+    });
+}
+
+function showOrderDetailsModal(o) {
+    const secureToken = o.token || 'tok_' + o.id;
+    const portalUrl = `${window.location.origin}/portal.html?ot=${o.id}&token=${secureToken}`;
+
+    const modalContentHtml = `
+        <div style="text-align:left; line-height:1.5; font-size:0.9rem; max-height:450px; overflow-y:auto;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:8px;">
+                <h4 style="margin:0; color:var(--primary); font-size:1.1rem;">Detalles de la Orden OT-#${o.id}</h4>
+                <span class="badge badge-pendiente" style="font-size:0.8rem;">${o.estado}</span>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;">
+                <div>👤 <strong>Cliente:</strong> ${o.cliente || 'S/N'}</div>
+                <div>📞 <strong>Teléfono:</strong> ${o.telefono || 'N/A'}</div>
+                <div style="grid-column: 1 / -1;">🏠 <strong>Dirección:</strong> ${o.contacto || 'No especificada'}</div>
+                <div style="grid-column: 1 / -1;">📍 <strong>Instalación en:</strong> ${o.direccion || 'No especificada'}</div>
+                <div>🚗 <strong>Vehículo:</strong> ${o.marca || ''} ${o.modelo || ''} (${o.anio || ''})</div>
+                <div>🎨 <strong>Color:</strong> ${o.color || 'N/A'} | 🔢 <strong>Placa:</strong> ${o.placa || 'N/A'}</div>
+                <div style="grid-column: 1 / -1;">🆔 <strong>VIN/Chasis:</strong> ${o.vin || 'N/A'}</div>
+                <div>💼 <strong>Vendedor:</strong> ${o.vendedor || 'S/V'}</div>
+                <div>🛠️ <strong>Técnico:</strong> ${o.tecnicoasignado || 'Sin asignar'}</div>
+                <div>📅 <strong>Fecha:</strong> ${o.fecha || ''}</div>
+                <div>⏱️ <strong>Hora:</strong> ${o.hora || ''}</div>
+            </div>
+
+            <div style="border-top:1px solid #eee; padding-top:10px; margin-top:10px;">
+                <strong>📋 Inventario / Notas:</strong>
+                <p style="margin:5px 0; font-size:0.8rem; background:#f8f9fa; padding:8px; border-radius:4px; color:var(--secondary);">${o.inventario || 'Ninguno'}</p>
+            </div>
+
+            <div style="border-top:1px solid #eee; padding-top:10px; margin-top:10px;">
+                <strong>💡 Acciones Rápidas (Shortcuts):</strong>
+                <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+                    <button class="btn btn-sm btn-primary" id="act-open-agenda" style="font-size:0.75rem; padding:5px 8px;">📅 Abrir Agenda</button>
+                    <button class="btn btn-sm btn-outline" id="act-open-drive" style="font-size:0.75rem; padding:5px 8px;">📂 Abrir Drive</button>
+                    <button class="btn btn-sm btn-outline" id="act-open-maps" style="font-size:0.75rem; padding:5px 8px;">📍 Ver Mapa</button>
+                    <button class="btn btn-sm btn-secondary" id="act-view-ticket-pre" style="font-size:0.75rem; padding:5px 8px;">🎟️ Ticket Pre</button>
+                    ${['instalacion completada', 'terminando la instalacion', 'terminando la instalación'].includes((o.estado || '').toLowerCase().trim()) ? `<button class="btn btn-sm btn-success" id="act-deliver-vehicle" style="font-size:0.75rem; padding:5px 8px;">🤝 Entregar Vehículo</button>` : ''}
+                    ${['pendiente', 'asignada'].includes((o.estado || '').toLowerCase().trim()) ? `<button class="btn btn-sm btn-secondary" id="act-start-transit" style="font-size:0.75rem; padding:5px 8px;">🚚 Iniciar camino</button>` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+
+    UI_TEMPLATES.modal(
+        `OT-#${o.id} - Búsqueda Rápida`,
+        modalContentHtml,
+        () => {}, // Empty confirm
+        () => {}  // Empty cancel
+    );
+
+    const modalConfirmBtn = document.getElementById('modal-confirm');
+    if (modalConfirmBtn) {
+        modalConfirmBtn.textContent = 'Cerrar';
+        modalConfirmBtn.className = 'btn btn-secondary';
+    }
+    const modalCancelBtn = document.getElementById('modal-cancel');
+    if (modalCancelBtn) modalCancelBtn.style.display = 'none';
+
+    document.getElementById('act-open-agenda').onclick = () => {
+        document.querySelector('.modal-overlay')?.remove();
+        loadSection('agenda');
+    };
+    document.getElementById('act-open-drive').onclick = () => {
+        openDrive(o.id, o.cliente);
+    };
+    document.getElementById('act-open-maps').onclick = () => {
+        openMaps(o.coordenadas);
+    };
+    document.getElementById('act-view-ticket-pre').onclick = () => {
+        document.querySelector('.modal-overlay')?.remove();
+        const contentEl = document.getElementById('section-content');
+        renderTicketPreView(contentEl, o);
+    };
+    const deliverBtn = document.getElementById('act-deliver-vehicle');
+    if (deliverBtn) {
+        deliverBtn.onclick = () => {
+            document.querySelector('.modal-overlay')?.remove();
+            const contentEl = document.getElementById('section-content');
+            renderPostInstallationForm(contentEl, o);
+        };
+    }
+    const startTransitBtn = document.getElementById('act-start-transit');
+    if (startTransitBtn) {
+        startTransitBtn.onclick = () => {
+            document.querySelector('.modal-overlay')?.remove();
+            markStatus(o.id, 'En Camino');
+        };
+    }
+}
+
+// ============================================================================
+// CENTRO DE NOTIFICACIONES CENTRALIZADO (TRECEAVO)
+// ============================================================================
+let systemNotifications = [];
+
+async function updateNotifications() {
+    const listEl = document.getElementById('notification-items-list');
+    const counterEl = document.getElementById('notification-counter');
+    if (!listEl || !counterEl) return;
+
+    try {
+        const res = await routeAction('GOS_CORE', 'getOrders');
+        if (res.status === 'success') {
+            const orders = res.data || [];
+            systemNotifications = []; // Recalculate
+
+            const now = new Date();
+            const todayStr = now.toISOString().split('T')[0];
+
+            orders.forEach(o => {
+                const statusLower = (o.estado || '').toLowerCase().trim();
+
+                // 1. Trabajos retrasados
+                if (statusLower === 'trabajo retrasado' || statusLower === 'retrasado') {
+                    systemNotifications.push({
+                        id: o.id,
+                        order: o,
+                        type: 'Retraso',
+                        priority: 'Máxima',
+                        date: o.fecha || todayStr,
+                        status: o.estado,
+                        message: `⚠️ OT-#${o.id} presenta retraso.`,
+                        actionLabel: 'Ver Detalles',
+                        action: () => showOrderDetailsModal(o)
+                    });
+                }
+
+                // 2. Espera prolongada (>40 min)
+                if (statusLower === 'vehiculo no disponible' || statusLower === 'vehículo no disponible') {
+                    const waitMin = getWaitTimeInMinutes(o);
+                    if (waitMin > 40) {
+                        systemNotifications.push({
+                            id: o.id,
+                            order: o,
+                            type: 'Espera',
+                            priority: 'Alta',
+                            date: o.fecha || todayStr,
+                            status: o.estado,
+                            message: `⏳ OT-#${o.id} en espera prolongada (${waitMin} min).`,
+                            actionLabel: 'Revisar Espera',
+                            action: () => showOrderDetailsModal(o)
+                        });
+                    }
+                }
+
+                // 3. Citas próximas (scheduled for today starting in < 60 minutes)
+                if (o.fecha === todayStr && ['pendiente', 'asignada'].includes(statusLower) && o.hora) {
+                    const match = o.hora.match(/^(\d{2}):(\d{2})/);
+                    if (match) {
+                        const h = parseInt(match[1]);
+                        const m = parseInt(match[2]);
+                        const apptTime = new Date(`${todayStr}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`);
+                        const diffMs = apptTime - now;
+                        const diffMin = Math.floor(diffMs / (1000 * 60));
+
+                        if (diffMin >= 0 && diffMin <= 60) {
+                            systemNotifications.push({
+                                id: o.id,
+                                order: o,
+                                type: 'Próxima',
+                                priority: 'Normal',
+                                date: o.fecha,
+                                status: o.estado,
+                                message: `📅 OT-#${o.id} programada para iniciar en ${diffMin} min.`,
+                                actionLabel: 'Ver Cita',
+                                action: () => showOrderDetailsModal(o)
+                            });
+                        }
+                    }
+                }
+            });
+
+            const count = systemNotifications.length;
+            if (count > 0) {
+                counterEl.textContent = count;
+                counterEl.style.display = 'flex';
+            } else {
+                counterEl.style.display = 'none';
+            }
+
+            if (count === 0) {
+                listEl.innerHTML = '<p style="color:var(--secondary); font-style:italic; font-size:0.8rem; margin:0; padding:10px; text-align:center;">No hay notificaciones activas</p>';
+            } else {
+                let html = '';
+                systemNotifications.forEach((n, idx) => {
+                    const isMax = n.priority === 'Máxima';
+                    const isHigh = n.priority === 'Alta';
+                    const badgeBg = isMax ? '#dc3545' : (isHigh ? '#fd7e14' : '#28a745');
+
+                    html += `
+                        <div class="notification-item" style="border-left: 4px solid ${badgeBg}; background:#f8fafc; padding:8px; border-radius:4px; font-size:0.8rem; box-shadow:0 1px 3px rgba(0,0,0,0.05); display:flex; flex-direction:column; gap:4px; text-align:left;">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <span class="badge" style="background:${badgeBg}; color:white; font-size:0.65rem; padding:1px 5px; text-transform:none;">${n.type} [${n.priority}]</span>
+                                <small style="color:var(--secondary); font-size:0.7rem;">${n.date}</small>
+                            </div>
+                            <div style="color:var(--dark); font-weight:500;">${n.message}</div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:3px; border-top:1px solid #edf2f7; padding-top:4px;">
+                                <small style="color:var(--secondary);"><strong>Recomendado:</strong> ${n.type === 'Retraso' ? 'Reasignar' : (n.type === 'Espera' ? 'Adelantar' : 'Preparar')}</small>
+                                <button class="btn btn-sm btn-primary" onclick="triggerNotificationAction(${idx})" style="padding:1px 6px; font-size:0.7rem;">${n.actionLabel}</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                listEl.innerHTML = html;
+            }
+        }
+    } catch (err) {
+        console.error("Error updating notifications:", err);
+    }
+}
+
+window.triggerNotificationAction = (idx) => {
+    const notif = systemNotifications[idx];
+    if (notif && notif.action) {
+        const dropdown = document.getElementById('notification-dropdown');
+        if (dropdown) dropdown.style.display = 'none';
+        notif.action();
+    }
+};
+
+function setupNotificationCenter() {
+    const bell = document.getElementById('nav-notification-bell');
+    const dropdown = document.getElementById('notification-dropdown');
+    const clearLink = document.getElementById('clear-notifications-link');
+    if (!bell || !dropdown) return;
+
+    bell.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const show = dropdown.style.display === 'none' || !dropdown.style.display;
+        dropdown.style.display = show ? 'block' : 'none';
+    });
+
+    if (clearLink) {
+        clearLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            systemNotifications = [];
+            const listEl = document.getElementById('notification-items-list');
+            const counterEl = document.getElementById('notification-counter');
+            if (listEl) listEl.innerHTML = '<p style="color:var(--secondary); font-style:italic; font-size:0.8rem; margin:0; padding:10px; text-align:center;">No hay notificaciones activas</p>';
+            if (counterEl) counterEl.style.display = 'none';
+            dropdown.style.display = 'none';
+        });
+    }
+
+    document.addEventListener('click', (e) => {
+        if (!dropdown.contains(e.target) && e.target !== bell) {
+            dropdown.style.display = 'none';
+        }
+    });
+
+    updateNotifications();
+    setInterval(updateNotifications, 30000);
 }
 
 // Registro de Service Worker para PWA

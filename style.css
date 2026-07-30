@@ -781,6 +781,35 @@ header h2 {
     }
 }
 
+/* TRECEAVO: Búsqueda Global y Centro de Notificaciones */
+#global-search-results {
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    max-height: 280px;
+}
+
+.suggestion-item:hover {
+    background: #f1f5f9;
+}
+
+#notification-dropdown {
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+}
+
+.notification-item {
+    transition: background-color 0.2s ease;
+}
+
+.notification-item:hover {
+    background-color: #f1f5f9 !important;
+}
+
+.navbar-notifications-container:hover #nav-notification-bell {
+    transform: scale(1.1);
+}
+
 /* Portal de Clientes */
 .portal-container {
     max-width: 600px;
