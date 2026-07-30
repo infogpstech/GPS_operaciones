@@ -3418,3 +3418,408 @@ Deberá eliminarse completamente de la interfaz y dejar de formar parte del fluj
     - Si tiene exactamente un vehículo, se autocompleta cliente y vehículo.
     - Si tiene múltiples vehículos, se autocompleta cliente y se deja vacío el vehículo.
     - Al escribir la marca de vehículo se mostrará un autocompletado con los vehículos registrados a su nombre en formato "Marca | Modelo | Placa | Chasis (últimos 6 dígitos)" y al seleccionar se completará toda su información.
+
+### QUINCEAVO
+
+# Nuevas Implementaciones: Separación entre Orden de Instalación y Orden de Trabajo
+
+## Separación de Conceptos
+
+La plataforma deberá diferenciar claramente entre una **Orden de Instalación** y una **Orden de Trabajo**, ya que representan etapas distintas del proceso operativo.
+
+Aunque ambas estarán relacionadas, tendrán objetivos, responsables y flujos independientes.
+
+---
+
+# Orden de Instalación
+
+La **Orden de Instalación** será el documento generado por el usuario con rol de:
+
+- Asesor de ventas.
+- Jefe de división.
+
+Esta orden se creará automáticamente al completar el formulario abierto desde la opción **Reservar cupo** en la Agenda.
+
+La Orden de Instalación será el documento que contiene toda la información comercial y de planificación necesaria para programar el trabajo.
+
+---
+
+## Asignación Automática
+
+Una vez confirmada la Orden de Instalación, el sistema deberá asignarla automáticamente a un técnico considerando las reglas previamente definidas.
+
+Como mínimo deberá respetar:
+
+- Disponibilidad del técnico.
+- División correspondiente.
+- Horario del turno.
+- Carga de trabajo.
+- Reglas de prioridad.
+- Reasignaciones automáticas.
+- Horarios extraordinarios.
+- Descansos obligatorios.
+- Orden cronológico de asignaciones.
+
+---
+
+## Información Disponible para el Técnico
+
+Cuando una Orden de Instalación sea asignada, el técnico deberá visualizar toda la información registrada por el asesor de ventas o el jefe de división.
+
+Como mínimo deberá incluir:
+
+### Información del Cliente
+
+- Nombre del cliente.
+- Dirección del cliente.
+- Número telefónico del cliente.
+
+---
+
+### Información del Servicio
+
+- Servicio contratado.
+- Nombre del servicio.
+- Tipo de servicio (cuando corresponda).
+
+Ejemplo:
+
+- Tracklink.
+- Controlcar.
+
+Si el servicio es **Tracklink**, deberá mostrarse también el tipo de servicio seleccionado.
+
+---
+
+### Información de la Instalación
+
+- Dirección donde se realizará la instalación.
+
+Si la instalación es local, este campo permanecerá vacío y el sistema deberá interpretar que el trabajo se realizará en la oficina correspondiente a la división del usuario que creó la orden.
+
+---
+
+### Información del Vehículo
+
+La Orden de Instalación deberá contener:
+
+- Marca.
+- Modelo.
+- Año.
+- Color.
+- Número de placa (si existe).
+- Número de inventario (cuando aplique).
+- Número de motor.
+- Número de VIN o chasis.
+
+---
+
+### Persona de Contacto
+
+Además del cliente, deberá registrarse la persona que entregará el vehículo al técnico.
+
+Como mínimo deberá incluir:
+
+- Nombre del contacto.
+- Número telefónico del contacto.
+
+---
+
+# Impresión de la Orden de Instalación
+
+Cada Orden de Instalación deberá poder imprimirse.
+
+La impresión deberá incluir:
+
+- Código QR.
+- Información del cliente.
+- Información del vehículo.
+- Información del servicio.
+- Información de la instalación.
+
+---
+
+# Recepción del Vehículo
+
+La Orden de Instalación deberá incluir la opción:
+
+**Recibir vehículo**
+
+Al seleccionarla, el técnico iniciará el proceso de recepción.
+
+---
+
+## Validación del Vehículo
+
+Como parte de la recepción, el técnico deberá ingresar manualmente el número VIN completo del vehículo.
+
+El sistema utilizará esta información para validar que el vehículo recibido corresponde a la Orden de Instalación.
+
+Una vez validado el VIN, toda la información de la Orden de Instalación deberá transferirse automáticamente a la Orden de Trabajo del técnico.
+
+---
+
+# Identificador de la Orden de Trabajo
+
+Cada Orden de Trabajo deberá tener un identificador único.
+
+El identificador podrá:
+
+- Generarse automáticamente por el sistema.
+- Ser asignado manualmente cuando la operación así lo requiera.
+
+---
+
+# Sistema Híbrido de Numeración
+
+Durante la transición hacia el nuevo sistema, la plataforma deberá soportar un esquema híbrido de numeración.
+
+Deberá permitir:
+
+- Continuar utilizando números de orden existentes.
+- Generar automáticamente nuevas órdenes consecutivas a partir de un número base definido por la empresa.
+
+Esta funcionalidad deberá ser configurable.
+
+---
+
+## Configuración de Numeración
+
+Los usuarios con rol de **Jefe de división** deberán poder configurar desde el panel administrativo:
+
+- Número inicial.
+- Método de generación.
+- Activación o desactivación de la numeración automática.
+
+---
+
+# Firma Digital del Técnico
+
+La Orden de Trabajo deberá incluir la firma digital del técnico.
+
+Cada técnico podrá registrar su firma una única vez.
+
+La firma quedará almacenada para usos posteriores.
+
+---
+
+## Eliminación de la Firma
+
+La firma registrada únicamente podrá eliminarse desde el panel administrativo por un usuario con rol de Jefe de división.
+
+---
+
+## Firma Automática
+
+Cuando el técnico deba firmar una Orden de Trabajo, el sistema deberá ofrecer la opción de utilizar la firma previamente registrada.
+
+Antes de aplicarla deberá solicitar una confirmación de identidad.
+
+La autenticación deberá seguir el siguiente orden de prioridad:
+
+1. Autenticación biométrica del dispositivo.
+2. Contraseña del usuario cuando el dispositivo no disponga de autenticación biométrica.
+
+---
+
+# Estados de la Orden de Trabajo
+
+La Orden de Trabajo estará compuesta por dos etapas principales.
+
+## Recepción del Vehículo
+
+Corresponde al momento en que el técnico recibe el vehículo antes de iniciar el trabajo.
+
+Esta etapa deberá incluir:
+
+- Formulario de recepción.
+- Inspección visual.
+- Evidencias fotográficas.
+- Firma del técnico.
+- Firma del cliente.
+
+Al finalizar deberá generarse un documento imprimible con código QR.
+
+El código QR permitirá al cliente consultar:
+
+- Resultados de la inspección.
+- Carrusel de evidencias.
+- Información autorizada del trabajo.
+
+---
+
+## Post Instalación
+
+Corresponde al proceso de entrega del vehículo.
+
+Esta etapa deberá incluir:
+
+- Firma del técnico.
+- Firma del cliente.
+- Confirmación de entrega.
+- Documento imprimible actualizado.
+- Código QR actualizado.
+
+---
+
+# Información Compartida entre Ambos Estados
+
+Tanto en la recepción como en la entrega deberán mostrarse:
+
+## Cliente
+
+- Nombre.
+- Dirección.
+- Teléfono.
+
+## Vehículo
+
+- Marca.
+- Modelo.
+- Año.
+- Color.
+- Placa.
+- Número de inventario.
+- Número de motor.
+- VIN.
+
+## Servicio
+
+- Servicio contratado.
+- Tipo de servicio.
+
+## Instalación
+
+- Dirección donde se realizó.
+- Fecha y hora de recepción.
+
+La fecha y hora de recepción deberán obtenerse automáticamente cuando el técnico abra la Orden de Instalación y comience el proceso de recepción.
+
+---
+
+# Evidencias
+
+La Orden de Trabajo deberá almacenar:
+
+- Fotografías.
+- Observaciones.
+- Resultados de la inspección.
+
+Esta información formará parte del historial de la orden.
+
+---
+
+# Información Exclusiva para Uso Interno
+
+La siguiente información deberá estar disponible únicamente para usuarios autorizados y no deberá incluirse en el código QR destinado al cliente:
+
+- IMEI del dispositivo GPS.
+- SIM instalada.
+- Información técnica interna.
+- Datos de programación.
+
+---
+
+# Información Visible para el Cliente
+
+El cliente únicamente podrá visualizar las funcionalidades instaladas en su vehículo.
+
+Como mínimo deberá mostrarse:
+
+- Dispositivo GPS.
+- Segundo dispositivo GPS (cuando exista).
+- Bloqueo remoto.
+- Apertura de puertas.
+- Botón de pánico.
+- Micrófono.
+- Parlante.
+- Funcionalidades adicionales instaladas.
+
+No deberá mostrarse información técnica sobre el método utilizado para implementar cada función.
+
+---
+
+# Segundo Dispositivo GPS
+
+La Orden de Trabajo deberá permitir indicar que el vehículo recibió un segundo dispositivo GPS.
+
+Al activar esta opción, el sistema deberá habilitar automáticamente un segundo bloque para registrar la información correspondiente.
+
+---
+
+# Registro de Funcionalidades Instaladas
+
+Antes de iniciar las pruebas con monitoreo, el sistema deberá solicitar al técnico que indique las funcionalidades instaladas durante el trabajo.
+
+Las opciones disponibles serán:
+
+- Dispositivo GPS.
+- Segundo dispositivo GPS.
+- Apagado remoto.
+- Apertura de puertas.
+- Botón de pánico.
+- Micrófono.
+- Parlante.
+- Otra funcionalidad.
+
+---
+
+## Tipos de Apagado Remoto
+
+Cuando el técnico seleccione **Apagado remoto**, el sistema deberá solicitar el tipo implementado.
+
+Opciones disponibles:
+
+- Corte por ignición.
+- Corte por bomba de combustible.
+- Bloqueo de arranque.
+
+Esta información será exclusivamente para uso interno.
+
+En la información visible para el cliente únicamente deberá mostrarse un indicador que confirme que el vehículo dispone de la funcionalidad **Bloqueo remoto**, sin especificar el método utilizado.
+
+---
+
+# Funcionalidades Adicionales
+
+La opción:
+
+**Otra funcionalidad**
+
+Deberá habilitar un campo de texto libre.
+
+El técnico registrará el nombre exacto de la funcionalidad instalada.
+
+Ese mismo texto será el que visualizará el cliente, evitando mostrar etiquetas genéricas como "Otras funcionalidades".
+
+---
+
+# Registro Automático de Eventos
+
+La Orden de Trabajo deberá registrar automáticamente las siguientes marcas de tiempo:
+
+- Fecha y hora de recepción del vehículo.
+- Fecha y hora de inicio del trabajo.
+- Fecha y hora de pruebas con monitoreo.
+- Fecha y hora de finalización del trabajo.
+- Fecha y hora en que el técnico abandonó el lugar de instalación.
+- Fecha y hora de entrega del vehículo al cliente.
+
+Todas estas marcas deberán almacenarse automáticamente sin requerir captura manual.
+
+---
+
+# Almacenamiento del Número de Orden
+
+El identificador único de la Orden de Trabajo deberá almacenarse automáticamente como parte del historial permanente del sistema.
+
+Este identificador deberá utilizarse para relacionar:
+
+- Orden de Instalación.
+- Orden de Trabajo.
+- Evidencias.
+- Historial.
+- Reportes.
+- Auditoría.
+- Documentación generada.
+```
