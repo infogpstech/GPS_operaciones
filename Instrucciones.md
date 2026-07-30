@@ -20,6 +20,11 @@ Como parte obligatoria de cada nueva auditoría, el desarrollador deberá revisa
 
 La auditoría no podrá considerarse finalizada mientras exista al menos una solicitud registrada anteriormente que continúe pendiente, haya sido implementada parcialmente o no cumpla el alcance solicitado.
 
+Registrar en Instrucciones.txt una nueva entrada con las implementaciones solicitadas en este prompt, conservando exactamente la redacción original.
+Auditar que los requerimientos registrados previamente en Instrucciones.txt hayan sido implementados correctamente.
+Registrar en la sección de auditoría los nuevos requerimientos, describiéndolos tal como fueron comprendidos y planificados por el agente desarrollador.
+No solicitar confirmación al usuario sobre el enfoque de implementación; completar el trabajo sin interrupciones.
+Finalizar todas las implementaciones en un único commit, siempre que sea posible. Si no es posible, registrar en Instrucciones.txt las tareas o implementaciones que queden pendientes.
 
 La auditoría deberá realizarse:
 
