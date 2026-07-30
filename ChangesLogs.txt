@@ -213,3 +213,25 @@
   - Modificada la validación de cupos en el formulario de órdenes para consultar la capacidad dinámicamente según la cantidad de técnicos activos de la división (Línea 1475).
 - **Frontend (index.html):**
   - Sincronizada la versión de compilación visible del sistema a v0.7.0 (Línea 56).
+
+## [v0.7.1] - 2025-05-24
+### Bloque Doceavo de Nuevas Implementaciones y Actualizaciones
+- **index.html:**
+  - Agregados los CDN de hojas de estilo (Línea 9) y scripts (Línea 10) para la integración de Leaflet Map.
+  - Renombrada la opción de navegación de "Dashboard" a "Planificación de la semana" (Línea 44) y reordenado el navbar para colocar "Reportes" adyacente a esta.
+- **style.css:**
+  - Agregado el estilo para `#welcome-msg` (Línea 26) para reducir el tamaño de fuente y compactar el saludo del encabezado.
+  - Agregado el estilo para `header h2` (Línea 31) para reducir el espaciado vertical.
+- **main.js:**
+  - Modificado el enrutador en `showMainView` (Líneas 1640-1660) para establecer 'agenda' como la sección inicial para todos los roles de usuario.
+  - Removido el redireccionamiento para técnicos en `loadSection` (Líneas 465-475) permitiéndoles el acceso libre a la Agenda.
+  - Reubicada toda la información estadística consolidada y gráficos administrativos (`renderAdminMetricsModule`) dentro de la pestaña `Reportes` (`renderReportsModule`) (Líneas 511-540) para roles privilegiados.
+  - Implementado el filtrado de agenda semanal para ocultar domingos y slots de sábados tarde por defecto, y reactivar domingo en caso de reservas activas (Líneas 871-875).
+  - Añadido el select dinámico en `#order-hora` (Línea 178) con soporte de slots normales y extraordinarios.
+  - Implementados los botones de agendamiento extraordinario (+) en `renderAgendaModule` (Líneas 941-1055) y el método global `bookExtraordinarySlot` (Líneas 1090-1110) para pre-rellenar datos.
+  - Añadida la regla de negocio para restringir el guardado de extraordinarios a Borrador para Asesores en `renderOrderForm` y el validador de envío (Líneas 1224-1275, 1603-1610).
+  - Implementada la pre-carga automática de fecha libre disponible con `initDateAutocomplete` (Línea 1214) al abrir el formulario.
+  - Añadido el banner `#retraso-warning-msg` (Línea 267) y el calculador dinámico `checkRetrasoWarning` (Línea 1332) para alertas de retraso de 10+ minutos con asignaciones subsecuentes.
+  - Reemplazado el campo 'Contacto' por 'Dirección del cliente' (Línea 194).
+  - Integrado el mapa abierto de Leaflet en el formulario de creación de órdenes para captura interactiva de coordenadas, geocodificación reversa de direcciones vía Nominatim, detección de duplicados en radio de 50-100m, y parseo automático de enlaces Google Maps (Líneas 1420-1530).
+  - Ocultados de la vista del usuario los campos coordenadas, división, enlace y removida categoría del vehículo.

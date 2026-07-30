@@ -3386,3 +3386,19 @@ Cada decisión de diseño, arquitectura o implementación deberá responder al s
 
 
 
+
+
+### TAREAS PENDIENTES DE REVISIÓN POR EL MP
+
+- **DOCEAVO: Nuevas Implementaciones y Actualizaciones (Pendiente de revisión por el PM):**
+  - Pantalla inicial establecida como Agenda de forma unificada.
+  - Reubicación de Dashboard como sección Reportes adyacente a Planificación de la semana.
+  - Compactación de saludo de bienvenida en el encabezado.
+  - Visibilidad selectiva de columnas de Agenda (Domingo oculto si no hay citas, sábado tarde oculto por defecto).
+  - Botones (+) de agendamiento extraordinario para Asesores/Jefes.
+  - Restricción de agendamiento extraordinario para Asesores (solo Borrador).
+  - Autocompletado inteligente de Fecha y Hora en Formulario.
+  - Banner de advertencia de inicio retrasado (10+ min tarde con citas subsecuentes).
+  - Reemplazo de Contacto por Dirección del cliente.
+  - Unificación de ubicaciones, mapa interactivo Leaflet (OpenStreetMap), reverse geocoding con Nominatim, parser de Google Maps y regla de proximidad de 50-100m.
+  - Ocultación de coordenadas, link de maps, división y categoría de vehículo.

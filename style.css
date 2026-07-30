@@ -23,6 +23,16 @@ body {
     padding: 10px 15px; /* Relleno compacto */
 }
 
+#welcome-msg {
+    font-size: 1.25rem !important; /* Tamaño reducido para compactar el saludo */
+    margin: 5px 0 !important;
+}
+
+header h2 {
+    font-size: 1.1rem !important;
+    margin: 3px 0 !important;
+}
+
 /* Auth Styles */
 .login-container {
     height: 100vh;

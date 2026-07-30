@@ -290,3 +290,33 @@ ARCHIVO: main.js
 
 ARCHIVO: index.html
 - Estructura: Es compatible con PWA y tiene un layout responsivo. Se debe asegurar la integración con el nuevo dashboard de administración y restringir secciones según el rol.
+
+==============================================
+AUDITORÍA INTEGRAL GOS v0.7.1 - NUEVAS IMPLEMENTACIONES (DOCEAVO)
+==============================================
+Fecha: 2026-07-30
+Versión Auditada: GOS v0.7.0 / GOS-CORE v1.3.0
+
+JUSTIFICACIÓN DE LA AUDITORÍA (REGISTRO DE SOLICITUDES PREVIO):
+Se auditan las siguientes solicitudes originadas en Instrucciones.txt bloque DOCEAVO:
+1. PANTALLA INICIAL: La pestaña Agenda debe ser la vista inicial para todos los usuarios.
+2. REUBICACIÓN DEL DASHBOARD: Dashboard administrativo existente pasa a ser "Reportes", ubicado junto a "Planificación de la semana" (antiguo Dashboard).
+3. ENCABEZADO: Reducir tamaño del saludo "Hola, Usuario".
+4. AGENDA - DOMINGO Y SÁBADO TARDE: Ocultos por defecto. Domingo se muestra solo si hay citas.
+5. CUPOS EXTRAORDINARIOS: Botones (+) para Asesores y Jefes antes y después de turnos; y el sábado para sábado tarde y domingo.
+6. REGLAS DE RESERVA: Asesores solo guardan como Borrador en extraordinario. Jefes pueden aprobar/confirmar.
+7. FORMULARIO DE AGENDAMIENTO: Unificado con Orden de Trabajo. Autocompletado de Fecha y Hora.
+8. ADVERTENCIA DE RETRASO: Banner de aviso si reserva es >10m tarde y hay citas subsecuentes.
+9. INFORMACIÓN DEL CLIENTE: Campo Contacto se reemplaza por Dirección del cliente.
+10. GESTIÓN DE UBICACIONES Y LEAFLET: Campo unificado Autocompletado de ubicaciones, mapa Leaflet con selección interactiva, parseo de links de Google Maps, ocultación de coordenadas y exclusión de guardado en radio de 50-100m de guardada.
+11. CAMPOS OCULTOS Y REMOVIDOS: Ocultar coordenadas, link maps, división y remover categoría de vehículo.
+
+HALLAZGOS:
+- La vista inicial está cargando 'dashboard' en lugar de 'agenda'.
+- Falta la reubicación de estadísticas administrativas a la pestaña de 'reportes'.
+- El botón de Agenda está oculto para técnicos en el navbar y loadSection redirige a dashboard.
+- Faltan los botones (+) para cupos extraordinarios en el calendario de la agenda.
+- El campo 'Contacto' aún no ha sido reemplazado por 'Dirección del cliente'.
+- No se ha implementado el mapa interactivo abierto de Leaflet ni el geocoding.
+- Falta unificar los campos de ubicación y buscar ubicaciones en uno solo.
+- Coordenadas y links de mapas siguen visibles en el formulario de creación de órdenes.
