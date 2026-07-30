@@ -203,6 +203,16 @@
                     </div>
                 </div>
 
+                <!-- Funcionalidades Instaladas -->
+                <div class="portal-card">
+                    <h3>Funcionalidades Instaladas en el Vehículo</h3>
+                    <div style="display:flex; flex-wrap:wrap; gap:10px;">
+                        ${(serv.funcionalidades || ["Dispositivo GPS"]).map(f => `
+                            <span class="badge" style="background:#e6fffa; color:#0d5a4d; font-size:0.85rem; padding:6px 12px; border:1px solid #b2f5ea; border-radius:15px; font-weight:600;">✅ ${f}</span>
+                        `).join('')}
+                    </div>
+                </div>
+
                 <!-- Información del Personal Autorizado -->
                 <div class="portal-card">
                     <h3>Personal Asignado</h3>
