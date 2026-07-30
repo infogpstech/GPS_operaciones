@@ -14,7 +14,12 @@
 
 ## 1. Auditoría Inicial
 
-Antes de realizar cualquier modificación se deberá efectuar una auditoría técnica completa del alcance de la tarea.
+Antes de realizar cualquier modificación efectuar una auditoría técnica completa del alcance de la tarea.
+
+Como parte obligatoria de cada nueva auditoría, el desarrollador deberá revisar el registro generado en la auditoría inmediatamente anterior y comprobar que **todas las solicitudes documentadas en Instrucciones.txt y en Auditoria.txt fueron implementadas correctamente**.
+
+La auditoría no podrá considerarse finalizada mientras exista al menos una solicitud registrada anteriormente que continúe pendiente, haya sido implementada parcialmente o no cumpla el alcance solicitado.
+
 
 La auditoría deberá realizarse:
 
@@ -23,7 +28,21 @@ La auditoría deberá realizarse:
 - Función por función.
 - Bloque por bloque.
 
-Durante esta etapa se deberá identificar como mínimo:
+Durante la etapa de auditoría, **antes del registro de hallazgos**, el desarrollador deberá documentar todas las solicitudes que originan tal y como se escribio el prompt, Se registraran en Instrucciones.txt y en el archivo de Auditoría.txt tal y como el desarollador entendio la asignacion, los cambios y las implemenraciones, la auditoría debe contener, incluyendo, entre otras:
+
+- Nuevas implementaciones.
+- Reportes de errores.
+- Cambios funcionales.
+- Cambios visuales.
+- Cambios arquitectónicos.
+- Solicitudes de optimización.
+- Refactorizaciones.
+- Requerimientos de documentación.
+
+Este registro constituirá la justificación formal de la auditoría
+
+despues de esa primera etapa se deberá identificar como mínimo:
+
 
 - Estado actual.
 - Dependencias directas e indirectas.
