@@ -363,7 +363,7 @@ Cuando exista evidencia documental o fotográfica, el sistema deberá permitir s
 
 ## Información del Vehículo
 
-El formulario incluirá campos inteligentes con autocompletado y sugerencias en tiempo real para agilizar la captura de información.
+El formulario Include campos inteligentes con autocompletado y sugerencias en tiempo real para agilizar la captura de información.
 
 La información deberá validarse utilizando los datos disponibles en la orden de trabajo y otras fuentes autorizadas por el sistema.
 
@@ -962,7 +962,7 @@ Cada columna deberá mostrar:
 - Estado de la cita.
 - Indicador visual de prioridad.
 
-La información deberá organizarse mediante tarjetas o bloques visuales evitando tablas saturadas.
+La información deberá organizarse mediante tarjetas o bloques visuales evitando tarjetas saturadas.
 
 ---
 
@@ -1062,7 +1062,7 @@ El objetivo es indicar:
 
 # Estado de Borrador y Apartado de Lugar
 
-El asistente de ventas o jefe autorizado podrá guardar una orden como borrador y reservar temporalmente el horario seleccionado.
+El asistente de ventas o jefe de división autorizado podrá guardar una orden como borrador y reservar temporalmente el horario seleccionado.
 
 La reserva tendrá una vigencia máxima de:
 
@@ -2298,7 +2298,7 @@ Debe mostrar:
 
 ---
 
-# Acceso a Orden de Trabajo desde Cupo
+# Acceso al Dashboard por Rol
 
 Cada cupo deberá contener una orden de trabajo asociada.
 
@@ -2987,7 +2987,7 @@ En ese caso:
 
 - No deberá mostrarse la opción **Guardar ubicación**.
 
-Esta lógica permitirá reutilizar ubicaciones correspondientes a agencias o establecimientos cercanos entre sí.
+Esta lógica permitirá reutilizar ubicaciones correspondientes a agencias o establecimientos cercanos entre si.
 
 ---
 
@@ -3083,316 +3083,315 @@ Deberá eliminarse completamente de la interfaz y dejar de formar parte del fluj
 
 ---
 
-# Arquitectura
+# Agenda
 
-## Arquitectura Modular
+## Visibilidad de Columnas
 
-La plataforma deberá mantener una arquitectura modular, separando cada responsabilidad funcional en componentes independientes.
+Las columnas correspondientes a:
 
-Como mínimo deberán separarse:
+- Domingo.
+- Horarios posteriores al mediodía del sábado.
 
-- Autenticación.
-- Gestión de usuarios.
-- Dashboard.
-- Agenda.
-- Órdenes de trabajo.
-- Recepción de vehículos.
-- Historial.
-- Reportes.
-- Configuración.
-- Notificaciones.
-- Integración con mapas.
-- Gestión documental.
-- Administración.
+Deberán permanecer ocultas por defecto.
 
-Esta separación deberá facilitar futuras ampliaciones sin afectar módulos existentes.
+La columna del domingo únicamente deberá mostrarse cuando exista al menos un cupo reservado para ese día.
 
 ---
 
-## Escalabilidad
+## Gestión de Cupos Extraordinarios
 
-La arquitectura deberá permitir:
+Para los usuarios con rol:
 
-- Incorporar nuevas divisiones.
-- Agregar nuevos roles.
-- Agregar nuevos tipos de trabajo.
-- Agregar nuevos estados.
-- Agregar nuevos indicadores.
-- Agregar nuevos reportes.
-- Agregar nuevas integraciones.
+- Asesor.
+- Jefe de división.
 
-Sin requerir rediseños importantes de la plataforma.
+Cada columna del calendario deberá mostrar un botón **(+)** para gestionar cupos extraordinarios.
 
----
+Su ubicación será:
 
-# Rendimiento
+- Antes del primer turno.
+- Después del último turno.
 
-## Carga Diferida
+En el caso del sábado también deberá existir un botón después del último horario normal para gestionar:
 
-La información deberá cargarse únicamente cuando sea necesaria.
-
-Evitar:
-
-- Consultas innecesarias.
-- Carga de módulos no utilizados.
-- Descarga de información fuera del contexto actual.
+- Turnos extraordinarios del sábado.
+- Reservas para el domingo.
 
 ---
 
-## Actualización Inteligente
+## Reservas de Cupos
 
-Actualizar únicamente los componentes afectados por un cambio.
+### Asesor
 
-Evitar recargar completamente:
+Únicamente podrá:
 
-- Dashboard.
-- Agenda.
-- Reportes.
-- Formularios.
+- Reservar el cupo como borrador.
 
----
+No podrá confirmar reservas extraordinarias.
 
-## Caché Inteligente
+### Jefe de División
 
-Implementar almacenamiento local únicamente para información que no comprometa la integridad de los datos.
+Podrá:
 
-La caché deberá sincronizarse automáticamente cuando exista conexión.
-
----
-
-# Productividad
-
-## Búsqueda Global
-
-Implementar una búsqueda rápida que permita localizar:
-
-- Vehículos.
-- Clientes.
-- Órdenes.
-- Técnicos.
-- Asesores.
-- Direcciones.
-- Historial.
-- Chasis.
-- Placas.
-
-Desde un único punto de acceso.
+- Aprobar la reserva.
+- Confirmar el cupo.
+- Autorizar cupos extraordinarios.
 
 ---
 
-## Acciones Rápidas
+# Formulario de Agendamiento
 
-Permitir ejecutar acciones frecuentes con el menor número posible de pasos.
+El formulario utilizado para agendar una instalación deberá ser el mismo utilizado para crear una orden de trabajo.
 
-Ejemplos:
-
-- Crear orden.
-- Abrir agenda.
-- Buscar vehículo.
-- Consultar historial.
-- Iniciar trabajo.
-- Finalizar trabajo.
+No deberá existir un formulario independiente.
 
 ---
 
-## Recordatorios Inteligentes
+## Campo Fecha
 
-Generar recordatorios automáticos para:
+Al abrir el formulario:
 
-- Citas próximas.
-- Retrasos.
-- Pendientes.
-- Esperas.
-- Aprobaciones.
-- Firmas pendientes.
-- Evidencias faltantes.
+Si el día actual posee cupos normales disponibles:
 
----
+- La fecha deberá completarse automáticamente con la fecha actual.
 
-## Notificaciones Centralizadas
+Si el día actual no posee cupos disponibles:
 
-Todas las notificaciones deberán concentrarse en un único centro de notificaciones.
-
-Cada evento deberá indicar:
-
-- Tipo.
-- Prioridad.
-- Fecha.
-- Estado.
-- Acción recomendada.
+- La fecha deberá completarse automáticamente con la siguiente fecha que tenga disponibilidad.
 
 ---
 
-# Automatización
+## Campo Hora
 
-Reducir al mínimo la captura manual de información.
+Representará el turno seleccionado para la instalación.
 
-Siempre que sea posible el sistema deberá:
+Si el usuario abre el formulario haciendo clic sobre un espacio disponible dentro de la Agenda:
 
-- Autocompletar datos.
-- Reutilizar información existente.
-- Detectar registros duplicados.
-- Validar información automáticamente.
-- Calcular tiempos automáticamente.
-- Actualizar estados automáticamente.
+El sistema deberá completar automáticamente:
 
----
-
-# Experiencia de Usuario
-
-La interfaz deberá priorizar:
-
-- Claridad.
-- Simplicidad.
-- Rapidez.
-- Bajo número de clics.
-- Consistencia visual.
-- Accesibilidad.
-
-Cada pantalla deberá mostrar únicamente la información necesaria para la tarea actual.
-
----
-
-# Seguridad
-
-Implementar controles para:
-
-- Validación de permisos.
-- Protección de sesiones.
-- Auditoría de acciones.
-- Registro de cambios.
-- Protección contra modificaciones no autorizadas.
-
-Toda acción importante deberá quedar registrada.
-
----
-
-# Auditoría
-
-Generar automáticamente un historial de auditoría para operaciones críticas.
-
-Registrar como mínimo:
-
-- Usuario.
 - Fecha.
 - Hora.
-- Acción realizada.
-- Información modificada.
-- Estado anterior.
-- Estado nuevo.
+
+El usuario podrá modificar posteriormente ambos campos si lo considera necesario.
 
 ---
 
-# Reportes
+# Advertencias de Horario
 
-Todos los reportes deberán permitir:
+Si una reserva se realiza **10 minutos o más después del inicio del turno**, el sistema deberá mostrar un mensaje indicando que:
 
-- Filtrado.
-- Ordenamiento.
-- Exportación.
-- Comparación entre períodos.
-- Consulta histórica.
+- La instalación iniciará con retraso.
+- Existe la posibilidad de que el técnico finalice más tarde de lo previsto.
 
----
-
-# Configuración
-
-Las configuraciones deberán separarse por niveles:
-
-- Configuración global.
-- Configuración por división.
-- Configuración por usuario.
-
-Las modificaciones locales no deberán afectar otras divisiones.
+Esta advertencia deberá mostrarse únicamente cuando el técnico tenga otra asignación programada posteriormente.
 
 ---
 
-# Integridad de Datos
+# Información del Cliente
 
-Evitar:
+El campo:
 
-- Registros duplicados.
-- Información inconsistente.
-- Relaciones incompletas.
-- Datos huérfanos.
+**Contacto**
 
-Toda información relacionada deberá mantener integridad referencial.
+Deberá reemplazarse por:
 
----
+**Dirección del cliente**
 
-# Escalabilidad de Base de Datos
+Esta dirección corresponde al domicilio del cliente y **no** al lugar donde se realizará la instalación.
 
-La estructura de almacenamiento deberá permitir crecimiento continuo sin degradar el rendimiento.
+El campo:
 
-El desarrollador deberá prever:
+**Número de teléfono**
 
-- Incremento de usuarios.
-- Incremento de órdenes.
-- Incremento de fotografías.
-- Incremento del historial.
-- Incremento de reportes.
+Deberá mantenerse sin cambios.
 
 ---
 
-# Disponibilidad
+# Gestión de Ubicaciones
 
-La plataforma deberá priorizar:
+Los campos:
 
-- Alta disponibilidad.
-- Recuperación ante fallos.
-- Persistencia de información.
-- Reanudación automática de procesos interrumpidos.
+- Buscar ubicación guardada.
+- Nombre de ubicación.
 
----
+Deberán unificarse en un único campo denominado:
 
-# Mantenibilidad
-
-Todo componente nuevo deberá:
-
-- Estar documentado.
-- Tener una única responsabilidad.
-- Ser reutilizable.
-- Evitar duplicación de lógica.
-- Mantener una nomenclatura consistente.
+**Ubicación de la instalación**
 
 ---
 
-# Compatibilidad
+## Autocompletado Inteligente
 
-La plataforma deberá funcionar correctamente en:
+Mientras el usuario escribe:
 
-- Navegadores modernos.
-- Dispositivos móviles.
-- Tablets.
-- Equipos de escritorio.
-- PWA instalada.
+Si existen ubicaciones almacenadas compatibles:
 
-La experiencia deberá mantenerse consistente entre plataformas.
+- Deberán mostrarse inmediatamente como sugerencias seleccionables.
+
+Al seleccionar una sugerencia:
+
+- Se completará automáticamente toda la información asociada.
 
 ---
 
-# Objetivo Final
+## Registro de Nueva Ubicación
 
-Cada decisión de diseño, arquitectura o implementación deberá responder al siguiente criterio:
+Si la ubicación ingresada no existe:
 
-- Reducir tiempos de operación.
-- Minimizar errores humanos.
-- Automatizar procesos repetitivos.
-- Facilitar el trabajo diario de cada rol.
-- Mejorar la productividad de la operación.
-- Favorecer el crecimiento futuro de la plataforma.
-- Mantener una arquitectura ordenada, modular, escalable y fácilmente mantenible.
+Deberá mostrarse la opción:
 
+**Guardar ubicación**
 
+Al seleccionarla deberá abrirse un cuadro de diálogo solicitando:
 
+**Nombre de la ubicación**
 
+Después de guardar:
+
+- La ubicación quedará disponible para futuras búsquedas.
+
+---
+
+## Búsqueda Inteligente
+
+La búsqueda deberá ser:
+
+- Insensible a mayúsculas y minúsculas.
+- Tolerante a errores de escritura.
+- Capaz de sugerir coincidencias aproximadas.
+
+---
+
+# Vista del Mapa
+
+Junto al campo de ubicación deberá mostrarse un mapa de tamaño reducido.
+
+Si existe una ubicación seleccionada:
+
+- El mapa deberá mostrar dicha ubicación.
+
+Si aún no existe una ubicación:
+
+- El mapa deberá centrarse en la ubicación actual del usuario.
+
+---
+
+## Selección desde el Mapa
+
+El usuario podrá seleccionar cualquier punto del mapa.
+
+Al hacerlo, el sistema deberá:
+
+- Obtener la dirección.
+- Completar automáticamente el campo de ubicación.
+- Capturar internamente las coordenadas.
+
+Las coordenadas no deberán mostrarse al usuario.
+
+---
+
+## Detección de Ubicaciones Existentes
+
+Cuando el usuario seleccione un punto en el mapa, el sistema deberá comprobar si ya existe una ubicación almacenada cercana.
+
+Si existe una coincidencia dentro de un margen aproximado entre **50 y 100 metros**, deberá considerarse la misma ubicación.
+
+En ese caso:
+
+- No deberá mostrarse la opción **Guardar ubicación**.
+
+Esta lógica permitirá reutilizar ubicaciones correspondientes a agencias o establecimientos cercanos entre sí.
+
+---
+
+## Instalaciones Locales
+
+Debajo del campo de ubicación deberá mostrarse el mensaje:
+
+> Dejar vacío si el cliente llevará el vehículo a la oficina.
+
+---
+
+## Enlaces de Google Maps
+
+El campo de ubicación deberá aceptar también enlaces de Google Maps.
+
+El sistema deberá:
+
+- Obtener automáticamente la dirección.
+- Calcular las coordenadas.
+- Mostrar la ubicación en el mapa.
+
+Posteriormente:
+
+- El enlace no deberá almacenarse como dato visible.
+- El campo del enlace no deberá mostrarse al usuario.
+
+---
+
+# Servicio de Mapas
+
+Se deberán evaluar alternativas como:
+
+- OpenStreetMap.
+
+O cualquier otra solución que permita reducir la dependencia de servicios externos.
+
+Siempre que sea posible, el seguimiento del técnico deberá realizarse utilizando la propia PWA mediante la ubicación del dispositivo, evitando depender de un servicio de mapas para el seguimiento continuo.
+
+---
+
+# Coordenadas
+
+El campo:
+
+**Coordenadas**
+
+No deberá existir en la interfaz.
+
+Las coordenadas deberán obtenerse automáticamente a partir de:
+
+- La selección realizada en el mapa.
+- La dirección proporcionada.
+- El enlace de ubicación, cuando corresponda.
+
+Toda esta información deberá almacenarse de manera interna.
+
+---
+
+# Información Oculta para el Usuario
+
+Los siguientes campos no deberán mostrarse:
+
+- Coordenadas.
+- Enlace de Google Maps.
+- División o sector.
+- Categoría del vehículo.
+
+---
+
+## División
+
+La división deberá determinarse automáticamente utilizando la división asociada al usuario autenticado.
+
+No deberá solicitarse manualmente en el formulario.
+
+---
+
+## Categoría del Vehículo
+
+El campo:
+
+**Categoría del vehículo**
+
+Deberá eliminarse completamente de la interfaz y dejar de formar parte del flujo de creación de órdenes de trabajo.
 
 
 ### TAREAS PENDIENTES DE REVISIÓN POR EL MP
 
 - **DOCEAVO: Nuevas Implementaciones y Actualizaciones (Pendiente de revisión por el PM):**
   - Pantalla inicial establecida como Agenda de forma unificada.
-  - Reubicación de Dashboard como sección Reportes adyacente a Planificación de la semana.
+  - Reubicación de Dashboard como sección Reportes adyocente a Planificación de la semana.
   - Compactación de saludo de bienvenida en el encabezado.
   - Visibilidad selectiva de columnas de Agenda (Domingo oculto si no hay citas, sábado tarde oculto por defecto).
   - Botones (+) de agendamiento extraordinario para Asesores/Jefes.
@@ -3402,3 +3401,20 @@ Cada decisión de diseño, arquitectura o implementación deberá responder al s
   - Reemplazo de Contacto por Dirección del cliente.
   - Unificación de ubicaciones, mapa interactivo Leaflet (OpenStreetMap), reverse geocoding con Nominatim, parser de Google Maps y regla de proximidad de 50-100m.
   - Ocultación de coordenadas, link de maps, división y categoría de vehículo.
+
+- **CATORCEAVO: Nuevas Implementaciones: Formulario de Orden de Trabajo e Instalación (Pendiente de revisión por el PM):**
+  - El formulario de Nueva Instalación y el formulario de Orden de Trabajo deberán unificarse en un único formulario.
+  - El formulario deberá permitir guardar órdenes de trabajo en estado Borrador, aun cuando no se haya completado toda la información requerida para confirmar el cupo.
+  - Únicamente serán obligatorios los siguientes campos para guardar un borrador: Fecha, Hora y Nombre del cliente.
+  - Los borradores tendrán una vigencia limitada y se eliminarán automáticamente 60 minutos después del inicio del turno reservado, liberando el cupo automáticamente.
+  - Un cupo únicamente se considerará confirmado cuando la orden de trabajo se guarde con toda la información obligatoria (Fecha, Hora, Nombre del cliente, Marca, Modelo, Color, Año, Número de motor, Número de chasis, Servicio, Tipo de servicio cuando corresponda).
+  - El campo de Número de Inventario deberá convertirse automáticamente en obligatorio si la operación del cliente utiliza número de inventario. En los demás casos permanecerá opcional.
+  - El campo Placa se mostrará dinámicamente si el año del vehículo es menor al año actual (opcional, puede dejarse vacío), y permanecerá oculto si corresponde al año actual.
+  - La selección del servicio se realizará mediante casillas de verificación (Tracklink y Controlcar).
+  - El campo Tipo de servicio (dropdown con opciones Básico (Roadlink) y Full (Transtrack)) se mostrará únicamente cuando se seleccione Tracklink.
+  - Se mostrará un selector de tipo de trabajo (Instalación nueva, Revisión por falla, Desinstalación, Mantenimiento, Traspaso) antes de abrir el formulario al hacer clic en Reservar o (+).
+  - Para "Instalación nueva" se autocompletará automáticamente Fecha y Hora según el cupo seleccionado.
+  - Para trabajos sobre vehículos existentes (Revisión por falla, Desinstalación, Mantenimiento, Traspaso) se buscará automáticamente el cliente en tiempo real:
+    - Si tiene exactamente un vehículo, se autocompleta cliente y vehículo.
+    - Si tiene múltiples vehículos, se autocompleta cliente y se deja vacío el vehículo.
+    - Al escribir la marca de vehículo se mostrará un autocompletado con los vehículos registrados a su nombre en formato "Marca | Modelo | Placa | Chasis (últimos 6 dígitos)" y al seleccionar se completará toda su información.

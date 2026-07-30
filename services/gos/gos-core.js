@@ -398,6 +398,11 @@ function handleCreateOrder(payload) {
 
 function handleGetOrders() {
   try {
+    checkAndExpireDrafts();
+  } catch (e) {
+    console.error("Error auto-expiring drafts: " + e.message);
+  }
+  try {
     checkAndUpdateJobDelays();
   } catch (e) {
     console.error("Error auto-checking delays: " + e.message);
@@ -1801,6 +1806,51 @@ function calculateEstimatedDuration(tipoTrabajo, subTipo) {
   if (t.indexOf('desinstalacion') !== -1 || t.indexOf('desinstalación') !== -1) return 60;
   if (t.indexOf('mantenimiento') !== -1) return 15;
   return 30; // Por defecto
+}
+
+function checkAndExpireDrafts() {
+  var sheet = findOrCreateSheet("Ordenes");
+  var data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return;
+  var headerMap = getHeaderMap(sheet);
+
+  var idIdx = headerMap["ID"] - 1;
+  var estadoIdx = headerMap["Estado"] - 1;
+  var fechaIdx = headerMap["Fecha"] - 1;
+  var horaIdx = headerMap["Hora"] - 1;
+
+  var histSheet = findOrCreateSheet("Historial_Estados", ["Fecha", "Hora", "OrdenID", "Estado Anterior", "Estado Nuevo", "Usuario", "Observaciones"]);
+
+  var now = new Date();
+
+  for (var i = 1; i < data.length; i++) {
+    var status = (data[i][estadoIdx] || "").toString().toLowerCase().trim();
+    if (status === "borrador") {
+      var orderId = data[i][idIdx];
+      var orderDate = data[i][fechaIdx];
+      var orderTime = data[i][horaIdx];
+
+      var startTime = parseDateTime(orderDate, orderTime);
+      if (startTime) {
+        var expTime = new Date(startTime.getTime() + 60 * 60 * 1000); // 60 minutes past shift start
+        if (now > expTime) {
+          // Expirar borrador
+          sheet.getRange(i + 1, estadoIdx + 1).setValue("Expirada");
+
+          // Registrar en historial de estados
+          histSheet.appendRow([
+            now.toISOString().split('T')[0],
+            now.toTimeString().split(' ')[0].substring(0, 5),
+            orderId,
+            "Borrador",
+            "Expirada",
+            "Sistema",
+            "Borrador expirado automáticamente después de 60 minutos"
+          ]);
+        }
+      }
+    }
+  }
 }
 
 function checkAndUpdateJobDelays() {

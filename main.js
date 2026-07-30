@@ -220,10 +220,10 @@ const UI_TEMPLATES = {
             <h3>Crear Nueva Orden</h3>
             <form id="order-form" class="order-form">
                 <div class="form-grid">
-                    <div class="form-group"><label>Fecha</label><input type="date" name="fecha" id="order-fecha" class="form-control" required></div>
+                    <div class="form-group"><label>Fecha</label><input type="date" name="fecha" id="order-fecha" class="form-control"></div>
                     <div class="form-group">
                         <label>Hora (Turno)</label>
-                        <select name="hora" id="order-hora" class="form-control" required>
+                        <select name="hora" id="order-hora" class="form-control">
                             <option value="">Seleccione...</option>
                             <!-- Normal Slots -->
                             <option value="08:00 - 10:00">08:00 - 10:00</option>
@@ -236,9 +236,13 @@ const UI_TEMPLATES = {
                             <option value="17:00 - 19:00">17:00 - 19:00 (Extraordinario Tarde)</option>
                         </select>
                     </div>
-                    <div class="form-group"><label>Cliente</label><input type="text" name="cliente" class="form-control" required></div>
-                    <div class="form-group"><label>Dirección del cliente (Domicilio)</label><input type="text" name="contacto" class="form-control"></div>
-                    <div class="form-group"><label>Teléfono</label><input type="text" name="telefono" class="form-control" required></div>
+                    <div class="form-group autocomplete-wrapper" style="position:relative;">
+                        <label>Cliente</label>
+                        <input type="text" name="cliente" id="order-cliente" class="form-control" placeholder="Escriba el nombre del cliente...">
+                        <div id="suggestions-client" class="autocomplete-suggestions" style="display:none; position:absolute; z-index:100; width:100%; background:#fff; border:1px solid #ddd; max-height:200px; overflow-y:auto;"></div>
+                    </div>
+                    <div class="form-group"><label>Dirección del cliente (Domicilio)</label><input type="text" name="contacto" id="order-contacto" class="form-control"></div>
+                    <div class="form-group"><label>Teléfono</label><input type="text" name="telefono" id="order-telefono" class="form-control"></div>
                     <div class="form-group autocomplete-wrapper" style="position:relative; grid-column: 1 / -1;">
                         <label style="font-weight:bold;">Ubicación de la instalación</label>
                         <input type="text" id="order-saved-loc-search" class="form-control" placeholder="Escriba la dirección o busque ubicación guardada, ej: Excel">
@@ -259,7 +263,7 @@ const UI_TEMPLATES = {
                         <div id="form-map-picker" style="height:250px; border-radius:8px; border:1px solid #ddd; background:#eee; display:flex; align-items:center; justify-content:center; margin-top:5px;">
                             <p style="font-size:0.85rem; color:#718096; text-align:center; padding:15px;">
                                 📍 Haga clic en el mapa de su división para ubicar el punto de trabajo y autocompletar coordenadas y enlace.<br>
-                                <small style="display:block; margin-top:5px; color:#a0aec0;">(Requiere API Key de Google Maps activa)</small>
+                                <small style="display:block; margin-top:5px; color:#a0aec0;">(La carga del mapa puede tomar unos instantes)</small>
                             </p>
                         </div>
                     </div>
@@ -267,27 +271,31 @@ const UI_TEMPLATES = {
                     <!-- Chasis VIN (para consulta de historial automático) -->
                     <div class="form-group">
                         <label>VIN (Chasis)</label>
-                        <input type="text" name="vin" id="order-vin" class="form-control" required placeholder="Ingrese 17 dígitos">
+                        <input type="text" name="vin" id="order-vin" class="form-control" placeholder="Ingrese 17 dígitos">
                     </div>
                     <div class="form-group">
                         <label>Clasificación del Vehículo</label>
-                        <select name="clasificacionVehiculo" id="order-clasificacion" class="form-control" required>
+                        <select name="clasificacionVehiculo" id="order-clasificacion" class="form-control">
                             <option value="">Seleccione...</option>
                             <option value="Vehículo nuevo">Vehículo nuevo</option>
                             <option value="Vehículo usado">Vehículo usado</option>
                         </select>
                     </div>
 
-                    <div class="form-group"><label>Marca</label><input type="text" name="marca" id="order-marca" class="form-control" required></div>
-                    <div class="form-group"><label>Modelo</label><input type="text" name="modelo" id="order-modelo" class="form-control" required></div>
+                    <div class="form-group autocomplete-wrapper" style="position:relative;">
+                        <label>Marca</label>
+                        <input type="text" name="marca" id="order-marca" class="form-control">
+                        <div id="suggestions-brand" class="autocomplete-suggestions" style="display:none; position:absolute; z-index:100; width:100%; background:#fff; border:1px solid #ddd; max-height:200px; overflow-y:auto;"></div>
+                    </div>
+                    <div class="form-group"><label>Modelo</label><input type="text" name="modelo" id="order-modelo" class="form-control"></div>
                     <div class="form-group"><label>Número Motor</label><input type="text" name="motor" id="order-motor" class="form-control"></div>
                     <div class="form-group"><label>Año</label><input type="number" name="anio" id="order-anio" class="form-control"></div>
-                    <div class="form-group"><label>Placa</label><input type="text" name="placa" id="order-placa" class="form-control"></div>
+                    <div class="form-group" id="order-placa-container" style="display:none;"><label>Placa</label><input type="text" name="placa" id="order-placa" class="form-control"></div>
                     <div class="form-group"><label>Color</label><input type="text" name="color" id="order-color" class="form-control"></div>
 
                     <div class="form-group" style="display:none;">
                         <label>Sector / División</label>
-                        <select name="sector" id="order-sector" class="form-control" required>
+                        <select name="sector" id="order-sector" class="form-control">
                             <option value="San Pedro Sula">San Pedro Sula</option>
                             <option value="Tegucigalpa">Tegucigalpa</option>
                             <option value="La Ceiba">La Ceiba</option>
@@ -296,14 +304,26 @@ const UI_TEMPLATES = {
                         </select>
                     </div>
 
-                    <div class="form-group">
-                        <label>Servicio</label>
-                        <select name="servicio" class="form-control">${options.servicios || '<option>Cargando...</option>'}</select>
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label style="font-weight:bold;">Servicio</label>
+                        <div style="display:flex; gap:20px; align-items:center; margin-top:5px;">
+                            <label><input type="checkbox" name="servicio_chk" value="Tracklink" id="service-tracklink"> Tracklink</label>
+                            <label><input type="checkbox" name="servicio_chk" value="Controlcar" id="service-controlcar"> Controlcar</label>
+                        </div>
                     </div>
-                    <div class="form-group"><label>Inventario</label><textarea name="inventario" class="form-control"></textarea></div>
+
+                    <div class="form-group" id="tipo-servicio-container" style="display:none; grid-column: 1 / -1;">
+                        <label style="font-weight:bold;">Tipo de servicio</label>
+                        <select name="tipoServicio" id="order-tipo-servicio" class="form-control">
+                            <option value="Básico (Roadlink)">Básico (Roadlink)</option>
+                            <option value="Full (Transtrack)">Full (Transtrack)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group"><label id="order-inventario-label">Inventario</label><textarea name="inventario" id="order-inventario" class="form-control"></textarea></div>
                     <div class="form-group">
                         <label>Tipo de Trabajo</label>
-                        <select name="tipoTrabajo" class="form-control">${options.tiposTrabajo || '<option>Cargando...</option>'}</select>
+                        <select name="tipoTrabajo" id="order-tipo-trabajo" class="form-control">${options.tiposTrabajo || '<option>Cargando...</option>'}</select>
                     </div>
                     <div class="form-group">
                         <label>Prioridad</label>
@@ -902,7 +922,7 @@ async function renderAgendaModule(container) {
                 minutes = parseInt(match[2]);
             }
             const appointmentDate = new Date(`${orderDate}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`);
-            const expirationDate = new Date(appointmentDate.getTime() + 15 * 60 * 1000); // 15 mins later
+            const expirationDate = new Date(appointmentDate.getTime() + 60 * 60 * 1000); // 60 mins later
             return new Date() > expirationDate;
         };
 
@@ -1124,35 +1144,109 @@ async function renderAgendaModule(container) {
 }
 
 window.bookSlot = (date, slot) => {
-    const contentEl = document.getElementById('section-content');
-    renderOrderForm(contentEl);
+    const selectOverlay = document.createElement('div');
+    selectOverlay.className = 'modal-overlay';
+    selectOverlay.innerHTML = `
+        <div class="modal-content" style="max-width:400px; text-align:center;">
+            <h3>Seleccionar Tipo de Trabajo</h3>
+            <p>Seleccione el tipo de trabajo para este cupo:</p>
+            <div style="display:flex; flex-direction:column; gap:10px; margin-top:15px; margin-bottom:15px;">
+                <button class="btn btn-primary work-type-opt" data-value="Instalación nueva">Instalación nueva</button>
+                <button class="btn btn-outline work-type-opt" data-value="Revisión por falla" style="color:var(--dark); border-color:#ddd;">Revisión por falla</button>
+                <button class="btn btn-outline work-type-opt" data-value="Desinstalación" style="color:var(--dark); border-color:#ddd;">Desinstalación</button>
+                <button class="btn btn-outline work-type-opt" data-value="Mantenimiento" style="color:var(--dark); border-color:#ddd;">Mantenimiento</button>
+                <button class="btn btn-outline work-type-opt" data-value="Traspaso" style="color:var(--dark); border-color:#ddd;">Traspaso</button>
+            </div>
+            <button class="btn btn-secondary" id="cancel-work-type" style="width:100%;">Cancelar</button>
+        </div>
+    `;
+    document.body.appendChild(selectOverlay);
 
-    const dateInput = document.getElementById('order-fecha');
-    if (dateInput) {
-        dateInput.value = date;
-        dateInput.dispatchEvent(new Event('change'));
+    selectOverlay.querySelectorAll('.work-type-opt').forEach(btn => {
+        btn.onclick = () => {
+            const selectedType = btn.getAttribute('data-value');
+            document.body.removeChild(selectOverlay);
 
-        setTimeout(() => {
-            const horaSelect = document.getElementById('order-hora');
-            if (horaSelect) {
-                // Ensure slot is dynamically added to dropdown option list if not exists
-                let exists = false;
-                for (let option of horaSelect.options) {
-                    if (option.value === slot) {
-                        exists = true;
-                        break;
+            const contentEl = document.getElementById('section-content');
+            renderOrderForm(contentEl);
+
+            setTimeout(() => {
+                const tipoTrabajoSelect = document.getElementById('order-tipo-trabajo');
+                if (tipoTrabajoSelect) {
+                    let exists = false;
+                    for (let opt of tipoTrabajoSelect.options) {
+                        if (opt.value === selectedType) {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    if (!exists) {
+                        const newOpt = document.createElement('option');
+                        newOpt.value = selectedType;
+                        newOpt.textContent = selectedType;
+                        tipoTrabajoSelect.appendChild(newOpt);
+                    }
+                    tipoTrabajoSelect.value = selectedType;
+                    tipoTrabajoSelect.dispatchEvent(new Event('change'));
+                }
+
+                // If Instalación nueva, prefill date and hour from Agenda slot
+                if (selectedType === "Instalación nueva") {
+                    const dateInput = document.getElementById('order-fecha');
+                    if (dateInput) {
+                        dateInput.value = date;
+                        dateInput.dispatchEvent(new Event('change'));
+                    }
+                    const horaSelect = document.getElementById('order-hora');
+                    if (horaSelect) {
+                        let exists = false;
+                        for (let option of horaSelect.options) {
+                            if (option.value === slot) {
+                                exists = true;
+                                break;
+                            }
+                        }
+                        if (!exists) {
+                            const newOpt = document.createElement('option');
+                            newOpt.value = slot;
+                            newOpt.textContent = slot;
+                            horaSelect.appendChild(newOpt);
+                        }
+                        horaSelect.value = slot;
+                        horaSelect.dispatchEvent(new Event('change'));
+                    }
+                } else {
+                    const dateInput = document.getElementById('order-fecha');
+                    if (dateInput) {
+                        dateInput.value = date;
+                        dateInput.dispatchEvent(new Event('change'));
+                    }
+                    const horaSelect = document.getElementById('order-hora');
+                    if (horaSelect) {
+                        let exists = false;
+                        for (let option of horaSelect.options) {
+                            if (option.value === slot) {
+                                exists = true;
+                                break;
+                            }
+                        }
+                        if (!exists) {
+                            const newOpt = document.createElement('option');
+                            newOpt.value = slot;
+                            newOpt.textContent = slot;
+                            horaSelect.appendChild(newOpt);
+                        }
+                        horaSelect.value = slot;
+                        horaSelect.dispatchEvent(new Event('change'));
                     }
                 }
-                if (!exists) {
-                    const newOpt = document.createElement('option');
-                    newOpt.value = slot;
-                    newOpt.textContent = slot;
-                    horaSelect.appendChild(newOpt);
-                }
-                horaSelect.value = slot;
-            }
-        }, 400);
-    }
+            }, 400);
+        };
+    });
+
+    selectOverlay.querySelector('#cancel-work-type').onclick = () => {
+        document.body.removeChild(selectOverlay);
+    };
 };
 
 window.bookExtraordinarySlot = (date, position) => {
@@ -1835,6 +1929,249 @@ function renderOrderForm(container) {
         }
     });
 
+    // --------------------------------------------------------------------
+    // CONTROLADORES DE SERVICIOS Y TIPO DE SERVICIO DROPDOWN
+    // --------------------------------------------------------------------
+    const serviceTracklink = document.getElementById('service-tracklink');
+    const serviceControlcar = document.getElementById('service-controlcar');
+    const tipoServicioContainer = document.getElementById('tipo-servicio-container');
+
+    const toggleTipoServicio = () => {
+        if (serviceTracklink && serviceTracklink.checked) {
+            tipoServicioContainer.style.display = 'block';
+        } else {
+            tipoServicioContainer.style.display = 'none';
+        }
+    };
+
+    if (serviceTracklink) {
+        serviceTracklink.addEventListener('change', toggleTipoServicio);
+    }
+    if (serviceControlcar) {
+        serviceControlcar.addEventListener('change', toggleTipoServicio);
+    }
+
+    // --------------------------------------------------------------------
+    // VISIBILIDAD DINÁMICA DEL CAMPO PLACA
+    // --------------------------------------------------------------------
+    const orderAnio = document.getElementById('order-anio');
+    const orderPlacaContainer = document.getElementById('order-placa-container');
+    const orderPlaca = document.getElementById('order-placa');
+
+    const checkPlacaVisibility = () => {
+        if (!orderAnio) return;
+        const val = parseInt(orderAnio.value.trim(), 10);
+        const currentYear = new Date().getFullYear();
+        if (!isNaN(val) && val < currentYear) {
+            if (orderPlacaContainer) orderPlacaContainer.style.display = 'block';
+        } else {
+            if (orderPlacaContainer) {
+                orderPlacaContainer.style.display = 'none';
+                if (orderPlaca) orderPlaca.value = '';
+            }
+        }
+    };
+
+    if (orderAnio) {
+        orderAnio.addEventListener('input', checkPlacaVisibility);
+        orderAnio.addEventListener('change', checkPlacaVisibility);
+    }
+
+    // --------------------------------------------------------------------
+    // AUTOCOMPLETADO EN TIEMPO REAL DE CLIENTE Y VEHÍCULOS
+    // --------------------------------------------------------------------
+    const clientInput = document.getElementById('order-cliente');
+    const clientSuggestions = document.getElementById('suggestions-client');
+    const inventarioInput = document.getElementById('order-inventario');
+    const inventarioLabel = document.getElementById('order-inventario-label');
+    const brandInput = document.getElementById('order-marca');
+    const brandSuggestions = document.getElementById('suggestions-brand');
+
+    let cachedClients = [];
+    let cachedOrders = [];
+    let selectedClientVehicles = [];
+
+    const loadClientsAndOrders = async () => {
+        try {
+            const clientsRes = await routeAction('GOS_CORE', 'getClients');
+            if (clientsRes.status === 'success') {
+                cachedClients = clientsRes.data || [];
+            }
+            const ordersRes = await routeAction('GOS_CORE', 'getOrders');
+            if (ordersRes.status === 'success') {
+                cachedOrders = ordersRes.data || [];
+            }
+        } catch (e) {
+            console.error("Error cargando clientes u órdenes:", e);
+        }
+    };
+    loadClientsAndOrders();
+
+    if (clientInput && clientSuggestions) {
+        clientInput.addEventListener('input', () => {
+            const val = clientInput.value.trim().toLowerCase();
+            clientSuggestions.innerHTML = '';
+            selectedClientVehicles = []; // Reset on typing
+            if (brandSuggestions) brandSuggestions.style.display = 'none';
+
+            if (!val) {
+                clientSuggestions.style.display = 'none';
+                return;
+            }
+
+            const matches = cachedClients.filter(c =>
+                (c.nombre || '').toLowerCase().includes(val) ||
+                (c.empresa || '').toLowerCase().includes(val)
+            );
+
+            if (matches.length > 0) {
+                clientSuggestions.style.display = 'block';
+                matches.forEach(c => {
+                    const div = document.createElement('div');
+                    div.className = 'suggestion-item';
+                    div.style.padding = '8px';
+                    div.style.cursor = 'pointer';
+                    div.style.borderBottom = '1px solid #eee';
+                    div.innerHTML = `👤 <strong>${c.nombre}</strong> <small style="color:#718096;">${c.empresa ? '| ' + c.empresa : ''}</small>`;
+
+                    div.onclick = () => {
+                        clientInput.value = c.nombre || '';
+                        clientSuggestions.style.display = 'none';
+
+                        // Autocompletar datos del cliente
+                        const contactoInput = document.getElementById('order-contacto');
+                        const telefonoInput = document.getElementById('order-telefono');
+                        if (contactoInput) contactoInput.value = c.direccion || '';
+                        if (telefonoInput) telefonoInput.value = c.telefono || '';
+
+                        // Validar si el cliente utiliza inventario (tiene empresa no vacía)
+                        if (c.empresa && c.empresa.trim() !== '') {
+                            if (inventarioInput) inventarioInput.setAttribute('required', 'required');
+                            if (inventarioLabel) inventarioLabel.innerHTML = 'Número de Inventario <span style="color:red;">*</span>';
+                        } else {
+                            if (inventarioInput) inventarioInput.removeAttribute('required');
+                            if (inventarioLabel) inventarioLabel.textContent = 'Inventario';
+                        }
+
+                        // Buscar vehículos en el historial
+                        const cName = (c.nombre || '').toLowerCase().trim();
+                        const seenVins = new Set();
+                        selectedClientVehicles = [];
+
+                        cachedOrders.forEach(o => {
+                            if ((o.cliente || '').toLowerCase().trim() === cName) {
+                                const vin = (o.vin || '').trim();
+                                if (vin && !seenVins.has(vin)) {
+                                    seenVins.add(vin);
+                                    selectedClientVehicles.push(o);
+                                }
+                            }
+                        });
+
+                        // "Si encuentra un cliente registrado: Deberá completar automáticamente la información personal del cliente y la información del vehículo si el cliente solamente tiene un vehículo."
+                        if (selectedClientVehicles.length === 1) {
+                            const v = selectedClientVehicles[0];
+                            if (brandInput) brandInput.value = v.marca || '';
+                            document.getElementById('order-modelo').value = v.modelo || '';
+                            document.getElementById('order-color').value = v.color || '';
+                            document.getElementById('order-anio').value = v.anio || '';
+                            document.getElementById('order-motor').value = v.motor || '';
+                            document.getElementById('order-vin').value = v.vin || '';
+                            document.getElementById('order-placa').value = v.placa || '';
+
+                            // Desencadenar eventos para placa e historial
+                            if (orderAnio) {
+                                checkPlacaVisibility();
+                            }
+                            const vinInput = document.getElementById('order-vin');
+                            if (vinInput) {
+                                vinInput.dispatchEvent(new Event('blur'));
+                            }
+                        } else {
+                            // "Clientes con Múltiples Vehículos: completar cliente, mantener vacía la información específica del vehículo."
+                            if (brandInput) brandInput.value = '';
+                            document.getElementById('order-modelo').value = '';
+                            document.getElementById('order-color').value = '';
+                            document.getElementById('order-anio').value = '';
+                            document.getElementById('order-motor').value = '';
+                            document.getElementById('order-vin').value = '';
+                            document.getElementById('order-placa').value = '';
+                            if (orderPlacaContainer) orderPlacaContainer.style.display = 'none';
+                        }
+                    };
+                    clientSuggestions.appendChild(div);
+                });
+            } else {
+                clientSuggestions.style.display = 'none';
+            }
+        });
+
+        // Hide suggestions when clicking outside
+        document.addEventListener('click', (e) => {
+            if (e.target !== clientInput) {
+                clientSuggestions.style.display = 'none';
+            }
+        });
+    }
+
+    if (brandInput && brandSuggestions) {
+        brandInput.addEventListener('input', () => {
+            const val = brandInput.value.trim().toLowerCase();
+            brandSuggestions.innerHTML = '';
+            if (!val || selectedClientVehicles.length <= 1) {
+                brandSuggestions.style.display = 'none';
+                return;
+            }
+
+            const matches = selectedClientVehicles.filter(v =>
+                (v.marca || '').toLowerCase().includes(val)
+            );
+
+            if (matches.length > 0) {
+                brandSuggestions.style.display = 'block';
+                matches.forEach(v => {
+                    const div = document.createElement('div');
+                    div.className = 'suggestion-item';
+                    div.style.padding = '8px';
+                    div.style.cursor = 'pointer';
+                    div.style.borderBottom = '1px solid #eee';
+                    const last6 = (v.vin || '').slice(-6);
+                    div.innerHTML = `🚗 <strong>${v.marca}</strong> | ${v.modelo || ''} | ${v.placa || 'Sin placa'} | ${last6}`;
+
+                    div.onclick = () => {
+                        brandInput.value = v.marca || '';
+                        document.getElementById('order-modelo').value = v.modelo || '';
+                        document.getElementById('order-color').value = v.color || '';
+                        document.getElementById('order-anio').value = v.anio || '';
+                        document.getElementById('order-motor').value = v.motor || '';
+                        document.getElementById('order-vin').value = v.vin || '';
+                        document.getElementById('order-placa').value = v.placa || '';
+
+                        brandSuggestions.style.display = 'none';
+
+                        // Desencadenar eventos
+                        if (orderAnio) {
+                            checkPlacaVisibility();
+                        }
+                        const vinInput = document.getElementById('order-vin');
+                        if (vinInput) {
+                            vinInput.dispatchEvent(new Event('blur'));
+                        }
+                    };
+                    brandSuggestions.appendChild(div);
+                });
+            } else {
+                brandSuggestions.style.display = 'none';
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (e.target !== brandInput) {
+                brandSuggestions.style.display = 'none';
+            }
+        });
+    }
+
     let isDraftMode = false;
     const btnDraftSubmit = document.getElementById('submit-order-draft-btn');
     const btnAssignSubmit = document.getElementById('submit-order-assign-btn');
@@ -1843,9 +2180,7 @@ function renderOrderForm(container) {
         btnDraftSubmit.addEventListener('click', (e) => {
             isDraftMode = true;
             const form = document.getElementById('order-form');
-            if (form.reportValidity()) {
-                form.dispatchEvent(new Event('submit', { cancelable: true }));
-            }
+            form.dispatchEvent(new Event('submit', { cancelable: true }));
         });
     }
     if (btnAssignSubmit) {
@@ -1856,9 +2191,73 @@ function renderOrderForm(container) {
 
     document.getElementById('order-form').addEventListener('submit', async (e) => {
         e.preventDefault();
+
+        // 1. Programmatic validation
+        const val_fecha = document.getElementById('order-fecha')?.value;
+        const val_hora = document.getElementById('order-hora')?.value;
+        const val_cliente = document.getElementById('order-cliente')?.value.trim();
+
+        if (!val_fecha || !val_hora || !val_cliente) {
+            alert("⚠️ Error de validación: Los campos Fecha, Hora y Cliente son obligatorios para guardar.");
+            return;
+        }
+
+        if (!isDraftMode) {
+            // Validar campos obligatorios para confirmación
+            const val_marca = document.getElementById('order-marca')?.value.trim();
+            const val_modelo = document.getElementById('order-modelo')?.value.trim();
+            const val_color = document.getElementById('order-color')?.value.trim();
+            const val_anio = document.getElementById('order-anio')?.value.trim();
+            const val_motor = document.getElementById('order-motor')?.value.trim();
+            const val_vin = document.getElementById('order-vin')?.value.trim();
+
+            if (!val_marca || !val_modelo || !val_color || !val_anio || !val_motor || !val_vin) {
+                alert("⚠️ Error de validación: Para confirmar y asignar una Orden, debe completar la información del vehículo (Marca, Modelo, Color, Año, Número de motor y Número de chasis/VIN).");
+                return;
+            }
+
+            // Validar servicios
+            const chk_tracklink = document.getElementById('service-tracklink')?.checked;
+            const chk_controlcar = document.getElementById('service-controlcar')?.checked;
+
+            if (!chk_tracklink && !chk_controlcar) {
+                alert("⚠️ Error de validación: Debe seleccionar al menos un Servicio (Tracklink o Controlcar) para confirmar la orden.");
+                return;
+            }
+
+            if (chk_tracklink) {
+                const val_tipo_serv = document.getElementById('order-tipo-servicio')?.value;
+                if (!val_tipo_serv) {
+                    alert("⚠️ Error de validación: Debe seleccionar un Tipo de servicio para Tracklink.");
+                    return;
+                }
+            }
+
+            // Validar inventario obligatorio si el cliente utiliza inventario
+            const inventarioInputEl = document.getElementById('order-inventario');
+            if (inventarioInputEl && inventarioInputEl.hasAttribute('required') && !inventarioInputEl.value.trim()) {
+                alert("⚠️ Error de validación: El campo Inventario es obligatorio para este cliente.");
+                return;
+            }
+        }
+
         const formData = new FormData(e.target);
         const payload = Object.fromEntries(formData.entries());
         payload.vendedor = AppState.user?.Nombre_Usuario || 'Carlos Ruiz';
+
+        // Compilar campo servicio
+        const servicesSelected = [];
+        if (document.getElementById('service-tracklink')?.checked) {
+            const trackType = document.getElementById('order-tipo-servicio')?.value || 'Básico (Roadlink)';
+            servicesSelected.push(`Tracklink (${trackType})`);
+        }
+        if (document.getElementById('service-controlcar')?.checked) {
+            servicesSelected.push('Controlcar');
+        }
+        payload.servicio = servicesSelected.join(', ');
+        if (!payload.sector) {
+            payload.sector = AppState.user?.Sector || 'San Pedro Sula';
+        }
 
         try {
             // 0. Validar capacidad del turno/cupo
@@ -1872,7 +2271,7 @@ function renderOrderForm(container) {
                     const stateLower = (o.estado || '').toLowerCase().trim();
                     if (['cancelada', 'expirada'].includes(stateLower)) return false;
                     if (stateLower === 'borrador') {
-                        // Comprobar si ya expiró el borrador (15 mins de hold)
+                        // Comprobar si ya expiró el borrador (60 mins de hold)
                         const match = (o.hora || '').match(/(\d{2}):(\d{2})/);
                         let hours = 8, minutes = 0;
                         if (match) {
@@ -1880,7 +2279,7 @@ function renderOrderForm(container) {
                             minutes = parseInt(match[2]);
                         }
                         const apptDate = new Date(`${o.fecha}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`);
-                        const expDate = new Date(apptDate.getTime() + 15 * 60 * 1000);
+                        const expDate = new Date(apptDate.getTime() + 60 * 60 * 1000);
                         if (new Date() > expDate) return false;
                     }
                     return true;

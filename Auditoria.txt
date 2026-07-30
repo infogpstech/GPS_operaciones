@@ -48,7 +48,7 @@ Versión Auditada: GOS v0.3.3 / GOS-CORE v1.0.2
 
 ARCHIVO: main.js
 - Arquitectura: Monolítica. Concentra lógica de negocio, UI y ruteo. Requiere separación en controllers/views/services (Líneas 100-600).
-- Estado Global: Uso excesivo de `window.activeOrder` y `localStorage` sin un manejador central (Líneas 3, 33, 76).
+- Estado Global: Uso excesivo de `window.activeOrder` and `localStorage` sin un manejador central (Líneas 3, 33, 76).
 - HTML: Bloques masivos de HTML embebidos en funciones de renderizado (Líneas 161, 196, 226, 259, 281, 314, 355).
 - Configuración: Listas desplegables (Select) con opciones estáticas en código (Líneas 386-392, 396-401).
 
@@ -235,7 +235,7 @@ Esta auditoría exhaustiva de cobertura total valida cada uno de los requerimien
 3. MÓDULO: RECEPCIÓN DEL VEHÍCULO
 - [OK] Carga automática desde la orden de trabajo: Integrado en main.js (Línea 1915, renderVehicleReceptionForm) con parámetros de orden activa.
 - [OK] Captura de fotografías (11 categorías): Implementado en main.js (Líneas 1915-1950) cubriendo chasis (VIN), tablero, odómetro, interior y exterior de carrocería.
-- [OK] Validación automática de calidad de imágenes (Borrosas/Oscuras): Implementado en main.js (Líneas 2120-2170) midiendo brillo y contraste promedio mediante Canvas.
+- [OK] Validación automática de calidad de imágenes (Borrosas/Oscuras): Implementado en main.js (Líneas 2120-2170) miendo brillo y contraste promedio mediante Canvas.
 - [OK] Marcado de daños sobre las imágenes: Implementado en main.js (Líneas 2170-2220) con pines redondos interactivos asociados de forma exclusiva a cada foto.
 - [OK] Firma digital del cliente: Implementado en main.js (Líneas 2650-2720) mediante firma interactiva en Canvas móvil-responsivo.
 - [OK] Ticket previo a la instalación (Comprobante): Generado en main.js (Líneas 2870-3000, renderTicketPreView).
@@ -339,3 +339,38 @@ HALLAZGOS:
 - No hay un icono de campana de notificación con contador y panel desplegable.
 - Falta la lógica en main.js para consultar de forma unificada órdenes, clientes, técnicos y vehículos mediante aproximación de Levenshtein o coincidencia rápida.
 - Falta el acumulador dinámico de notificaciones para retrasos, esperas, aprobaciones o citas pendientes.
+
+==============================================
+AUDITORÍA INTEGRAL GOS v0.8.0 - FORMULARIO UNIFICADO Y GESTIÓN DE BORRADORES
+==============================================
+Fecha: 2026-07-31
+Versión Auditada: GOS v0.7.1 / GOS-CORE v1.3.0
+
+JUSTIFICACIÓN DE LA AUDITORÍA (REGISTRO DE SOLICITUDES PREVIO):
+Se auditan las siguientes solicitudes originadas en el prompt de la tarea actual:
+1. UNIFICACIÓN DE FORMULARIO: Unificar formulario de Nueva Instalación y Orden de Trabajo en un único formulario que es la fuente oficial.
+2. GESTIÓN DE BORRADORES: Permitir guardar órdenes en estado Borrador aun sin completar toda la información.
+3. REQUISITOS MÍNIMOS DE BORRADOR: Los únicos campos obligatorios para guardar borrador son Fecha, Hora y Nombre de cliente. Toda otra información es opcional.
+4. EXPIRACIÓN DE BORRADOR: El borrador expira y se elimina automáticamente 60 minutos después del inicio del turno reservado, liberando el cupo.
+5. CONFIRMACIÓN DE CUPO: Se considera confirmado al guardarse correctamente con toda la información obligatoria (Fecha, Hora, Cliente, Marca, Modelo, Color, Año, Motor, Chasis, Servicio, Tipo de servicio si corresponde, Inventario si corresponde).
+6. NÚMERO DE INVENTARIO: Se vuelve obligatorio automáticamente si la instalación se realiza en un cliente corporativo/empresa con número de inventario. Opcional en los demás casos.
+7. CAMPO PLACA: Mostrar dinámicamente si el año del vehículo es menor al año actual. Ocultar si es el año actual. Opcional.
+8. SERVICIOS CHECKBOXES: Cambiar la selección de servicio a casillas de verificación (Checkboxes) para Tracklink y Controlcar.
+9. TIPO DE SERVICIO DROPDOWN: Mostrar dropdown para tipo de servicio (Básico (Roadlink) seleccionado por defecto, Full (Transtrack)) únicamente si Tracklink está seleccionado. Ocultar si se selecciona Controlcar.
+10. SELECTOR DE TIPO DE TRABAJO: Antes de abrir el formulario (al hacer clic en Reservar o (+)), mostrar un selector para elegir el tipo de trabajo (Instalación nueva, Revisión por falla, Desinstalación, Mantenimiento, Traspaso), autocompletando el campo de Tipo de trabajo.
+11. COMPORTAMIENTO INSTALACIÓN NUEVA: Autocompletar Fecha y Hora desde la Agenda.
+12. VEHÍCULOS EXISTENTES (Revisión por falla, Desinstalación, Mantenimiento, Traspaso):
+    - Buscar automáticamente coincidencias del cliente en tiempo real.
+    - Si encuentra cliente con exactamente un vehículo, autocompletar cliente y vehículo.
+    - Si el cliente tiene múltiples vehículos, autocompletar cliente y dejar vehículo vacío.
+    - Buscar marca de vehículo para sugerir solo vehículos registrados a su nombre en formato "Marca | Modelo | Placa | Chasis (últimos 6 dígitos)" y autocompletar todo al seleccionar.
+
+HALLAZGOS:
+- Los borradores actualmente tienen vigencia de 15 minutos en vez de 60 minutos en la lógica de `main.js`.
+- No hay lógica en el backend (`gos-core.js`) para expirar y actualizar automáticamente borradores antiguos de la hoja de órdenes.
+- La selección del servicio en `UI_TEMPLATES.orderForm` sigue siendo un dropdown común en vez de checkboxes de Tracklink y Controlcar.
+- El dropdown de Tipo de Servicio no está condicionado a la casilla de verificación Tracklink.
+- El campo Placa se muestra siempre, sin validar dinámicamente si el año es inferior al año actual.
+- Al hacer clic en un botón Reservar o (+), se abre el formulario de forma directa sin mostrar previamente el selector del tipo de trabajo.
+- No se realiza la búsqueda en tiempo real de vehículos y autocompletado inteligente de clientes/vehículos.
+- No hay validación de obligatoriedad condicionada del campo Inventario basada en si el cliente pertenece a una empresa.
