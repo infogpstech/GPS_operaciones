@@ -2714,8 +2714,8 @@ async function renderDashboardModule(container) {
                 // DASHBOARD PARA TÉCNICOS Y OPERATIVOS: Personal Technician Dashboard
                 const isTech = RBAC.isTech();
                 const activeJobs = filteredOrders.filter(o => {
-                    const statusLower = (o.estado || '').toLowerCase().trim();
-                    const statusMatch = ['pendiente', 'asignada', 'en camino', 'llego', 'vehiculo recibido', 'iniciando', 'instalando', 'haciendo pruebas', 'instalacion completada', 'finalizada', 'trabajo retrasado', 'vehiculo no disponible', 'vehículo no disponible'].includes(statusLower);
+                const statusLower = (o.estado || '').toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                const statusMatch = ['pendiente', 'asignada', 'en camino', 'llego', 'vehiculo recibido', 'iniciando', 'instalando', 'haciendo pruebas', 'instalacion completada', 'finalizada', 'trabajo retrasado', 'vehiculo no disponible'].includes(statusLower);
                     if (!statusMatch) return false;
 
                     if (isTech) {
@@ -4658,17 +4658,17 @@ async function renderAdminMetricsModule(container) {
         const orders = result.data;
 
         // Calcular Métricas Globales/Administrativas
-        const totalPending = orders.filter(o => ['pendiente', 'asignada'].includes((o.estado || '').toLowerCase().trim())).length;
+        const totalPending = orders.filter(o => ['pendiente', 'asignada'].includes((o.estado || '').toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, ""))).length;
 
         const todayStr = new Date().toISOString().split('T')[0];
         const totalAssignedToday = orders.filter(o => {
             const dateMatch = o.fecha === todayStr;
-            const statusMatch = ['asignada', 'en camino', 'llego', 'vehiculo recibido', 'iniciando', 'instalando', 'haciendo pruebas', 'instalacion completada'].includes((o.estado || '').toLowerCase().trim());
+            const statusMatch = ['asignada', 'en camino', 'llego', 'vehiculo recibido', 'iniciando', 'instalando', 'haciendo pruebas', 'instalacion completada'].includes((o.estado || '').toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
             return dateMatch && statusMatch;
         }).length;
 
-        const totalReceived = orders.filter(o => (o.estado || '').toLowerCase().trim() === 'vehiculo recibido').length;
-        const totalFinished = orders.filter(o => (o.estado || '').toLowerCase().trim() === 'finalizada').length;
+        const totalReceived = orders.filter(o => (o.estado || '').toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === 'vehiculo recibido').length;
+        const totalFinished = orders.filter(o => (o.estado || '').toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === 'finalizada').length;
 
         // Calcular distribución para gráficos
         const techCounts = {};
