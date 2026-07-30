@@ -320,3 +320,22 @@ HALLAZGOS:
 - No se ha implementado el mapa interactivo abierto de Leaflet ni el geocoding.
 - Falta unificar los campos de ubicación y buscar ubicaciones en uno solo.
 - Coordenadas y links de mapas siguen visibles en el formulario de creación de órdenes.
+
+==============================================
+AUDITORÍA INTEGRAL GOS v0.7.2 - NUEVAS IMPLEMENTACIONES (TRECEAVO)
+==============================================
+Fecha: 2026-07-30
+Versión Auditada: GOS v0.7.1 / GOS-CORE v1.3.0
+
+JUSTIFICACIÓN DE LA AUDITORÍA (REGISTRO DE SOLICITUDES PREVIO):
+Se auditan las siguientes solicitudes originadas en Instrucciones.txt bloque TRECEAVO (Productividad, Automatización y Seguridad):
+1. BÚSQUEDA GLOBAL: Implementar una búsqueda rápida que permita localizar vehículos, clientes, órdenes, técnicos, asesores, direcciones, historial, chasis (VIN) y placas desde un único punto de acceso.
+2. ACCIONES RÁPIDAS: Acceso directo y rápido a acciones frecuentes (crear orden, abrir agenda, buscar vehículo, consultar historial, iniciar o finalizar trabajo).
+3. RECORDATORIOS INTELIGENTES: Generar recordatorios automáticos para citas próximas, retrasos, pendientes, esperas, aprobaciones y evidencias faltantes.
+4. NOTIFICACIONES CENTRALIZADAS: Concentrar todas las notificaciones en un centro de notificaciones centralizado (bell icon 🔔 con contador de badge y listado interactivo).
+
+HALLAZGOS:
+- No existe un campo de búsqueda global en la interfaz.
+- No hay un icono de campana de notificación con contador y panel desplegable.
+- Falta la lógica en main.js para consultar de forma unificada órdenes, clientes, técnicos y vehículos mediante aproximación de Levenshtein o coincidencia rápida.
+- Falta el acumulador dinámico de notificaciones para retrasos, esperas, aprobaciones o citas pendientes.
