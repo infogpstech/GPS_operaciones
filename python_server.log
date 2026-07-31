@@ -18,3 +18,13 @@
 127.0.0.1 - - [31/Jul/2026 04:18:35] "GET /logo-gos.svg HTTP/1.1" 200 -
 127.0.0.1 - - [31/Jul/2026 04:18:35] "GET /icon-gos-192.svg HTTP/1.1" 200 -
 127.0.0.1 - - [31/Jul/2026 04:18:35] "GET /icon-gos-512.svg HTTP/1.1" 200 -
+127.0.0.1 - - [31/Jul/2026 10:59:45] "GET /index.html HTTP/1.1" 200 -
+127.0.0.1 - - [31/Jul/2026 10:59:45] "GET /style.css HTTP/1.1" 200 -
+127.0.0.1 - - [31/Jul/2026 10:59:45] "GET /main.js HTTP/1.1" 200 -
+127.0.0.1 - - [31/Jul/2026 10:59:45] "GET /api-config.js HTTP/1.1" 200 -
+127.0.0.1 - - [31/Jul/2026 10:59:45] "GET /service-worker.js HTTP/1.1" 200 -
+127.0.0.1 - - [31/Jul/2026 10:59:45] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [31/Jul/2026 10:59:45] "GET /manifest.json HTTP/1.1" 200 -
+127.0.0.1 - - [31/Jul/2026 10:59:45] "GET /logo-gos.svg HTTP/1.1" 200 -
+127.0.0.1 - - [31/Jul/2026 10:59:45] "GET /icon-gos-192.svg HTTP/1.1" 200 -
+127.0.0.1 - - [31/Jul/2026 10:59:45] "GET /icon-gos-512.svg HTTP/1.1" 200 -

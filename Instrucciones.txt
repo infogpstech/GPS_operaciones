@@ -4821,3 +4821,22 @@ La imagen del vehículo deberá mantener un tamaño moderado.
 La tipografía utilizada en el modal deberá conservar una escala contenida, priorizando la legibilidad y evitando elementos sobredimensionados.
 
 ================================================================================
+
+
+================================================================================
+# NUEVAS IMPLEMENTACIONES (v1.0.0) - TAREAS PENDIENTES DE REVISIÓN POR EL PM
+================================================================================
+- Simplificación del botón de cupos extraordinarios (+) en la agenda semanal (Pendiente de revisión por el PM).
+- Selección de tipo de trabajo mediante Drop Menu anclado y semi-transparente (Pendiente de revisión por el PM).
+- Actualizaciones silenciosas en segundo plano de Agenda y Dashboard sin parpadeos ni pérdidas de foco (Pendiente de revisión por el PM).
+- Bloqueo temporal de cupos ("Reservando...", café claro, 5m expiración) (Pendiente de revisión por el PM).
+- Escalado dinámico gradual hacia rojo a los 40m sin recepción (Pendiente de revisión por el PM).
+- Componente de mapa con aspecto de relación cuadrada (1:1) (Pendiente de revisión por el PM).
+- Autodetección de Google Maps enlaces, coordenadas directas y direcciones en ubicación (Pendiente de revisión por el PM).
+- Visor de mapa operativo en OT que abre Google Maps app (geo:) al clicar (Pendiente de revisión por el PM).
+- Flexibilización de longitud de VIN y persistencia histórica de chasis con fotos frontal/posterior/interior derecho (Pendiente de revisión por el PM).
+- Caching local e instantáneo usando base de datos IndexedDB cliente (Pendiente de revisión por el PM).
+- Registro automático en Log_Rendimiento y gráficos de desempeño SVG nativos de técnicos (Pendiente de revisión por el PM).
+- Panel administrativo de indisponibilidades, ausencias parciales y reducción dinámica de cupos (Pendiente de revisión por el PM).
+- Especializaciones y asignación técnica preferente por agenda semanal interactiva (Pendiente de revisión por el PM).
+- Despachador de trayectorias, distancias y velocidades de moto en despachador.js (Pendiente de revisión por el PM).
