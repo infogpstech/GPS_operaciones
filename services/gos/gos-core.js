@@ -352,10 +352,10 @@ function handleCreateOrder(payload) {
     "Coordenadas", "Link Maps", "Marca", "Modelo", "VIN", "Motor", "Año",
     "Placa", "Servicio", "Inventario", "Tipo Trabajo", "Prioridad",
     "Técnico Asignado", "Estado", "Observaciones", "Sector", "Vendedor", "Color", "Fecha Instalacion", "Token",
-    "Clasificación Vehículo", "Firma Digital"
+    "Clasificación Vehículo", "Firma Digital", "Contacto Nombre", "Contacto Teléfono"
   ];
   const sheet = findOrCreateSheet("Ordenes", headers);
-  const nextId = getNextId("OT");
+  const nextId = getNextId("OI");
 
   const orderData = headers.map(h => {
     switch(h) {
@@ -388,6 +388,8 @@ function handleCreateOrder(payload) {
       case "Token": return payload.token || Utilities.getUuid();
       case "Clasificación Vehículo": return payload.clasificacionVehiculo || "";
       case "Firma Digital": return payload.firmaDigital || "";
+      case "Contacto Nombre": return payload.contacto_nombre || "";
+      case "Contacto Teléfono": return payload.contacto_telefono || "";
       default: return "";
     }
   });
@@ -903,7 +905,7 @@ function handleUpdateUserSector(payload) {
  * Guarda la recepción del vehículo y cambia el estado de la orden.
  */
 function handleSaveVehicleReception(payload) {
-  const { orderId, tecnico, sector, clienteInfo, vehiculoInfo, fotos, danos, calidadCheck } = payload;
+  const { orderId, otId, tecnico, sector, clienteInfo, vehiculoInfo, fotos, danos, calidadCheck } = payload;
   if (!orderId || !tecnico) return { status: 'error', message: 'OrdenID y Técnico son requeridos' };
 
   const headers = ["ID", "OrdenID", "Tecnico", "FechaHora", "Sector", "ClienteInfo", "VehiculoInfo", "Fotos", "Danos", "CalidadCheck"];
@@ -928,7 +930,32 @@ function handleSaveVehicleReception(payload) {
   // Actualizar estado de la orden a "Vehículo recibido"
   handleUpdateOrderStatus({ orderId, status: "Vehículo recibido" });
 
-  logToSheet("Auditoria", "Recepcion", "saveVehicleReception", "success", "", `Recepción registrada #${nextId} para orden ${orderId}`);
+  // Si existe otId, actualizar la fila en Ordenes_Trabajo
+  if (otId) {
+    try {
+      const otSheet = findOrCreateSheet("Ordenes_Trabajo");
+      const otData = otSheet.getDataRange().getValues();
+      const otHeaderMap = getHeaderMap(otSheet);
+      const idIdx = otHeaderMap["ID"] - 1;
+      let otRow = -1;
+      for (let i = 1; i < otData.length; i++) {
+        if (otData[i][idIdx].toString() === otId.toString()) {
+          otRow = i + 1;
+          break;
+        }
+      }
+      if (otRow !== -1) {
+        otSheet.getRange(otRow, otHeaderMap["Fotos"]).setValue(typeof fotos === 'string' ? fotos : JSON.stringify(fotos || {}));
+        otSheet.getRange(otRow, otHeaderMap["Danos"]).setValue(typeof danos === 'string' ? danos : JSON.stringify(danos || {}));
+        otSheet.getRange(otRow, otHeaderMap["CalidadCheck"]).setValue(typeof calidadCheck === 'string' ? calidadCheck : JSON.stringify(calidadCheck || {}));
+        otSheet.getRange(otRow, otHeaderMap["Estado"]).setValue("Vehículo recibido");
+      }
+    } catch (err) {
+      console.error("Error actualizando Ordenes_Trabajo desde recepcion:", err);
+    }
+  }
+
+  logToSheet("Auditoria", "Recepcion", "saveVehicleReception", "success", "", `Recepción registrada #${nextId} para orden ${orderId} (OT: ${otId || 'N/A'})`);
 
   return { status: 'success', id: nextId, message: 'Recepción registrada exitosamente' };
 }
@@ -1000,6 +1027,46 @@ function handleGetClientPortalData(payload) {
     apellido: parsedVendedor.last
   };
 
+  // Extraer información de la Orden de Trabajo de forma segura para el cliente
+  let clientFeatures = ["Dispositivo GPS"];
+  try {
+    const otSheet = findOrCreateSheet("Ordenes_Trabajo");
+    const otData = otSheet.getDataRange().getValues();
+    const otHeaderMap = getHeaderMap(otSheet);
+    let otRow = -1;
+    for (let i = 1; i < otData.length; i++) {
+      if (otData[i][otHeaderMap["OI_ID"] - 1].toString() === ot.toString() || otData[i][otHeaderMap["ID"] - 1].toString() === ot.toString()) {
+        otRow = i;
+        break;
+      }
+    }
+    if (otRow !== -1) {
+      const funcsStr = otData[otRow][otHeaderMap["Funcionalidades"] - 1] || "[]";
+      let funcs = [];
+      try { funcs = JSON.parse(funcsStr); } catch (e) {}
+
+      clientFeatures = [];
+      let secondGpsActive = otData[otRow][otHeaderMap["Segundo_GPS"] - 1] === "Sí";
+
+      funcs.forEach(f => {
+        if (f === "Dispositivo GPS") clientFeatures.push("Dispositivo GPS");
+        if (f === "Segundo dispositivo GPS" && secondGpsActive) clientFeatures.push("Segundo dispositivo GPS");
+        if (f === "Apagado remoto") clientFeatures.push("Bloqueo remoto");
+        if (f === "Apertura de puertas") clientFeatures.push("Apertura de puertas");
+        if (f === "Botón de pánico") clientFeatures.push("Botón de pánico");
+        if (f === "Micrófono") clientFeatures.push("Micrófono");
+        if (f === "Parlante") clientFeatures.push("Parlante");
+      });
+
+      const customOther = otData[otRow][otHeaderMap["Otras_Funcionalidades"] - 1] || "";
+      if (customOther) {
+        clientFeatures.push(customOther);
+      }
+    }
+  } catch (err) {
+    console.error("Error filtrando funcionalidades para cliente:", err);
+  }
+
   // Extraer información del servicio
   const serviceInfo = {
     lugar: row[headerMap["Dirección"] - 1] || "No especificado",
@@ -1007,7 +1074,8 @@ function handleGetClientPortalData(payload) {
     fechaInstalacion: row[headerMap["Fecha Instalacion"] - 1] || "Pendiente",
     tipoServicio: row[headerMap["Servicio"] - 1] || "Básico",
     observaciones: row[headerMap["Observaciones"] - 1] || "",
-    estado: row[headerMap["Estado"] - 1] || "Pendiente"
+    estado: row[headerMap["Estado"] - 1] || "Pendiente",
+    funcionalidades: clientFeatures
   };
 
   // Extraer información del vehículo
@@ -1267,6 +1335,22 @@ function handleDeleteUser(payload) {
 
   logToSheet("Auditoria", "Usuarios", "deleteUser", "success", "", `Usuario eliminado: ${username} por ${requestorUsername}`);
   return { status: 'success', message: 'Usuario eliminado exitosamente' };
+}
+
+function handleVerifyPassword(payload) {
+  const { username, password } = payload;
+  if (!username || !password) return { status: 'error', message: 'Datos incompletos' };
+  const sheet = getGpsPediaUsersSheet();
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if ((data[i][1] || '').toString().trim().toLowerCase() === username.trim().toLowerCase()) {
+      if (data[i][2].toString() === password.toString()) {
+        return { status: 'success', message: 'Identidad confirmada' };
+      }
+      break;
+    }
+  }
+  return { status: 'error', message: 'Contraseña incorrecta' };
 }
 
 function handleChangePassword(payload) {
@@ -1734,12 +1818,281 @@ function handleGetTechnicians() {
   return { status: 'success', data: techs };
 }
 
+function handleGetOTConfig() {
+  const sheet = findOrCreateSheet("Configuracion", ["Categoría", "Clave", "Valor", "Estado"]);
+  const data = sheet.getDataRange().getValues();
+  const config = {
+    OT_Base_Number: 1000,
+    OT_Generation_Method: "automatic",
+    OT_Auto_Numeration: "active"
+  };
+  for (let i = 1; i < data.length; i++) {
+    const key = data[i][1];
+    const val = data[i][2];
+    if (key === "OT_Base_Number") config.OT_Base_Number = parseInt(val) || 1000;
+    if (key === "OT_Generation_Method") config.OT_Generation_Method = val;
+    if (key === "OT_Auto_Numeration") config.OT_Auto_Numeration = val;
+  }
+  return { status: 'success', data: config };
+}
+
+function handleUpdateOTConfig(payload) {
+  const { baseNumber, generationMethod, autoNumeration } = payload;
+  const sheet = findOrCreateSheet("Configuracion", ["Categoría", "Clave", "Valor", "Estado"]);
+  const data = sheet.getDataRange().getValues();
+
+  const updateOrAppend = (key, val) => {
+    let rowIdx = -1;
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][1] === key) {
+        rowIdx = i + 1;
+        break;
+      }
+    }
+    if (rowIdx !== -1) {
+      sheet.getRange(rowIdx, 3).setValue(val);
+    } else {
+      sheet.appendRow(["Sistema", key, val, "Activo"]);
+    }
+  };
+
+  if (baseNumber !== undefined) updateOrAppend("OT_Base_Number", baseNumber.toString());
+  if (generationMethod !== undefined) updateOrAppend("OT_Generation_Method", generationMethod);
+  if (autoNumeration !== undefined) updateOrAppend("OT_Auto_Numeration", autoNumeration);
+
+  return { status: 'success', message: 'Configuración de OT actualizada correctamente' };
+}
+
+function handleSaveTechnicianSignature(payload) {
+  const { tecnico, firma } = payload;
+  if (!tecnico || !firma) return { status: 'error', message: 'Técnico y firma son requeridos' };
+  const sheet = findOrCreateSheet("Firmas_Tecnicos", ["Tecnico", "Firma"]);
+  const data = sheet.getDataRange().getValues();
+
+  let rowIdx = -1;
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0].toString().toLowerCase() === tecnico.toString().toLowerCase()) {
+      rowIdx = i + 1;
+      break;
+    }
+  }
+  if (rowIdx !== -1) {
+    sheet.getRange(rowIdx, 2).setValue(firma);
+  } else {
+    sheet.appendRow([tecnico, firma]);
+  }
+  return { status: 'success', message: 'Firma de técnico guardada correctamente' };
+}
+
+function handleGetTechnicianSignature(payload) {
+  const { tecnico } = payload;
+  if (!tecnico) return { status: 'error', message: 'Técnico es requerido' };
+  const sheet = findOrCreateSheet("Firmas_Tecnicos", ["Tecnico", "Firma"]);
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0].toString().toLowerCase() === tecnico.toString().toLowerCase()) {
+      return { status: 'success', firma: data[i][1] };
+    }
+  }
+  return { status: 'success', firma: null };
+}
+
+function handleDeleteTechnicianSignature(payload) {
+  const { tecnico } = payload;
+  if (!tecnico) return { status: 'error', message: 'Técnico es requerido' };
+  const sheet = findOrCreateSheet("Firmas_Tecnicos", ["Tecnico", "Firma"]);
+  const data = sheet.getDataRange().getValues();
+  let deleted = false;
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (data[i][0].toString().toLowerCase() === tecnico.toString().toLowerCase()) {
+      sheet.deleteRow(i + 1);
+      deleted = true;
+    }
+  }
+  if (deleted) {
+    return { status: 'success', message: 'Firma eliminada correctamente' };
+  }
+  return { status: 'error', message: 'No se encontró firma para el técnico' };
+}
+
+function handleCreateOT(payload) {
+  const { oiId, enteredVin, manualOtId } = payload;
+  if (!oiId || !enteredVin) return { status: 'error', message: 'OI ID y VIN son requeridos' };
+
+  const oiSheet = findOrCreateSheet("Ordenes");
+  const oiData = oiSheet.getDataRange().getValues();
+  const oiHeaderMap = getHeaderMap(oiSheet);
+
+  const idIdx = oiHeaderMap["ID"] - 1;
+  const vinIdx = oiHeaderMap["VIN"] - 1;
+
+  let oiRow = -1;
+  for (let i = 1; i < oiData.length; i++) {
+    if (oiData[i][idIdx].toString() === oiId.toString()) {
+      oiRow = i;
+      break;
+    }
+  }
+
+  if (oiRow === -1) {
+    return { status: 'error', message: 'Orden de Instalación no encontrada' };
+  }
+
+  const expectedVin = oiData[oiRow][vinIdx] || "";
+  if (expectedVin.toString().trim().toLowerCase() !== enteredVin.toString().trim().toLowerCase()) {
+    return { status: 'error', message: 'El VIN ingresado no coincide con la Orden de Instalación.' };
+  }
+
+  // Generar ID único para OT
+  const configSheet = findOrCreateSheet("Configuracion", ["Categoría", "Clave", "Valor", "Estado"]);
+  const configData = configSheet.getDataRange().getValues();
+  let autoNum = "active";
+  let genMethod = "automatic";
+  let baseNum = 1000;
+  let baseRowIdx = -1;
+
+  for (let i = 1; i < configData.length; i++) {
+    const key = configData[i][1];
+    const val = configData[i][2];
+    if (key === "OT_Auto_Numeration") autoNum = val;
+    if (key === "OT_Generation_Method") genMethod = val;
+    if (key === "OT_Base_Number") {
+      baseNum = parseInt(val) || 1000;
+      baseRowIdx = i + 1;
+    }
+  }
+
+  let otId = "";
+  if (autoNum === "active" && genMethod === "automatic") {
+    const nextVal = baseNum + 1;
+    if (baseRowIdx !== -1) {
+      configSheet.getRange(baseRowIdx, 3).setValue(nextVal);
+    } else {
+      configSheet.appendRow(["Sistema", "OT_Base_Number", nextVal.toString(), "Activo"]);
+    }
+    otId = `OT-${nextVal}`;
+  } else {
+    if (!manualOtId) {
+      return { status: 'error', message: 'Se requiere ingresar manualmente el ID de la Orden de Trabajo' };
+    }
+    otId = manualOtId;
+  }
+
+  // Registrar en Ordenes_Trabajo
+  const otSheet = findOrCreateSheet("Ordenes_Trabajo", [
+    "ID", "OI_ID", "Estado", "Firma_Tecnico", "Firma_Cliente_Recepcion", "Firma_Cliente_Entrega",
+    "FechaHora_Recepcion", "FechaHora_Inicio", "FechaHora_Pruebas", "FechaHora_Fin", "FechaHora_Abandono", "FechaHora_Entrega",
+    "IMEI", "SIM", "Info_Interna", "Datos_Prog", "Funcionalidades", "Segundo_GPS", "Segundo_GPS_Info", "Tipo_Apagado_Remoto", "Otras_Funcionalidades",
+    "Fotos", "Danos", "CalidadCheck", "Observaciones"
+  ]);
+
+  // Verificar si ya existe para evitar duplicado
+  const otData = otSheet.getDataRange().getValues();
+  for (let i = 1; i < otData.length; i++) {
+    if (otData[i][1].toString() === oiId.toString()) {
+      return { status: 'success', otId: otData[i][0], message: 'Orden de Trabajo existente recuperada.' };
+    }
+  }
+
+  const nowStr = new Date().toISOString();
+  otSheet.appendRow([
+    otId,
+    oiId,
+    "Recepción",
+    "", "", "",
+    nowStr, "", "", "", "", "",
+    "", "", "", "", "[]", "No", "", "", "",
+    "{}", "{}", "{}", ""
+  ]);
+
+  // Actualizar estado de OI a "Vehículo recibido"
+  handleUpdateOrderStatus({ orderId: oiId, status: "Vehículo recibido" });
+
+  return { status: 'success', otId: otId, message: 'Orden de Trabajo creada exitosamente.' };
+}
+
+function handleSaveOTDetails(payload) {
+  const { otId, updates } = payload;
+  if (!otId) return { status: 'error', message: 'OT ID es requerido' };
+  const sheet = findOrCreateSheet("Ordenes_Trabajo");
+  const data = sheet.getDataRange().getValues();
+  const headerMap = getHeaderMap(sheet);
+
+  const idIdx = headerMap["ID"] - 1;
+  let otRow = -1;
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][idIdx].toString() === otId.toString()) {
+      otRow = i + 1;
+      break;
+    }
+  }
+
+  if (otRow === -1) return { status: 'error', message: 'Orden de Trabajo no encontrada' };
+
+  Object.entries(updates).forEach(([key, val]) => {
+    const colIdx = headerMap[key];
+    if (colIdx) {
+      sheet.getRange(otRow, colIdx).setValue(val);
+    }
+  });
+
+  return { status: 'success', message: 'Detalles de OT guardados correctamente' };
+}
+
+function handleGetOTDetails(payload) {
+  const { otId, oiId } = payload;
+  const sheet = findOrCreateSheet("Ordenes_Trabajo");
+  const data = sheet.getDataRange().getValues();
+  const headerMap = getHeaderMap(sheet);
+
+  const idIdx = headerMap["ID"] - 1;
+  const oiIdIdx = headerMap["OI_ID"] - 1;
+
+  let otRow = -1;
+  for (let i = 1; i < data.length; i++) {
+    if ((otId && data[i][idIdx].toString() === otId.toString()) || (oiId && data[i][oiIdIdx].toString() === oiId.toString())) {
+      otRow = i;
+      break;
+    }
+  }
+
+  if (otRow === -1) return { status: 'error', message: 'Orden de Trabajo no encontrada' };
+
+  const otObj = {};
+  Object.entries(headerMap).forEach(([key, colIdx]) => {
+    otObj[key] = data[otRow][colIdx - 1];
+  });
+
+  return { status: 'success', data: otObj };
+}
+
+function handleGetSavedSignatures() {
+  const sheet = findOrCreateSheet("Firmas_Tecnicos", ["Tecnico", "Firma"]);
+  const data = sheet.getDataRange().getValues();
+  const list = [];
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0]) {
+      list.push(data[i][0].toString());
+    }
+  }
+  return { status: 'success', data: list };
+}
+
 function doPost(e) {
   try {
     const request = JSON.parse(e.postData.contents);
     let response;
 
     switch (request.action) {
+      case 'getOTConfig': response = handleGetOTConfig(); break;
+      case 'updateOTConfig': response = handleUpdateOTConfig(request.payload); break;
+      case 'saveTechnicianSignature': response = handleSaveTechnicianSignature(request.payload); break;
+      case 'getTechnicianSignature': response = handleGetTechnicianSignature(request.payload); break;
+      case 'deleteTechnicianSignature': response = handleDeleteTechnicianSignature(request.payload); break;
+      case 'createOT': response = handleCreateOT(request.payload); break;
+      case 'saveOTDetails': response = handleSaveOTDetails(request.payload); break;
+      case 'getOTDetails': response = handleGetOTDetails(request.payload); break;
+      case 'getSavedSignatures': response = handleGetSavedSignatures(); break;
       case 'getTechnicalConsultation': response = handleGetTechnicalConsultation(request.payload); break;
       case 'getSavedLocations': response = handleGetSavedLocations(); break;
       case 'saveSavedLocation': response = handleSaveSavedLocation(request.payload); break;
@@ -1750,6 +2103,7 @@ function doPost(e) {
       case 'updateUser': response = handleUpdateUser(request.payload); break;
       case 'deleteUser': response = handleDeleteUser(request.payload); break;
       case 'changePassword': response = handleChangePassword(request.payload); break;
+      case 'verifyPassword': response = handleVerifyPassword(request.payload); break;
       case 'createOrder': response = handleCreateOrder(request.payload); break;
       case 'getOrders': response = handleGetOrders(); break;
       case 'getSystemConfig': response = handleGetSystemConfig(); break;

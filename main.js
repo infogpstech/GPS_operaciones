@@ -243,6 +243,8 @@ const UI_TEMPLATES = {
                     </div>
                     <div class="form-group"><label>Dirección del cliente (Domicilio)</label><input type="text" name="contacto" id="order-contacto" class="form-control"></div>
                     <div class="form-group"><label>Teléfono</label><input type="text" name="telefono" id="order-telefono" class="form-control"></div>
+                    <div class="form-group"><label>Nombre del contacto (Persona que entrega)</label><input type="text" name="contacto_nombre" id="order-contacto-nombre" class="form-control" placeholder="Nombre de quien entrega..."></div>
+                    <div class="form-group"><label>Teléfono del contacto (Persona que entrega)</label><input type="text" name="contacto_telefono" id="order-contacto-telefono" class="form-control" placeholder="Teléfono de quien entrega..."></div>
                     <div class="form-group autocomplete-wrapper" style="position:relative; grid-column: 1 / -1;">
                         <label style="font-weight:bold;">Ubicación de la instalación</label>
                         <input type="text" id="order-saved-loc-search" class="form-control" placeholder="Escriba la dirección o busque ubicación guardada, ej: Excel">
@@ -2712,8 +2714,8 @@ async function renderDashboardModule(container) {
                 // DASHBOARD PARA TÉCNICOS Y OPERATIVOS: Personal Technician Dashboard
                 const isTech = RBAC.isTech();
                 const activeJobs = filteredOrders.filter(o => {
-                    const statusLower = (o.estado || '').toLowerCase().trim();
-                    const statusMatch = ['pendiente', 'asignada', 'en camino', 'llego', 'vehiculo recibido', 'iniciando', 'instalando', 'haciendo pruebas', 'instalacion completada', 'finalizada', 'trabajo retrasado', 'vehiculo no disponible', 'vehículo no disponible'].includes(statusLower);
+                const statusLower = (o.estado || '').toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                const statusMatch = ['pendiente', 'asignada', 'en camino', 'llego', 'vehiculo recibido', 'iniciando', 'instalando', 'haciendo pruebas', 'instalacion completada', 'finalizada', 'trabajo retrasado', 'vehiculo no disponible'].includes(statusLower);
                     if (!statusMatch) return false;
 
                     if (isTech) {
@@ -2949,11 +2951,72 @@ async function renderDashboardModule(container) {
 
             const btns = container.querySelectorAll('.receive-vehicle-btn');
             btns.forEach(btn => {
-                btn.addEventListener('click', (e) => {
+                btn.addEventListener('click', async (e) => {
                     const orderId = e.target.dataset.id;
                     const order = orders.find(ord => ord.id === orderId);
-                    if (order) {
-                        renderVehicleReceptionForm(container, order);
+                    if (!order) return;
+
+                    try {
+                        const configRes = await routeAction('GOS_CORE', 'getOTConfig');
+                        const otConfig = configRes.status === 'success' ? configRes.data : { OT_Auto_Numeration: 'active', OT_Generation_Method: 'automatic' };
+
+                        const isManual = otConfig.OT_Auto_Numeration !== 'active' || otConfig.OT_Generation_Method === 'manual';
+
+                        const modalHtml = `
+                            <div style="padding:15px; text-align:left; font-size:0.9rem; line-height:1.5;">
+                                <p style="margin-bottom:15px; color:var(--dark);">Por seguridad y para validar que el vehículo coincide con la orden comercial, <strong>ingrese el número VIN completo de 17 dígitos:</strong></p>
+                                <div class="form-group" style="margin-bottom:15px;">
+                                    <label style="font-weight:bold; font-size:0.85rem;">Número VIN/Chasis:</label>
+                                    <input type="text" id="validation-vin" class="form-control" placeholder="Ingrese VIN de 17 dígitos..." maxlength="17" required style="text-transform:uppercase;">
+                                </div>
+                                ${isManual ? `
+                                    <div class="form-group" style="margin-bottom:15px;">
+                                        <label style="font-weight:bold; font-size:0.85rem;">ID de Orden de Trabajo (Manual):</label>
+                                        <input type="text" id="validation-manual-ot-id" class="form-control" placeholder="Ingrese identificador de OT..." required>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+
+                        UI_TEMPLATES.modal(
+                            'Validación de Vehículo',
+                            modalHtml,
+                            async () => {
+                                const inputVin = document.getElementById('validation-vin').value.trim().toUpperCase();
+                                if (!inputVin) {
+                                    alert("El número VIN es requerido.");
+                                    return;
+                                }
+
+                                let manualOtId = '';
+                                if (isManual) {
+                                    manualOtId = document.getElementById('validation-manual-ot-id').value.trim();
+                                    if (!manualOtId) {
+                                        alert("El ID de la Orden de Trabajo manual es requerido.");
+                                        return;
+                                    }
+                                }
+
+                                try {
+                                    const result = await routeAction('GOS_CORE', 'createOT', {
+                                        oiId: order.id,
+                                        enteredVin: inputVin,
+                                        manualOtId: manualOtId
+                                    });
+
+                                    if (result.status === 'success') {
+                                        alert(`¡Vehículo Validado con Éxito!\nSe ha generado la Orden de Trabajo ID: ${result.otId}`);
+                                        renderVehicleReceptionForm(container, order, result.otId);
+                                    } else {
+                                        alert(`⚠️ Error de Validación: ${result.message}`);
+                                    }
+                                } catch (err) {
+                                    alert("Error al procesar validación: " + err.message);
+                                }
+                            }
+                        );
+                    } catch (err) {
+                        alert("Error de conexión al obtener configuración de OT: " + err.message);
                     }
                 });
             });
@@ -3187,7 +3250,7 @@ async function renderDashboardModule(container) {
 /**
  * Renderiza el Formulario Inteligente de Recepción de Vehículos.
  */
-function renderVehicleReceptionForm(container, order) {
+function renderVehicleReceptionForm(container, order, otId = '') {
     if (dashboardInterval) {
         clearInterval(dashboardInterval);
         dashboardInterval = null;
@@ -3226,7 +3289,7 @@ function renderVehicleReceptionForm(container, order) {
 
             <!-- Información del Cliente y Orden (Validación Visual) -->
             <fieldset style="border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem; margin-bottom: 25px;">
-                <legend style="font-weight:bold; padding: 0 10px; color: var(--secondary);">Información del Cliente y Orden #${order.id}</legend>
+                <legend style="font-weight:bold; padding: 0 10px; color: var(--secondary);">Información del Cliente y Orden #${order.id} ${otId ? `/ OT: #${otId}` : ''}</legend>
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Cliente:</label>
@@ -3342,6 +3405,41 @@ function renderVehicleReceptionForm(container, order) {
                     `).join('')}
                 </div>
 
+                <!-- Firmas Digitales del Técnico y Cliente en Recepción -->
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-top:35px; border-top:2px solid var(--light); padding-top:20px; flex-wrap:wrap;">
+                    <!-- Firma del Técnico -->
+                    <fieldset style="border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem;">
+                        <legend style="font-weight:bold; padding: 0 10px; color: var(--secondary);">Firma Digital del Técnico</legend>
+                        <div id="tech-sig-saved-container-rec" style="display:none; margin-bottom:15px; background:#e8f4fd; padding:15px; border-radius:6px; border:1px solid #b8daff;">
+                            <p style="margin:0 0 10px 0; font-weight:bold; color:#004085;">✍️ Firma guardada encontrada.</p>
+                            <button type="button" class="btn btn-sm btn-primary" id="btn-use-saved-tech-sig-rec">✍️ Usar Mi Firma Guardada</button>
+                        </div>
+                        <div id="tech-sig-canvas-container-rec">
+                            <p style="margin:2px 0 10px 0; font-size:0.8rem; color:var(--secondary);">Dibuje su firma de técnico:</p>
+                            <div class="signature-wrapper">
+                                <canvas id="tech-signature-pad-rec" class="signature-canvas" width="400" height="150" style="border:1px dashed #ccc; width:100%; height:150px;"></canvas>
+                            </div>
+                            <div class="signature-actions" style="margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                                <button class="btn btn-secondary btn-sm" id="clear-tech-sig-btn-rec" type="button">🔄 Limpiar Firma</button>
+                                <label style="font-size:0.85rem; color:var(--dark); cursor:pointer;"><input type="checkbox" id="save-tech-sig-check-rec" style="margin-right:5px;"> Guardar firma</label>
+                            </div>
+                        </div>
+                        <input type="hidden" id="tech-sig-base64-rec">
+                    </fieldset>
+
+                    <!-- Firma del Cliente -->
+                    <fieldset style="border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem;">
+                        <legend style="font-weight:bold; padding: 0 10px; color: var(--secondary);">Firma Digital del Cliente</legend>
+                        <p style="margin:2px 0 10px 0; font-size:0.8rem; color:var(--secondary);">Dibuje su firma de cliente:</p>
+                        <div class="signature-wrapper">
+                            <canvas id="signature-pad-rec" class="signature-canvas" width="400" height="150" style="border:1px dashed #ccc; width:100%; height:150px;"></canvas>
+                        </div>
+                        <div class="signature-actions" style="margin-top:10px;">
+                            <button class="btn btn-secondary btn-sm" id="clear-sig-btn-rec" type="button">🔄 Limpiar Firma</button>
+                        </div>
+                    </fieldset>
+                </div>
+
                 <div style="margin-top:35px; border-top:2px solid var(--light); padding-top:20px; display:flex; gap:15px; justify-content:flex-end;">
                     <button type="button" class="btn btn-secondary" id="cancel-reception-btn">Cancelar Recepción</button>
                     <button type="submit" class="btn btn-primary">Registrar Vehículo y Comenzar</button>
@@ -3359,6 +3457,50 @@ function renderVehicleReceptionForm(container, order) {
     document.getElementById('cancel-reception-btn').onclick = backToDash;
 
     setupRealtimeAutocomplete();
+
+    const clientPad = initSignatureCanvas('signature-pad-rec', 'clear-sig-btn-rec');
+    const techPadRec = initSignatureCanvas('tech-signature-pad-rec', 'clear-tech-sig-btn-rec');
+
+    // Verificar si hay firma guardada para el técnico
+    (async () => {
+        try {
+            const res = await routeAction('GOS_CORE', 'getTechnicianSignature', { tecnico: AppState.user?.Nombre_Usuario });
+            if (res.status === 'success' && res.firma) {
+                const savedContainer = document.getElementById('tech-sig-saved-container-rec');
+                const canvasContainer = document.getElementById('tech-sig-canvas-container-rec');
+                if (savedContainer && canvasContainer) {
+                    savedContainer.style.display = 'block';
+                    canvasContainer.style.display = 'none';
+                }
+
+                const useSavedBtn = document.getElementById('btn-use-saved-tech-sig-rec');
+                if (useSavedBtn) {
+                    useSavedBtn.onclick = async () => {
+                        const pass = prompt("Por seguridad y confirmación de identidad, ingrese su contraseña de acceso:");
+                        if (pass) {
+                            try {
+                                const verifyRes = await routeAction('GOS_CORE', 'verifyPassword', {
+                                    username: AppState.user?.Nombre_Usuario,
+                                    password: pass
+                                });
+                                if (verifyRes.status === 'success') {
+                                    document.getElementById('tech-sig-base64-rec').value = res.firma;
+                                    alert("Firma digital del técnico aplicada correctamente.");
+                                    document.getElementById('tech-sig-saved-container-rec').innerHTML = '<p style="margin:0; font-weight:bold; color:#155724;">✅ Firma Guardada Aplicada Correctamente.</p>';
+                                } else {
+                                    alert("Contraseña incorrecta. Confirmación de identidad fallida.");
+                                }
+                            } catch (err) {
+                                alert("Error al verificar identidad: " + err.message);
+                            }
+                        }
+                    };
+                }
+            }
+        } catch (err) {
+            console.error("Error al cargar firma guardada de técnico:", err);
+        }
+    })();
 
     categories.forEach(cat => {
         const fileInput = document.getElementById(`file-${cat.id}`);
@@ -3615,6 +3757,37 @@ function renderVehicleReceptionForm(container, order) {
     document.getElementById('vehicle-reception-form').addEventListener('submit', async (e) => {
         e.preventDefault();
 
+        // Validar firma del técnico
+        let techSigBase64 = document.getElementById('tech-sig-base64-rec').value;
+        const saveTechSigChecked = document.getElementById('save-tech-sig-check-rec')?.checked;
+
+        if (!techSigBase64) {
+            if (techPadRec.isEmpty()) {
+                alert("Por favor firme como técnico o aplique su firma guardada antes de continuar.");
+                return;
+            }
+            techSigBase64 = techPadRec.getDataUrl();
+
+            // Si marcó guardar firma, guardarla en el backend
+            if (saveTechSigChecked) {
+                try {
+                    await routeAction('GOS_CORE', 'saveTechnicianSignature', {
+                        tecnico: AppState.user?.Nombre_Usuario,
+                        firma: techSigBase64
+                    });
+                } catch (err) {
+                    console.error("Error al guardar firma de técnico en backend:", err);
+                }
+            }
+        }
+
+        // Validar firma del cliente
+        if (clientPad.isEmpty()) {
+            alert("Por favor solicite al cliente registrar su firma digital de recepción antes de continuar.");
+            return;
+        }
+        const clientSigBase64 = clientPad.getDataUrl();
+
         const missingPhotos = categories.filter(cat => !photosData[cat.id]);
         if (missingPhotos.length > 0) {
             alert(`Para registrar el vehículo debe cargar las fotografías obligatorias restantes:\n\n${missingPhotos.map(p => `- ${p.label}`).join('\n')}`);
@@ -3627,6 +3800,7 @@ function renderVehicleReceptionForm(container, order) {
         const user = AppState.user;
         const payload = {
             orderId: order.id,
+            otId: otId,
             tecnico: user.Nombre_Completo || user.Nombre_Usuario,
             sector: user.Sector || 'San Pedro Sula',
             clienteInfo: {
@@ -3646,10 +3820,26 @@ function renderVehicleReceptionForm(container, order) {
         submitBtn.innerHTML = '⏳ Registrando Recepción...';
 
         try {
+            // Guardar firmas en la Orden de Trabajo vinculada
+            if (otId) {
+                try {
+                    await routeAction('GOS_CORE', 'saveOTDetails', {
+                        otId: otId,
+                        updates: {
+                            Firma_Tecnico: techSigBase64,
+                            Firma_Cliente_Recepcion: clientSigBase64,
+                            FechaHora_Recepcion: new Date().toISOString()
+                        }
+                    });
+                } catch (err) {
+                    console.error("Error guardando firmas en Ordenes_Trabajo:", err);
+                }
+            }
+
             const result = await routeAction('GOS_CORE', 'saveVehicleReception', payload);
             if (result.status === 'success') {
                 alert(`¡Vehículo Recibido con Éxito!\nRegistro de Recepción: ${result.id}\nSe ha actualizado el estado de la Orden a 'Vehículo recibido'.\nA continuación se presentará el comprobante digital de recepción.`);
-                renderDigitalReceipt(container, order, vehiculoInfo, damagesData, result.id);
+                renderDigitalReceipt(container, order, vehiculoInfo, damagesData, result.id, otId);
             } else {
                 alert(`Error al registrar vehículo: ${result.message}`);
                 submitBtn.disabled = false;
@@ -3666,7 +3856,7 @@ function renderVehicleReceptionForm(container, order) {
 /**
  * Renderiza el Comprobante Digital de Recepción del Vehículo con el Código QR de Consulta.
  */
-function renderDigitalReceipt(container, order, vehiculoInfo, damages, receptionId) {
+function renderDigitalReceipt(container, order, vehiculoInfo, damages, receptionId, otId = '') {
     const user = AppState.user;
     const dateStr = new Date().toLocaleString();
 
@@ -3721,7 +3911,8 @@ function renderDigitalReceipt(container, order, vehiculoInfo, damages, reception
                 <h4>Información de la Recepción</h4>
                 <div class="receipt-grid">
                     <div class="receipt-item"><strong>ID Recepción:</strong> ${receptionId}</div>
-                    <div class="receipt-item"><strong>Orden de Trabajo:</strong> ${order.id}</div>
+                    <div class="receipt-item"><strong>Orden de Instalación (OI):</strong> ${order.id}</div>
+                    ${otId ? `<div class="receipt-item"><strong>Orden de Trabajo (OT):</strong> ${otId}</div>` : ''}
                     <div class="receipt-item"><strong>Fecha y Hora:</strong> ${dateStr}</div>
                     <div class="receipt-item"><strong>Técnico Responsable:</strong> ${user.Nombre_Completo || user.Nombre_Usuario}</div>
                     <div class="receipt-item"><strong>Sector Operativo:</strong> ${user.Sector || 'San Pedro Sula'}</div>
@@ -4467,17 +4658,17 @@ async function renderAdminMetricsModule(container) {
         const orders = result.data;
 
         // Calcular Métricas Globales/Administrativas
-        const totalPending = orders.filter(o => ['pendiente', 'asignada'].includes((o.estado || '').toLowerCase().trim())).length;
+        const totalPending = orders.filter(o => ['pendiente', 'asignada'].includes((o.estado || '').toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, ""))).length;
 
         const todayStr = new Date().toISOString().split('T')[0];
         const totalAssignedToday = orders.filter(o => {
             const dateMatch = o.fecha === todayStr;
-            const statusMatch = ['asignada', 'en camino', 'llego', 'vehiculo recibido', 'iniciando', 'instalando', 'haciendo pruebas', 'instalacion completada'].includes((o.estado || '').toLowerCase().trim());
+            const statusMatch = ['asignada', 'en camino', 'llego', 'vehiculo recibido', 'iniciando', 'instalando', 'haciendo pruebas', 'instalacion completada'].includes((o.estado || '').toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
             return dateMatch && statusMatch;
         }).length;
 
-        const totalReceived = orders.filter(o => (o.estado || '').toLowerCase().trim() === 'vehiculo recibido').length;
-        const totalFinished = orders.filter(o => (o.estado || '').toLowerCase().trim() === 'finalizada').length;
+        const totalReceived = orders.filter(o => (o.estado || '').toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === 'vehiculo recibido').length;
+        const totalFinished = orders.filter(o => (o.estado || '').toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === 'finalizada').length;
 
         // Calcular distribución para gráficos
         const techCounts = {};
@@ -5081,15 +5272,20 @@ function showOrderDetailsModal(o) {
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;">
                 <div>👤 <strong>Cliente:</strong> ${o.cliente || 'S/N'}</div>
                 <div>📞 <strong>Teléfono:</strong> ${o.telefono || 'N/A'}</div>
-                <div style="grid-column: 1 / -1;">🏠 <strong>Dirección:</strong> ${o.contacto || 'No especificada'}</div>
-                <div style="grid-column: 1 / -1;">📍 <strong>Instalación en:</strong> ${o.direccion || 'No especificada'}</div>
+                <div style="grid-column: 1 / -1;">🏠 <strong>Dirección del Cliente:</strong> ${o.contacto || 'No especificada'}</div>
+                <div style="grid-column: 1 / -1;">📍 <strong>Instalación en:</strong> ${o.direccion ? o.direccion : 'Oficina de la División (Local)'}</div>
                 <div>🚗 <strong>Vehículo:</strong> ${o.marca || ''} ${o.modelo || ''} (${o.anio || ''})</div>
                 <div>🎨 <strong>Color:</strong> ${o.color || 'N/A'} | 🔢 <strong>Placa:</strong> ${o.placa || 'N/A'}</div>
                 <div style="grid-column: 1 / -1;">🆔 <strong>VIN/Chasis:</strong> ${o.vin || 'N/A'}</div>
+                <div>⚙️ <strong>Número de Motor:</strong> ${o.motor || 'N/A'}</div>
+                <div>🔢 <strong>Número de Inventario:</strong> ${o.inventario || 'N/A'}</div>
+                <div>💼 <strong>Servicio Contratado:</strong> ${o.servicio || 'No especificado'}</div>
                 <div>💼 <strong>Vendedor:</strong> ${o.vendedor || 'S/V'}</div>
                 <div>🛠️ <strong>Técnico:</strong> ${o.tecnicoasignado || 'Sin asignar'}</div>
                 <div>📅 <strong>Fecha:</strong> ${o.fecha || ''}</div>
-                <div>⏱️ <strong>Hora:</strong> ${o.hora || ''}</div>
+                <div>⏱️ <strong>Hora (Turno):</strong> ${o.hora || ''}</div>
+                <div style="grid-column: 1 / -1; border-top:1px dashed #eee; padding-top:8px; margin-top:5px;">👤 <strong>Persona de Contacto:</strong> ${o.contactonombre || o.contacto_nombre || 'No registrado'}</div>
+                <div style="grid-column: 1 / -1;">📞 <strong>Teléfono del Contacto:</strong> ${o.contactotelefono || o.contacto_telefono || 'No registrado'}</div>
             </div>
 
             <div style="border-top:1px solid #eee; padding-top:10px; margin-top:10px;">

@@ -249,3 +249,23 @@
   - Implementados los autocompletados en tiempo real para el campo de Cliente y Marca del vehículo (Líneas 1980-2100), con carga automatizada de la información de contacto y validación de inventario condicional para clientes con Empresa.
   - Integrada la lógica de rellenado automático de campos de vehículos en el formulario cuando el cliente tiene un único registro en el historial o selección guiada mediante formato "Marca | Modelo | Placa | Chasis" cuando tiene múltiples unidades.
   - Rediseñada la validación programática de envío en el listener `submit` de `#order-form` (Línea 2195) para validar rigurosamente campos obligatorios según el modo de guardado (Borrador vs. Confirmación).
+
+## [v0.9.0] - 2025-05-24
+### Bloque Quinceavo de Separación entre Orden de Instalación y Orden de Trabajo, Validación de VIN, Gestión de Firmas y Campos Internos Sanitizados
+- **services/gos/gos-core.js:**
+  - Modificada la inicialización del sistema `initializeSystem` (Líneas 35-50) para crear de forma automática las hojas `Ordenes_Trabajo` y `Firmas_Tecnicos` y registrar los parámetros de configuración por defecto para numeración híbrida (`OT_Base_Number` en `1000`, `OT_Generation_Method` en `automatic` y `OT_Auto_Numeration` en `active`).
+  - Actualizado `handleCreateOrder` (Línea 357) para utilizar el prefijo `"OI-"` en la autogeneración de identificadores secuenciales de Órdenes de Instalación.
+  - Implementados métodos del backend para la gestión de numeración de OTs (`handleGetOTConfig` / `handleUpdateOTConfig`) y administración de firmas de técnicos (`handleSaveTechnicianSignature` / `handleGetTechnicianSignature` / `handleDeleteTechnicianSignature` / `handleGetSavedSignatures`).
+  - Desarrollada la función `handleCreateOT` (Línea 1857) que realiza la validación manual de VIN de 17 caracteres contra la OI comercial correspondiente y clona toda la información para inicializar una nueva Orden de Trabajo única.
+  - Actualizado `handleSaveVehicleReception` (Línea 905) para persistir las evidencias visuales, anotaciones de daños y fotos directamente en la hoja `Ordenes_Trabajo`.
+  - Modificado `handleGetClientPortalData` (Línea 1026) para consultar la información de la Orden de Trabajo y retornar únicamente las funcionalidades instaladas visibles para el cliente, excluyendo datos técnicos de uso interno (IMEI, SIM y tipos de apagado remoto).
+  - Registradas todas las nuevas rutas operativas en el conmutador global de `doPost` (Línea 2084).
+- **main.js:**
+  - Actualizado `UI_TEMPLATES.orderForm` (Línea 218) para incluir campos dedicados de Nombre y Teléfono de la persona de contacto que entregará el vehículo al técnico.
+  - Modificada la función `showOrderDetailsModal` (Línea 5083) para visualizar todos los datos comerciales detallados de la OI (instalación local/remota, número de motor, inventario, persona de contacto y teléfono).
+  - Incorporado el modal de confirmación y validación manual de chasis (VIN) en el botón "Se recibió el vehículo" (Línea 2951) que crea de forma dinámica la OT ligada tras la comprobación de correspondencia.
+  - Desarrollado el lienzo interactivo de firmas en Recepción y Entrega, permitiendo registrar o auto-aplicar firmas de técnicos tras confirmación de contraseña, y habilitar la opción administrativa de eliminación de firmas.
+  - Implementado el panel de ingreso exclusivo de IMEI, SIM principal, segundo GPS y selección de funcionalidades instaladas en el modal "Iniciar Pruebas con Monitoreo" (Línea 3089), persistiendo los cambios de forma automática en la OT.
+  - Actualizados los layouts de tickets Pre-instalación y Post-instalación (Líneas 5298, 5312) para diagramar y contrastar de manera unificada la Orden de Instalación (OI) y de Trabajo (OT) con sus códigos QR de portal cliente respectivos.
+- **portal.html:**
+  - Modificada la renderización pública del cliente (Línea 203) para incorporar un bloque visualmente sanitizado de funcionalidades instaladas conformes a la seguridad de la información.

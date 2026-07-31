@@ -374,3 +374,33 @@ HALLAZGOS:
 - Al hacer clic en un botón Reservar o (+), se abre el formulario de forma directa sin mostrar previamente el selector del tipo de trabajo.
 - No se realiza la búsqueda en tiempo real de vehículos y autocompletado inteligente de clientes/vehículos.
 - No hay validación de obligatoriedad condicionada del campo Inventario basada en si el cliente pertenece a una empresa.
+
+============================================================
+AUDITORÍA INTEGRAL GOS v0.9.0 - NUEVAS IMPLEMENTACIONES (QUINCEAVO)
+============================================================
+Fecha: 2025-05-24
+Versión Auditada: GOS v0.9.0 / GOS-CORE v1.4.0
+
+JUSTIFICACIÓN DE LA AUDITORÍA (REGISTRO DE SOLICITUDES PREVIO):
+Se auditan las siguientes solicitudes originadas en Instrucciones.txt bloque QUINCEAVO:
+1. SEPARACIÓN OI / OT: Se requiere diferenciar conceptual, visual y estructuralmente las Órdenes de Instalación y las Órdenes de Trabajo.
+2. ORDEN DE INSTALACIÓN: Documento inicial de planificación con prefijo OI-.
+3. ASIGNACIÓN AUTOMÁTICA: La OI debe respetar las reglas de negocio predefinidas para su asignación técnica.
+4. TICKET DE IMPRESIÓN OI: Maquetación con QR linkeado, datos de cliente, servicio, vehículo y persona de contacto.
+5. VALIDACIÓN DEL VEHÍCULO: El técnico debe validar manualmente el número VIN de 17 caracteres en recepción para generar la OT vinculada.
+6. CONFIGURACIÓN ADMINISTRATIVA: Jefes de división deben poder configurar la numeración híbrida (OT_Base_Number, OT_Generation_Method, OT_Auto_Numeration).
+7. FIRMA DIGITAL DEL TÉCNICO: Mecanismo de firma única persistente, confirmación local de contraseña y auto-aplicación en formularios.
+8. DATOS EXCLUSIVOS DE USO INTERNO: Ocultar IMEI, SIM y tipos de apagado remoto de la vista del cliente.
+9. PORTAL DE CLIENTE SANITIZADO: portal.html debe mostrar las funcionalidades instaladas de forma limpia sin datos internos.
+
+HALLAZGOS:
+- La hoja `Ordenes_Trabajo` y `Firmas_Tecnicos` no existían en el Spreadsheet, lo que requirió extender `initializeSystem`.
+- Los prefijos autogenerados estaban configurados permanentemente en "OT", por lo que se adaptaron a "OI-" en `handleCreateOrder` para diferenciar la Orden de Instalación.
+- Los detalles de la orden asignada presentados al técnico carecían de información de la persona de contacto, número de motor y detalles locales de la instalación.
+- La maquetación del portal del cliente carecía de segregación de campos e indicadores generales (como bloqueo remoto sin detalles técnicos).
+
+ESTADO: CUMPLIDO (100% IMPLEMENTADO)
+- Las hojas y los valores iniciales de configuración se crean de forma automática.
+- La validación de VIN se ejecuta de forma obligatoria en el modal "Se recibió el vehículo".
+- Jefes de división tienen control absoluto sobre la numeración e historial de firmas de técnicos.
+- La maquetación de tickets y el portal se han segregado y asegurado con absoluta fidelidad.

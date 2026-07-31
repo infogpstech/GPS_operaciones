@@ -3419,6 +3419,17 @@ Deberá eliminarse completamente de la interfaz y dejar de formar parte del fluj
     - Si tiene múltiples vehículos, se autocompleta cliente y se deja vacío el vehículo.
     - Al escribir la marca de vehículo se mostrará un autocompletado con los vehículos registrados a su nombre en formato "Marca | Modelo | Placa | Chasis (últimos 6 dígitos)" y al seleccionar se completará toda su información.
 
+- **QUINCEAVO: Nuevas Implementaciones: Separación entre Orden de Instalación y Orden de Trabajo (Pendiente de revisión por el PM):**
+  - Separación conceptual, visual y lógica de Órdenes de Instalación y Órdenes de Trabajo.
+  - Creación automática de OI con prefijo OI-.
+  - Asignación automática de OI respetando las reglas operativas y de prioridad.
+  - Vista completa de la OI para el técnico con datos de contacto, vehículo, motor, inventario y dirección local/remota.
+  - Ticket de OI imprimible con QR Code de portal del cliente.
+  - Validación de VIN obligatoria de 17 caracteres previo a la recepción para autogenerar la OT vinculada.
+  - Sistema híbrido de numeración de OTs y configuraciones de administración para Jefes de división.
+  - Gestión de firmas digitales del técnico con almacenamiento único en backend y confirmación bajo contraseña.
+  - Segregación estricta de campos y sanitización del portal de clientes (portal.html) y de tickets de impresión.
+
 ### QUINCEAVO
 
 # Nuevas Implementaciones: Separación entre Orden de Instalación y Orden de Trabajo

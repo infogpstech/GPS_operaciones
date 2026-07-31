@@ -8,6 +8,9 @@ export const API_ENDPOINTS = {
 };
 
 export async function routeAction(service, action, payload = {}) {
+    if (typeof window !== 'undefined' && window.routeActionMock) {
+        return await window.routeActionMock(service, action, payload);
+    }
     const targetUrl = API_ENDPOINTS[service];
     if (!targetUrl) throw new Error(`Servicio no definido: ${service}`);
 
