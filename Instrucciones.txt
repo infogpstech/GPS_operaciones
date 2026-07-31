@@ -3834,3 +3834,990 @@ Este identificador deberá utilizarse para relacionar:
 - Auditoría.
 - Documentación generada.
 ```
+
+
+================================================================================
+# NUEVAS IMPLEMENTACIONES Y CAMBIOS - PROMPT DE INICIO (REGISTRO OBLIGATORIO)
+================================================================================
+
+# Agenda y Gestión de Cupos
+
+## Simplificación del botón de cupos extraordinarios
+
+Se deberá simplificar la interfaz de creación de cupos extraordinarios.
+
+### Cambios requeridos
+
+- El botón actualmente identificado como:
+
+  ```
+  + Cupo extraordinario temprano
+  ```
+
+  deberá mostrar únicamente el símbolo:
+
+  ```
+  +
+  ```
+
+- Se deberá eliminar completamente cualquier texto descriptivo relacionado con el tipo de cupo.
+
+- El botón deberá conservar únicamente el icono **"+"**.
+
+- El borde deberá utilizar el mismo estilo de los cupos normales:
+
+  - borde sólido
+  - grosor delgado
+  - mismo radio de borde
+  - misma ancho
+  - mismo estilo visual
+  - altura minima, del tamaño del símbolo *+* actual.
+
+- Este mismo comportamiento deberá aplicarse a:
+
+  - cupos extraordinarios antes de horario
+  - cupos extraordinarios después del horario laboral
+  - cupos extraordinarios de sábado por la tarde
+
+- No deberá existir un botón independiente para domingo.
+
+- El botón extraordinario del sábado deberá permitir gestionar tanto:
+
+  - sábado por la tarde
+  - domingo
+
+según el horario seleccionado posteriormente.
+
+---
+
+# Menú de selección de tipo de trabajo
+
+Actualmente las opciones aparecen mediante un modal.
+
+Este comportamiento deberá reemplazarse.
+
+Al hacer clic sobre:
+
+- Reservar
+- +
+
+deberá abrirse un **menú desplegable (Drop Menu)**.
+
+El menú deberá:
+
+- aparecer anclado al botón seleccionado
+- mantener fondo semitransparente
+- respetar el estilo visual de la plataforma
+- permanecer abierto hasta que el usuario haga clic fuera del menú
+- cerrarse automáticamente al seleccionar una opción
+- no utilizar modales para esta acción
+
+---
+
+# Actualización silenciosa
+
+Actualmente la plataforma realiza actualizaciones visibles.
+
+La sincronización deberá ser completamente transparente para el usuario.
+
+La actualización deberá ejecutarse en segundo plano evitando:
+
+- parpadeos
+- recargas visibles
+- reconstrucción completa del dashboard
+- pérdida de foco
+- interrupciones de la interacción
+
+La interfaz deberá actualizar únicamente los elementos modificados.
+
+---
+
+# Bloqueo temporal de cupos
+
+Para evitar reservas simultáneas, deberá implementarse un mecanismo de bloqueo temporal.
+
+Cuando un usuario comience a crear una Orden de Instalación:
+
+- el cupo quedará bloqueado inmediatamente
+- ningún otro usuario podrá reservarlo mientras permanezca abierto el formulario
+
+Durante este estado:
+
+- el cupo utilizará un color café claro
+- el texto cambiará automáticamente a:
+
+```
+Reservando...
+```
+
+El bloqueo finalizará cuando ocurra cualquiera de las siguientes condiciones:
+
+- el usuario cancela el formulario
+- el usuario confirma la reserva
+- el sistema detecta abandono de la operación
+- expira el tiempo máximo permitido
+
+Siempre tendrá prioridad el usuario que ocupó primero el cupo.
+
+---
+
+# Estados visuales del cupo
+
+Cada cupo deberá mostrar uno de los siguientes estados.
+
+## Disponible
+
+Color:
+
+Verde claro.
+
+Condición:
+
+No existe ninguna Orden de Instalación asociada.
+
+Texto mostrado:
+
+```
+Disponible
+```
+
+---
+
+## Reservando
+
+Color:
+
+Café claro.
+
+Condición:
+
+Existe otro usuario creando una Orden de Instalación.
+
+Texto mostrado:
+
+```
+Reservando...
+```
+
+---
+
+## Reservado
+
+Color:
+
+Amarillo suave.
+
+Condición:
+
+Existe una Orden de Instalación guardada como borrador.
+
+Texto mostrado:
+
+```
+Reservado
+```
+
+---
+
+## Confirmado
+
+Color:
+
+Celeste suave.
+
+Condición:
+
+La Orden de Instalación ya fue confirmada y generó su correspondiente Orden de Trabajo.
+
+Texto mostrado:
+
+```
+Confirmado
+```
+
+---
+
+# Escalado dinámico de colores
+
+Los estados:
+
+- Reservado
+- Confirmado
+
+deberán evolucionar visualmente conforme transcurra el tiempo.
+
+Mientras el técnico aún no haya recibido el vehículo:
+
+- la tonalidad deberá desplazarse progresivamente hacia rojo
+
+La transición deberá ser gradual.
+
+No deberá cambiar bruscamente.
+
+El sistema deberá considerar el tiempo transcurrido desde la hora programada.
+
+Cuando hayan transcurrido cuarenta minutos sin recepción del vehículo:
+
+- el color deberá llegar a rojo.
+
+Si el técnico recibe el vehículo dentro del tiempo esperado:
+
+- el color permanecerá en su estado original.
+
+---
+
+# Componente del mapa
+
+El visor del mapa deberá utilizar una relación de aspecto cuadrada.
+
+No deberá mostrarse como un rectángulo horizontal.
+
+---
+
+# Detección automática de enlaces
+
+El campo de ubicación deberá aceptar indistintamente:
+
+- direcciones
+- enlaces de Google Maps
+- coordenadas geográficas
+
+Cuando el usuario pegue cualquiera de estos formatos:
+
+- el sistema deberá interpretar automáticamente la ubicación
+- posicionar el marcador
+- actualizar el mapa
+- almacenar internamente las coordenadas
+
+Sin requerir acciones adicionales.
+
+---
+
+# Vista del técnico
+
+La Orden de Trabajo mostrará un mapa con la ubicación de la instalación.
+
+Al hacer clic sobre dicho mapa:
+
+- deberá abrir automáticamente Google Maps
+- utilizando las coordenadas previamente almacenadas
+
+preferiblemente mediante la aplicación instalada en el dispositivo.
+
+---
+
+# Flexibilidad del número de chasis
+
+El sistema no deberá asumir que todos los VIN poseen exactamente diecisiete caracteres.
+
+El campo deberá permitir diferentes longitudes cuando el vehículo así lo requiera.
+
+La validación deberá adaptarse a distintos formatos sin impedir el registro del vehículo.
+
+---
+
+# Persistencia de información del vehículo
+
+El sistema deberá garantizar el almacenamiento correcto de:
+
+- marca
+- modelo
+- año
+- chasis
+- fotografías frontales
+- fotografías posteriores
+- fotografías del interior tomadas desde el lado derecho
+
+Toda esta información deberá mantenerse asociada permanentemente al historial del vehículo.
+
+---
+
+# Persistencia de información del cliente
+
+El sistema deberá asegurar la integridad de toda la información del cliente evitando pérdidas durante:
+
+- sincronización
+- edición
+- reconexión
+- recuperación desde caché
+
+---
+
+# Apertura de ubicación para el técnico
+
+Las coordenadas obtenidas desde un enlace de Google Maps deberán almacenarse y visualizarse correctamente.
+
+El técnico deberá poder abrir dicha ubicación directamente desde la aplicación Google Maps.
+
+---
+
+# Caché y sincronización
+
+La plataforma deberá utilizar IndexedDB para proporcionar una experiencia fluida.
+
+El uso de caché no deberá retrasar la sincronización.
+
+Cuando exista un cambio realizado por cualquier usuario:
+
+- el sistema deberá detectar la modificación
+- sincronizar inmediatamente la información
+- actualizar únicamente los elementos afectados
+
+---
+
+# Prioridad de bloqueo
+
+Cuando dos usuarios intenten utilizar el mismo cupo:
+
+- tendrá prioridad quien lo haya bloqueado primero
+
+El resto de usuarios deberá visualizar el estado:
+
+```
+Reservando...
+```
+
+hasta que el cupo quede disponible nuevamente.
+
+---
+# Mejoras al Motor de Asignación Automática de Técnicos
+
+## Asignación Inteligente Basada en Métricas
+
+La asignación automática deberá distribuir equitativamente la carga de trabajo entre los técnicos disponibles.
+
+Por defecto, el sistema **no deberá establecer preferencias fijas** por un técnico específico.
+
+Sin embargo, deberá registrar continuamente métricas de desempeño para optimizar futuras asignaciones sin intervención del usuario.
+
+Durante la fase inicial, mientras aún no existan datos históricos suficientes, el motor de asignación utilizará los tiempos predeterminados definidos por el sistema como referencia.
+
+Once exista un historial representativo, las asignaciones deberán calcularse utilizando dichas métricas históricas, reemplazando progresivamente los tiempos predeterminados cuando exista suficiente evidencia estadística.
+
+---
+
+# Métricas que deberán almacenarse
+
+El sistema deberá registrar, como mínimo:
+
+- Duración promedio por tipo de trabajo.
+- Puntualidad.
+- Cantidad de retrasos.
+- Tiempo promedio por vehículo.
+- Tiempo promedio según ubicación.
+- Tiempo promedio por tipo de servicio.
+- Tiempo promedio por técnico.
+
+---
+
+# Métrica por vehículo
+
+El cálculo deberá considerar el vehículo como una única unidad de análisis compuesta por:
+
+- Marca.
+- Modelo.
+- Rango de años.
+
+Ejemplo:
+
+```
+Ford Ranger 2024 - 2025
+```
+
+No deberán calcularse promedios independientes por marca, modelo o año.
+
+---
+
+# Ejemplo de métricas por técnico
+
+## Técnico
+
+```
+Byron López
+```
+
+### Vehículo con mejor tiempo promedio
+
+```
+Ford Ranger 2024 - 2025
+```
+
+Instalación en oficina (Local):
+
+```
+60 minutos
+```
+
+Instalación fuera de oficina:
+
+```
+70 minutos
+```
+
+---
+
+### Vehículo con mayor tiempo promedio
+
+```
+JAC T8 (HFC1037) 2022 - 2025
+```
+
+Instalación en oficina (Local):
+
+```
+90 minutos
+```
+
+Instalación fuera de oficina:
+
+```
+120 minutos
+```
+
+---
+
+# Dashboard de desempeño por técnico
+
+Cada técnico deberá disponer de un historial estadístico que permita visualizar su desempeño.
+
+El sistema deberá generar automáticamente los gráficos más adecuados para representar cada métrica.
+
+Entre ellos podrán incluirse:
+
+- Tiempo promedio por tipo de trabajo.
+- Tiempo promedio por vehículo.
+- Tiempo promedio por ubicación.
+- Evolución mensual de tiempos.
+- Puntualidad.
+- Retrasos.
+- Productividad.
+- Comparativo contra el promedio de la división.
+
+El tipo de gráfico deberá seleccionarse según la naturaleza de la información (líneas, barras, pastel, indicadores, entre otros).
+
+---
+
+# Evolución del motor de planificación
+
+Mientras no existan suficientes registros históricos, el sistema utilizará los tiempos base definidos en la plataforma.
+
+Cuando exista una cantidad representativa de registros, las asignaciones deberán calcularse utilizando las métricas reales registradas para:
+
+- Técnico.
+- Vehículo.
+- Tipo de trabajo.
+- Ubicación.
+
+El objetivo será optimizar continuamente la planificación y reducir retrasos.
+
+---
+
+# Tiempos base del sistema
+
+## Instalación nueva
+
+Tiempo base:
+
+```
+90 minutos
+```
+
+---
+
+## Desinstalación
+
+Tiempo base:
+
+```
+60 minutos
+```
+
+---
+
+## Revisión por falla (RxF)
+
+No tendrá un tiempo fijo total.
+
+El cálculo dependerá del resultado del diagnóstico.
+
+### Diagnóstico
+
+Tiempo inicial:
+
+```
+20 minutos
+```
+
+Posteriormente se añadirá el tiempo correspondiente según el resultado.
+
+### Cambio de unidad (mismo modelo de GPS)
+
+Tiempo adicional:
+
+```
+40 minutos
+```
+
+más el tiempo de diagnóstico.
+
+### Cambio a un modelo diferente de GPS
+
+Tiempo adicional:
+
+```
+60 a 80 minutos
+```
+
+más el tiempo de diagnóstico.
+
+### Reparación de conexiones
+
+Aplica para trabajos como:
+
+- positivo
+- negativo
+- botón de pánico
+- conexiones similares
+
+Tiempo adicional:
+
+```
+40 minutos
+```
+
+más el tiempo de diagnóstico.
+
+---
+
+## Traspaso
+
+Tiempo base:
+
+```
+3 horas
+```
+
+---
+
+## Mantenimiento preventivo
+
+Tiempo base:
+
+```
+30 minutos
+```
+
+---
+
+# Tiempo adicional por ubicación
+
+Los tiempos anteriores deberán incrementarse automáticamente cuando el trabajo no se realice en la oficina.
+
+---
+
+## Instalaciones dentro de la misma ciudad
+
+Cuando el trabajo tenga una ubicación distinta a la oficina, pero permanezca dentro de la ciudad correspondiente a la división, el sistema agregará automáticamente:
+
+```
+30 minutos
+```
+
+Ejemplo:
+
+Instalación nueva
+
+```
+90 + 30 = 120 minutos
+```
+
+---
+
+## Ciudades vecinas
+
+Cuando la instalación se realice en ciudades cercanas, como:
+
+- Villanueva
+- Choloma
+- Cofradía
+- Naco
+- El Progreso
+
+el sistema deberá agregar automáticamente:
+
+```
+60 minutos
+```
+
+adicionales por traslado.
+
+---
+
+## Trabajos foráneos
+
+Cuando la instalación se programe en localidades más alejadas, por ejemplo:
+
+- Tela
+- Puerto Cortés
+- La Entrada, Copán
+- Santa Rosa de Copán
+- Gracias, Lempira
+- Ocotepeque
+
+el tiempo adicional no será fijo.
+
+El sistema deberá calcular automáticamente la duración considerando:
+
+- distancia total
+- rutas disponibles
+- tiempo estimado de desplazamiento
+- cantidad de trabajos programados
+- ubicación exacta de la instalación
+- horario de las citas programadas
+
+Como referencia inicial podrá utilizar estimaciones equivalentes al tiempo promedio de desplazamiento por carretera o transporte terrestre, refinándolas posteriormente mediante las métricas históricas registradas.
+
+---
+
+# Disponibilidad de técnicos
+
+El panel de configuración deberá permitir al usuario con rol de **Jefe** indicar que un técnico no estará disponible temporalmente.
+
+Esta función permitirá gestionar situaciones como:
+
+- vacaciones
+- permisos
+- incapacidades
+- capacitaciones
+- cualquier otra ausencia programada
+
+---
+
+# Configuración de indisponibilidad
+
+La configuración deberá incluir:
+
+## Técnico
+
+Lista desplegable con los técnicos pertenecientes a la división del usuario.
+
+---
+
+## Fecha de inicio
+
+Selector de fecha.
+
+---
+
+## Fecha de finalización
+
+Selector de fecha.
+
+---
+
+# Ausencias parciales
+
+Si la fecha de inicio y la fecha de finalización corresponden al mismo día, el sistema deberá interpretar que se trata de una ausencia parcial.
+
+En ese caso deberá habilitar automáticamente un campo adicional para indicar la hora en que el técnico volverá a estar disponible.
+
+El límite máximo configurable será hasta el turno de:
+
+```
+3:00 PM - 5:00 PM
+```
+
+Esta funcionalidad permitirá registrar permisos de:
+
+- una hora
+- dos horas
+- medio día
+- cualquier ausencia parcial dentro de la jornada laboral.
+
+---
+
+# Ajuste automático de cupos
+
+La Agenda deberá ajustar dinámicamente la cantidad de cupos disponibles según el número de técnicos disponibles en cada división.
+
+Ejemplo:
+
+Si una división cuenta con cuatro técnicos activos, únicamente deberán habilitarse cuatro cupos por turno.
+
+Si uno de ellos es marcado como no disponible, la Agenda deberá reducir automáticamente la capacidad del turno para reflejar únicamente tres cupos disponibles.
+
+Esta actualización deberá aplicarse inmediatamente después de guardar la configuración y mantenerse vigente durante todo el período definido para la indisponibilidad.
+---
+
+# Especialización por técnico
+
+Desde el panel administrativo, un usuario con rol de Jefe podrá definir asignaciones preferenciales.
+
+Formulario:
+
+## Asignar técnico a trabajo específico
+
+Campos:
+
+- Seleccionar técnico (lista desplegable)
+- Buscar trabajo
+
+La búsqueda deberá realizar coincidencias únicamente entre los trabajos programados para la semana actual y las próximas fechas.
+
+No deberán incluirse trabajos históricos.
+
+El campo de búsqueda deberá incorporar un botón:
+
+```
+Seleccionar trabajo >
+```
+
+Al seleccionarlo deberá abrirse un modal con la agenda semanal mostrando únicamente:
+
+- cupos reservados
+- cupos confirmados
+
+Desde dicho modal el Jefe podrá:
+
+- seleccionar un trabajo existente
+- crear uno nuevo mediante el botón "+"
+- guardar como borrador
+- confirmar la reserva
+
+El sistema deberá Reorganizar automáticamente las asignaciones para garantizar que el técnico seleccionado disponga del turno correspondiente.
+
+---
+
+# Motor inteligente de despacho
+
+La planificación automática deberá considerar:
+
+- ubicación de la instalación
+- distancia desde la oficina
+- duración promedio del recorrido
+- rutas reales
+- velocidad promedio en motocicleta
+- tráfico esperado según el horario
+- duración histórica del tipo de trabajo
+- duración por marca
+- duración por modelo
+- duración por año
+- duración según ubicación
+- carga de trabajo del técnico
+- disponibilidad
+- horario laboral
+- hora de almuerzo
+- retrasos acumulados
+
+Como referencia inicial podrá utilizarse una velocidad promedio aproximada de **60 km/h**, ajustando posteriormente las estimaciones con base en las métricas históricas recopiladas.
+
+El objetivo será minimizar retrasos y optimizar la distribución de trabajos.
+
+---
+
+# Arquitectura del despachador
+
+Se recomienda separar la lógica de planificación en módulos independientes.
+
+Como mínimo deberá existir un módulo encargado de:
+
+- asignación automática
+- gestión de agenda
+- creación de Órdenes de Instalación
+- generación de Órdenes de Trabajo
+- cálculo de tiempos
+- redistribución de técnicos
+- reasignaciones automáticas
+
+Se propone implementarlo en un archivo dedicado denominado:
+
+```
+despachador.js
+```
+
+Podrán incorporarse módulos adicionales para:
+
+- consultas
+- métricas
+- sincronización
+- historial
+- geolocalización
+- optimización de rutas
+
+---
+
+# Microservicios
+
+Si la arquitectura lo requiere, podrán implementarse microservicios independientes para GOs.
+
+Todos deberán seguir la convención:
+
+```
+GOs-NombreFuncion
+```
+
+Ejemplos:
+
+- GOs-dashboard
+- GOs-despachador
+- GOs-usuarios
+- GOs-agenda
+- GOs-reportes
+
+---
+
+# Compatibilidad con GPSpedia
+
+Los servicios existentes de GPSpedia deberán considerarse únicamente como referencia.
+
+Está prohibido utilizarlos para:
+
+- modificación del catálogo
+- edición de registros
+- autenticación de GOs
+- administración de usuarios
+- nuevas funcionalidades
+
+Los servicios heredados deberán trasladarse al directorio:
+
+```
+legacy
+```
+
+y permanecer exclusivamente como material de consulta.
+
+---
+
+# Gestión de cuentas
+
+El sistema GOs deberá disponer de un servicio independiente para:
+
+- usuarios
+- autenticación
+- permisos
+- sesiones
+- configuración
+
+No deberá compartir la infraestructura de cuentas utilizada por GPSpedia.
+
+---
+
+# Consultas Técnicas por Vehículo
+
+La búsqueda deberá realizarse mediante una barra unificada.
+
+Parámetros admitidos:
+
+- marca
+- modelo
+- año
+
+El sistema interpretará automáticamente cualquier combinación válida.
+
+---
+
+## Búsqueda por marca
+
+Si únicamente se ingresa la marca:
+
+- deberán mostrarse tarjetas con los logotipos correspondientes.
+
+Al seleccionar una marca:
+
+- se visualizarán todos los modelos agrupados.
+
+---
+
+## Búsqueda por marca y modelo
+
+Cuando la búsqueda incluya marca y modelo:
+
+Ejemplo:
+
+```
+Toyota Hilux
+```
+
+Los resultados deberán mostrarse agrupados por:
+
+- versión
+- tipo de encendido
+
+---
+
+## Búsqueda únicamente por modelo
+
+Si el usuario introduce solo el modelo:
+
+- deberán mostrarse todos los registros coincidentes
+
+agrupados igualmente por versión o tipo de encendido.
+
+---
+
+## Búsqueda por marca, modelo y año
+
+Ejemplo:
+
+```
+Toyota Hilux 2022
+```
+
+El sistema deberá localizar el rango de años correspondiente.
+
+Si existe un registro:
+
+```
+2020 - 2024
+```
+
+el modelo deberá considerarse válido para el año buscado.
+
+---
+
+## Año fuera del rango
+
+Si el año solicitado no pertenece a ningún rango registrado:
+
+- deberá mostrarse automáticamente el registro cuyo rango sea más cercano.
+
+---
+
+## Búsqueda únicamente por año
+
+Si el usuario ingresa solamente un año:
+
+el sistema deberá mostrar el mensaje:
+
+```
+Ingrese el nombre del modelo.
+```
+
+---
+
+# Modal de detalle
+
+Al seleccionar una tarjeta únicamente deberá mostrarse:
+
+- imagen del vehículo
+- bloqueo
+- apertura
+- botón de pánico
+- micrófono
+
+Consideraciones:
+
+- Botón de pánico deberá aparecer deshabilitado por defecto en motocicletas.
+- Micrófono deberá aparecer deshabilitado por defecto en motocicletas.
+
+No deberá mostrarse información técnica adicional.
+
+---
+
+# Diseño del modal
+
+La imagen del vehículo deberá mantener un tamaño moderado.
+
+La tipografía utilizada en el modal deberá conservar una escala contenida, priorizando la legibilidad y evitando elementos sobredimensionados.
+
+================================================================================

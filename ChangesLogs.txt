@@ -269,3 +269,38 @@
   - Actualizados los layouts de tickets Pre-instalación y Post-instalación (Líneas 5298, 5312) para diagramar y contrastar de manera unificada la Orden de Instalación (OI) y de Trabajo (OT) con sus códigos QR de portal cliente respectivos.
 - **portal.html:**
   - Modificada la renderización pública del cliente (Línea 203) para incorporar un bloque visualmente sanitizado de funcionalidades instaladas conformes a la seguridad de la información.
+
+
+## [v1.0.0] - 2026-07-31
+### Nuevas Implementaciones, Rediseño de Agenda y Motor de Planificación Inteligente
+- **style.css:**
+  - Añadido el estilo de clase `.extra-slot-btn` (Línea 255) para botones de agendamiento extraordinario simplificados.
+  - Añadida la clase `.card-locking` (Línea 275) para estados de bloqueo temporal con fondo café claro.
+  - Actualizados los colores y estilos de `.card-available` (Línea 227) para mostrar color verde claro y `.card-confirmed` (Línea 188) para mostrar fondo celeste suave.
+- **services/gos/gos-core.js:**
+  - Añadida la inicialización de las hojas `"Indisponibilidad"`, `"Ordenes_Trabajo"` y `"Firmas_Tecnicos"` de forma automática en `initializeSystem()` (Línea 48).
+  - Implementado el método `handleLockSlot()` (Línea 2167) para reservar temporalmente un cupo en la hoja de órdenes con status 'Reservando' y timestamp.
+  - Implementado el método `handleUnlockSlot()` (Línea 2229) para limpiar o remover el bloqueo de cupos de la hoja de órdenes.
+  - Modificado `checkAndExpireDrafts()` (Línea 2252) para realizar un barrido hacia atrás que expire borradores antiguos de más de 60 minutos y limpie bloqueos de más de 5 minutos de antigüedad de forma automática.
+  - Refactorizado `handleGetDivisionTechniciansCount()` (Línea 1805) para calcular dinámicamente la capacidad del turno basándose en los técnicos activos y restando indisponibilidades y ausencias parciales.
+  - Implementados los métodos `handleSaveUnavailability()` (Línea 2831) y `handleGetUnavailability()` (Línea 2845) para gestionar registros de técnicos ausentes.
+  - Implementado el método `handleUpdateOrderTechnician()` (Línea 2865) para guardar asignaciones técnicas preferenciales desde el panel de Jefes.
+  - Desarrollada la función `handleLogPerformance()` (Línea 2596) para registrar de forma automática la duración del trabajo, puntualidad, retrasos, promedios por vehículo (marca, modelo, rango de años) y tipo de ubicación en la hoja `Log_Rendimiento` al finalizar un trabajo.
+  - Desarrollado el método `handleGetTechnicianMetrics()` (Línea 2700) para calcular dinámicamente resúmenes de rendimiento para el panel de Jefatura.
+- **services/gos/despachador.js:**
+  - Creado y estructurado un módulo independiente (Línea 1) para las funciones matemáticas de despacho inteligente, optimización de rutas con velocidad promedio de 60 km/h, factores de tráfico, cálculo de duraciones estimadas y compensaciones de almuerzo.
+- **main.js:**
+  - Implementada la inicialización y persistencia local de IndexedDB (`initIndexedDB`, `dbSet`, `dbGetAll`, `dbClear`) (Línea 5) para almacenar y recuperar órdenes, clientes y configuraciones de forma instantánea y fluida.
+  - Simplificados los botones de agendamiento extraordinario en `renderAgendaModule()` (Línea 1020) sustituyendo textos descriptivos por un símbolo "+". Ocultados los extraordinarios de los domingos.
+  - Implementado el menú desplegable (Drop Menu) semi-transparente y autolimpiable (`showDropMenu`) (Línea 1142) anclado a los botones "Reservar" y "+", eliminando el uso de modales.
+  - Refactorizado `renderAgendaModule()` (Línea 935) para realizar actualizaciones y sincronizaciones completamente silenciosas en segundo plano, comparando datos nuevos con la caché de IndexedDB y parchando únicamente las tarjetas modificadas en el DOM.
+  - Rediseñada la función `renderDashboardModule()` (Línea 2866) para soportar almacenamiento en IndexedDB y silent updates sin parpadeos, recargas visuales o pérdida de foco.
+  - Integrada la lógica de bloqueo temporal de cupos en `window.bookSlot()` (Línea 1218) que bloquea el cupo inmediatamente e informa si se encuentra reservado por otro usuario.
+  - Añadida la regla de desbloqueo automático de cupos temporales en `loadSection()` (Línea 558) al cambiar de sección o cancelar el formulario.
+  - Implementado el escalado dinámico de colores en `renderAgendaModule()` (Líneas 1098, 1135) mediante interpolación de RGB que gradualmente desplaza las tarjetas de Reservado y Confirmado hacia rojo conforme transcurra el tiempo sin recepción, alcanzando rojo puro a los 40 minutos.
+  - Ajustado el mapa interactivo del formulario de creación de órdenes (`#form-map-picker`) (Línea 265) a una relación de aspecto cuadrada (1:1).
+  - Desarrollada la detección y parseo automático de enlaces de Google Maps, coordenadas geográficas y direcciones en el campo de ubicación unificado (`savedLocInput`) (Línea 1814).
+  - Enriquecida la vista detallada del técnico (`showOrderDetailsModal`) (Línea 5425) mostrando un mapa Leaflet de aspecto cuadrado de la ubicación de la instalación que abre Google Maps app en el dispositivo al hacer clic.
+  - Removidas limitaciones rígidas de longitud de VIN (placeholders y maxlength) (Líneas 276, 3109, 3496) para permitir longitudes variables.
+  - Añadida la visualización e integración de fotografías del historial vehicular directamente en la sección de Memoria Histórica del Vehículo en el formulario de creación de órdenes (Línea 2007).
+  - Desarrollados los formularios de indisponibilidad temporal (ausencias parciales con hora de retorno) y asignación preferente de técnicos con visualizador de agenda semanal en el panel de configuración (Líneas 4900, 5060).

@@ -3,6 +3,88 @@ import { routeAction } from './api-config.js';
 const SESSION_KEY = 'gos_session';
 
 // ============================================================================
+// INDEXEDDB CACHE UTILITIES
+// ============================================================================
+const DB_NAME = 'gos-pwa-db';
+const DB_VERSION = 1;
+
+function initIndexedDB() {
+    return new Promise((resolve, reject) => {
+        if (!window.indexedDB) {
+            console.warn("Este navegador no soporta IndexedDB.");
+            resolve(null);
+            return;
+        }
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains('orders')) {
+                db.createObjectStore('orders', { keyPath: 'id' });
+            }
+            if (!db.objectStoreNames.contains('clients')) {
+                db.createObjectStore('clients', { keyPath: 'id' });
+            }
+            if (!db.objectStoreNames.contains('locations')) {
+                db.createObjectStore('locations', { keyPath: 'id' });
+            }
+            if (!db.objectStoreNames.contains('config')) {
+                db.createObjectStore('config', { keyPath: 'key' });
+            }
+        };
+        request.onsuccess = (e) => resolve(e.target.result);
+        request.onerror = (e) => reject(e.target.error);
+    });
+}
+
+async function getDB() {
+    if (!window.gosDB) {
+        window.gosDB = await initIndexedDB();
+    }
+    return window.gosDB;
+}
+
+async function dbSet(storeName, key, value) {
+    const db = await getDB();
+    if (!db) return;
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readwrite');
+        const store = tx.objectStore(storeName);
+        const data = typeof value === 'object' ? { ...value } : { value };
+        if (key) {
+            if (store.keyPath === 'id') data.id = key;
+            else if (store.keyPath === 'key') data.key = key;
+        }
+        const request = store.put(data);
+        request.onsuccess = () => resolve();
+        request.onerror = (e) => reject(e.target.error);
+    });
+}
+
+async function dbGetAll(storeName) {
+    const db = await getDB();
+    if (!db) return [];
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readonly');
+        const store = tx.objectStore(storeName);
+        const request = store.getAll();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = (e) => reject(e.target.error);
+    });
+}
+
+async function dbClear(storeName) {
+    const db = await getDB();
+    if (!db) return;
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readwrite');
+        const store = tx.objectStore(storeName);
+        const request = store.clear();
+        request.onsuccess = () => resolve();
+        request.onerror = (e) => reject(e.target.error);
+    });
+}
+
+// ============================================================================
 // PWA PERSISTENCIA Y SCREEN WAKE LOCK
 // ============================================================================
 let wakeLockInstance = null;
@@ -262,7 +344,7 @@ const UI_TEMPLATES = {
                     <!-- Selector Interactivo de Mapa GOS -->
                     <div id="form-map-picker-container" style="grid-column: 1 / -1; margin-top:10px;">
                         <label style="font-weight:bold; color:var(--dark);">Selector de Ubicación en Mapa (Haga clic para obtener coordenadas):</label>
-                        <div id="form-map-picker" style="height:250px; border-radius:8px; border:1px solid #ddd; background:#eee; display:flex; align-items:center; justify-content:center; margin-top:5px;">
+                        <div id="form-map-picker" style="width: 100%; max-width: 300px; aspect-ratio: 1 / 1; border-radius:8px; border:1px solid #ddd; background:#eee; display:flex; align-items:center; justify-content:center; margin-top:5px; margin-left:auto; margin-right:auto;">
                             <p style="font-size:0.85rem; color:#718096; text-align:center; padding:15px;">
                                 📍 Haga clic en el mapa de su división para ubicar el punto de trabajo y autocompletar coordenadas y enlace.<br>
                                 <small style="display:block; margin-top:5px; color:#a0aec0;">(La carga del mapa puede tomar unos instantes)</small>
@@ -273,7 +355,7 @@ const UI_TEMPLATES = {
                     <!-- Chasis VIN (para consulta de historial automático) -->
                     <div class="form-group">
                         <label>VIN (Chasis)</label>
-                        <input type="text" name="vin" id="order-vin" class="form-control" placeholder="Ingrese 17 dígitos">
+                        <input type="text" name="vin" id="order-vin" class="form-control" placeholder="Ingrese el número de chasis (VIN)...">
                     </div>
                     <div class="form-group">
                         <label>Clasificación del Vehículo</label>
@@ -557,6 +639,12 @@ function loadSection(section) {
     AppState.currentSection = section;
     const titleEl = document.getElementById('section-title');
     const contentEl = document.getElementById('section-content');
+
+    if (AppState.activeLock) {
+        const { date, slot } = AppState.activeLock;
+        routeAction('GOS_CORE', 'unlockSlot', { date, slot }).catch(console.error);
+        AppState.activeLock = null;
+    }
 
     if (dashboardInterval) {
         clearInterval(dashboardInterval);
@@ -877,74 +965,89 @@ async function renderAgendaModule(container) {
         `;
     }
 
-    container.innerHTML = `
-        <div class="agenda-container-fluid" style="padding: 10px;">
-            ${tabsHtml}
-            <div id="agenda-weekly-grid" class="agenda-weekly-grid">
-                <p>Cargando agenda semanal...</p>
+    let grid = document.getElementById('agenda-weekly-grid');
+    if (!grid) {
+        container.innerHTML = `
+            <div class="agenda-container-fluid" style="padding: 10px;">
+                ${tabsHtml}
+                <div id="agenda-weekly-grid" class="agenda-weekly-grid">
+                    <p>Cargando agenda semanal...</p>
+                </div>
             </div>
-        </div>
-    `;
+        `;
+        grid = document.getElementById('agenda-weekly-grid');
+    }
 
     window.changeAgendaSector = (sec) => {
         AppState.activeAgendaSector = sec;
+        if (grid) grid.innerHTML = '<p>Cargando agenda semanal...</p>';
         renderAgendaModule(container);
     };
 
-    try {
-        const ordersRes = await routeAction('GOS_CORE', 'getOrders');
-        if (ordersRes.status !== 'success') {
-            document.getElementById('agenda-weekly-grid').innerHTML = '<p class="error-msg">Error al cargar la agenda.</p>';
-            return;
+    const WEEKDAYS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const MONTHS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+    const daysList = [];
+    const today = new Date();
+
+    for (let i = 0; i < 8; i++) {
+        const d = new Date();
+        d.setDate(today.getDate() + i);
+        daysList.push(d);
+    }
+
+    const isHoldExpired = (orderDate, orderTime) => {
+        const match = (orderTime || '').match(/(\d{2}):(\d{2})/);
+        let hours = 8, minutes = 0;
+        if (match) {
+            hours = parseInt(match[1]);
+            minutes = parseInt(match[2]);
         }
+        const appointmentDate = new Date(`${orderDate}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`);
+        const expirationDate = new Date(appointmentDate.getTime() + 60 * 60 * 1000); // 60 mins later
+        return new Date() > expirationDate;
+    };
 
-        const orders = ordersRes.data;
-
-        // Days setup: rolling 8 days
-        const WEEKDAYS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-        const MONTHS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-        const daysList = [];
-        const today = new Date();
-
-        for (let i = 0; i < 8; i++) {
-            const d = new Date();
-            d.setDate(today.getDate() + i);
-            daysList.push(d);
+    const parseSlotStart = (orderDate, orderTime) => {
+        const match = (orderTime || '').match(/(\d{2}):(\d{2})/);
+        let hours = 8, minutes = 0;
+        if (match) {
+            hours = parseInt(match[1]);
+            minutes = parseInt(match[2]);
         }
+        return new Date(`${orderDate}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`);
+    };
 
-        const grid = document.getElementById('agenda-weekly-grid');
-        if (!grid) return;
-        grid.innerHTML = '';
+    const getElapsedMinutes = (orderDate, orderTime) => {
+        const start = parseSlotStart(orderDate, orderTime);
+        const now = new Date();
+        const diffMs = now - start;
+        return diffMs / (60 * 1000);
+    };
 
-        const isHoldExpired = (orderDate, orderTime) => {
-            const match = (orderTime || '').match(/(\d{2}):(\d{2})/);
-            let hours = 8, minutes = 0;
-            if (match) {
-                hours = parseInt(match[1]);
-                minutes = parseInt(match[2]);
-            }
-            const appointmentDate = new Date(`${orderDate}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`);
-            const expirationDate = new Date(appointmentDate.getTime() + 60 * 60 * 1000); // 60 mins later
-            return new Date() > expirationDate;
-        };
+    const interpolateColor = (color1, color2, factor) => {
+        const r = Math.round(color1[0] + factor * (color2[0] - color1[0]));
+        const g = Math.round(color1[1] + factor * (color2[1] - color1[1]));
+        const b = Math.round(color1[2] + factor * (color2[2] - color1[2]));
+        return `rgb(${r}, ${g}, ${b})`;
+    };
 
-        const getSlotMinutes = (slot) => {
-            const match = slot.match(/(\d{2}):(\d{2})/);
-            if (match) return parseInt(match[1]) * 60 + parseInt(match[2]);
-            return 9999;
-        };
+    const getSlotMinutes = (slot) => {
+        const match = slot.match(/(\d{2}):(\d{2})/);
+        if (match) return parseInt(match[1]) * 60 + parseInt(match[2]);
+        return 9999;
+    };
 
-        const isRegularSlot = (dayOfWeek, slot) => {
-            if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-                return ["08:00 - 10:00", "10:00 - 12:00", "13:00 - 15:00", "15:00 - 17:00"].includes(slot);
-            }
-            if (dayOfWeek === 6) {
-                return ["08:00 - 10:00", "10:00 - 12:00"].includes(slot);
-            }
-            return false; // Sundays are always extraordinary
-        };
+    const isRegularSlot = (dayOfWeek, slot) => {
+        if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+            return ["08:00 - 10:00", "10:00 - 12:00", "13:00 - 15:00", "15:00 - 17:00"].includes(slot);
+        }
+        if (dayOfWeek === 6) {
+            return ["08:00 - 10:00", "10:00 - 12:00"].includes(slot);
+        }
+        return false;
+    };
 
-        // Filter and compile list of visible columns
+    const drawAgenda = (orders) => {
         const visibleDays = daysList.filter(day => {
             const year = day.getFullYear();
             const month = String(day.getMonth() + 1).padStart(2, '0');
@@ -953,7 +1056,6 @@ async function renderAgendaModule(container) {
             const dayOfWeek = day.getDay();
 
             if (dayOfWeek === 0) {
-                // Sunday: hide unless has >= 1 programmed appointment
                 const sundayOrders = orders.filter(o => o.fecha === dateStr && (o.sector || '').toLowerCase().trim() === AppState.activeAgendaSector.toLowerCase().trim());
                 const hasAppt = sundayOrders.some(o => {
                     const stateLower = (o.estado || '').toLowerCase().trim();
@@ -966,18 +1068,94 @@ async function renderAgendaModule(container) {
             return true;
         });
 
+        if (!grid) return;
         grid.style.gridTemplateColumns = `repeat(${visibleDays.length}, minmax(180px, 1fr))`;
+
+        if (grid.innerHTML.includes('Cargando') || grid.children.length === 0) {
+            grid.innerHTML = '';
+            visibleDays.forEach(day => {
+                const year = day.getFullYear();
+                const month = String(day.getMonth() + 1).padStart(2, '0');
+                const dateNum = String(day.getDate()).padStart(2, '0');
+                const dateStr = `${year}-${month}-${dateNum}`;
+                const weekdayName = WEEKDAYS[day.getDay()];
+                const dateLabel = `${day.getDate()} ${MONTHS[day.getMonth()]}`;
+                const dayOfWeek = day.getDay();
+                const isToday = dateStr === today.toISOString().split('T')[0];
+
+                const normalSlots = [];
+                if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                    normalSlots.push("08:00 - 10:00", "10:00 - 12:00", "13:00 - 15:00", "15:00 - 17:00");
+                } else if (dayOfWeek === 6) {
+                    normalSlots.push("08:00 - 10:00", "10:00 - 12:00");
+                }
+
+                const ordersOnDate = orders.filter(o => o.fecha === dateStr && (o.sector || '').toLowerCase().trim() === AppState.activeAgendaSector.toLowerCase().trim());
+                const extraSlotsSet = new Set();
+                ordersOnDate.forEach(o => {
+                    if (o.hora && !normalSlots.includes(o.hora)) {
+                        extraSlotsSet.add(o.hora);
+                    }
+                });
+
+                const allSlots = [...normalSlots, ...extraSlotsSet];
+                allSlots.sort((a, b) => getSlotMinutes(a) - getSlotMinutes(b));
+
+                const col = document.createElement('div');
+                col.className = 'agenda-column';
+                if (isToday) col.classList.add('agenda-column-today');
+
+                const canManageExtraordinary = RBAC.isAsesor() || RBAC.isJefe() || RBAC.isDev();
+
+                let colHtml = `
+                    <div class="agenda-column-header ${isToday ? 'header-today' : ''}">
+                        <div class="agenda-column-dayname">${weekdayName}</div>
+                        <div class="agenda-column-date">${dateLabel}</div>
+                    </div>
+                    <div class="agenda-column-body">
+                `;
+
+                if (canManageExtraordinary && dayOfWeek !== 0) {
+                    colHtml += `
+                        <div class="extra-slot-btn-container" style="text-align: center; margin-bottom: 8px;">
+                            <button class="extra-slot-btn" onclick="bookExtraordinarySlot('${dateStr}', 'before', event)">+</button>
+                        </div>
+                    `;
+                }
+
+                allSlots.forEach(slot => {
+                    const slotClean = slot.replace(/[^a-zA-Z0-9]/g, '');
+                    colHtml += `<div id="shell-${dateStr}-${slotClean}" class="slot-card-shell"></div>`;
+                });
+
+                if (canManageExtraordinary && dayOfWeek !== 0) {
+                    if (dayOfWeek === 6) {
+                        colHtml += `
+                            <div class="extra-slot-btn-container" style="text-align: center; margin-top: 8px; margin-bottom: 8px;">
+                                <button class="extra-slot-btn" onclick="bookExtraordinarySlot('${dateStr}', 'saturday_late', event)">+</button>
+                            </div>
+                        `;
+                    }
+                    colHtml += `
+                        <div class="extra-slot-btn-container" style="text-align: center; margin-top: 8px;">
+                            <button class="extra-slot-btn" onclick="bookExtraordinarySlot('${dateStr}', 'after', event)">+</button>
+                        </div>
+                    `;
+                }
+
+                colHtml += `</div>`;
+                col.innerHTML = colHtml;
+                grid.appendChild(col);
+            });
+        }
 
         visibleDays.forEach(day => {
             const year = day.getFullYear();
             const month = String(day.getMonth() + 1).padStart(2, '0');
             const dateNum = String(day.getDate()).padStart(2, '0');
             const dateStr = `${year}-${month}-${dateNum}`;
-            const weekdayName = WEEKDAYS[day.getDay()];
-            const dateLabel = `${day.getDate()} ${MONTHS[day.getMonth()]}`;
             const dayOfWeek = day.getDay();
 
-            // Setup default normal slots for this day
             const normalSlots = [];
             if (dayOfWeek >= 1 && dayOfWeek <= 5) {
                 normalSlots.push("08:00 - 10:00", "10:00 - 12:00", "13:00 - 15:00", "15:00 - 17:00");
@@ -985,7 +1163,6 @@ async function renderAgendaModule(container) {
                 normalSlots.push("08:00 - 10:00", "10:00 - 12:00");
             }
 
-            // Find all orders on this date for the active agenda sector to extract extraordinary slots
             const ordersOnDate = orders.filter(o => o.fecha === dateStr && (o.sector || '').toLowerCase().trim() === AppState.activeAgendaSector.toLowerCase().trim());
             const extraSlotsSet = new Set();
             ordersOnDate.forEach(o => {
@@ -997,65 +1174,63 @@ async function renderAgendaModule(container) {
             const allSlots = [...normalSlots, ...extraSlotsSet];
             allSlots.sort((a, b) => getSlotMinutes(a) - getSlotMinutes(b));
 
-            // Create column element
-            const col = document.createElement('div');
-            col.className = 'agenda-column';
-
-            // Highlight today's column
-            const isToday = dateStr === today.toISOString().split('T')[0];
-            if (isToday) {
-                col.classList.add('agenda-column-today');
-            }
-
-            const canManageExtraordinary = RBAC.isAsesor() || RBAC.isJefe() || RBAC.isDev();
-
-            let colHtml = `
-                <div class="agenda-column-header ${isToday ? 'header-today' : ''}">
-                    <div class="agenda-column-dayname">${weekdayName}</div>
-                    <div class="agenda-column-date">${dateLabel}</div>
-                </div>
-                <div class="agenda-column-body">
-            `;
-
-            if (canManageExtraordinary) {
-                colHtml += `
-                    <div class="extra-slot-btn-container" style="text-align: center; margin-bottom: 8px;">
-                        <button class="btn btn-sm btn-outline-primary" style="width: 100%; font-size: 0.75rem; border-style: dashed; padding: 2px 4px;" onclick="bookExtraordinarySlot('${dateStr}', 'before')">
-                            ➕ Cupo Extraordinario Temprano
-                        </button>
-                    </div>
-                `;
-            }
-
             allSlots.forEach(slot => {
                 const slotOrders = ordersOnDate.filter(o => o.hora === slot);
-
-                // Identify confirmed and draft active orders
-                const confirmedOrder = slotOrders.find(o => !['borrador', 'cancelada', 'expirada'].includes((o.estado || '').toLowerCase().trim()));
+                const activeLocks = slotOrders.filter(o => (o.estado || '').toLowerCase().trim() === 'reservando');
+                const confirmedOrder = slotOrders.find(o => !['borrador', 'reservando', 'cancelada', 'expirada'].includes((o.estado || '').toLowerCase().trim()));
                 const activeDrafts = slotOrders.filter(o => (o.estado || '').toLowerCase().trim() === 'borrador' && !isHoldExpired(o.fecha, o.hora));
 
                 const isRegular = isRegularSlot(dayOfWeek, slot);
-                const hasAppt = confirmedOrder || activeDrafts.length > 0;
+                const hasAppt = confirmedOrder || activeDrafts.length > 0 || activeLocks.length > 0;
 
-                // Hide extraordinary hours unless there's an appointment or user is power user/authorized
+                const slotClean = slot.replace(/[^a-zA-Z0-9]/g, '');
+                const shellEl = document.getElementById(`shell-${dateStr}-${slotClean}`);
+                if (!shellEl) return;
+
                 if (!isRegular && !hasAppt && !isPowerUser) {
-                    return; // Skip rendering this slot
+                    shellEl.innerHTML = '';
+                    return;
                 }
 
-                if (confirmedOrder) {
-                    // Confirmed card
+                let slotHtml = '';
+                if (activeLocks.length > 0) {
+                    slotHtml = `
+                        <div class="agenda-slot-card card-locking" style="border-left: 5px solid #a1887f;">
+                            <div class="card-slot-time">⏱️ ${slot}</div>
+                            <div class="card-confirmed-title">
+                                <strong>Reservando...</strong>
+                            </div>
+                            <div class="card-confirmed-info">
+                                👤 Creador: ${activeLocks[0].vendedor || 'Otro usuario'}<br>
+                                ⏳ Bloqueo temporal activo
+                            </div>
+                        </div>
+                    `;
+                } else if (confirmedOrder) {
                     const p = (confirmedOrder.prioridad || 'Normal').toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                     let pColor = '#28a745';
                     if (p === 'alta') pColor = '#fd7e14';
                     else if (p === 'maxima' || p === 'urgente') pColor = '#dc3545';
 
-                    // Get status color from config or default
                     const configColors = AppState.config?.Agenda || {};
                     const statusColor = configColors[`Color_${confirmedOrder.estado}`] || '#007bff';
 
-                    colHtml += `
-                        <div class="agenda-slot-card card-confirmed" style="border-left: 5px solid ${statusColor};">
-                            <div class="card-slot-time">⏱️ ${slot}</div>
+                    const elapsed = getElapsedMinutes(confirmedOrder.fecha, confirmedOrder.hora);
+                    const statusLower = (confirmedOrder.estado || '').toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    const isReceived = !['pendiente', 'asignada', 'en camino', 'llego'].includes(statusLower);
+
+                    let cardStyle = `border-left: 5px solid ${statusColor};`;
+                    if (!isReceived && elapsed > 0) {
+                        const factor = Math.min(1, Math.max(0, elapsed / 40));
+                        const blueRgb = [224, 242, 254];
+                        const redRgb = [252, 165, 165];
+                        const bgColor = interpolateColor(blueRgb, redRgb, factor);
+                        cardStyle += ` background-color: ${bgColor} !important;`;
+                    }
+
+                    slotHtml = `
+                        <div class="agenda-slot-card card-confirmed" style="${cardStyle}">
+                            <div class="card-slot-time">⏱️ ${slot} - Confirmado</div>
                             <div class="card-confirmed-title">
                                 <span class="priority-dot" style="display:inline-block; width:10px; height:10px; border-radius:50%; background-color:${pColor}; margin-right:5px;" title="Prioridad: ${confirmedOrder.prioridad}"></span>
                                 <strong>${confirmedOrder.cliente || 'S/N'}</strong>
@@ -1070,16 +1245,29 @@ async function renderAgendaModule(container) {
                         </div>
                     `;
                 } else if (activeDrafts.length > 0) {
-                    // Reservado temporalmente card (supports up to 2 holds shown individually)
                     activeDrafts.forEach((draft, idx) => {
                         const p = (draft.prioridad || 'Normal').toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                         let pColor = '#28a745';
                         if (p === 'alta') pColor = '#fd7e14';
                         else if (p === 'maxima' || p === 'urgente') pColor = '#dc3545';
 
-                        colHtml += `
-                            <div class="agenda-slot-card card-draft">
-                                <div class="card-slot-time" style="color: #856404;">⏱️ ${slot} (Hold ${idx + 1}/2)</div>
+                        const elapsed = getElapsedMinutes(draft.fecha, draft.hora);
+                        let cardStyle = '';
+                        if (elapsed > 0) {
+                            const factor = Math.min(1, Math.max(0, elapsed / 40));
+                            const yellowRgb = [254, 243, 199];
+                            const redRgb = [252, 165, 165];
+                            const bgColor = interpolateColor(yellowRgb, redRgb, factor);
+
+                            const yellowBorder = [245, 158, 11];
+                            const redBorder = [239, 68, 68];
+                            const borderCol = interpolateColor(yellowBorder, redBorder, factor);
+                            cardStyle = `style="background-color: ${bgColor} !important; border: 1px dashed ${borderCol} !important; color: #78350f;"`;
+                        }
+
+                        slotHtml += `
+                            <div class="agenda-slot-card card-draft" ${cardStyle}>
+                                <div class="card-slot-time" style="color: #856404;">⏱️ ${slot} - Reservado (Hold ${idx + 1}/2)</div>
                                 <div class="card-draft-title">
                                     <span class="priority-dot" style="display:inline-block; width:10px; height:10px; border-radius:50%; background-color:${pColor}; margin-right:5px;" title="Prioridad: ${draft.prioridad}"></span>
                                     <strong>${draft.cliente || 'Sin nombre'}</strong>
@@ -1092,10 +1280,9 @@ async function renderAgendaModule(container) {
                         `;
                     });
 
-                    // If less than 2 drafts are reserved on this slot, it is STILL available for a second draft!
                     if (activeDrafts.length === 1) {
-                        colHtml += `
-                            <div class="agenda-slot-card card-available-partial" onclick="bookSlot('${dateStr}', '${slot}')">
+                        slotHtml += `
+                            <div class="agenda-slot-card card-available-partial" onclick="bookSlot('${dateStr}', '${slot}', event)">
                                 <div class="card-slot-time">⏱️ ${slot}</div>
                                 <div class="card-available-text">🟢 Hold 2 de 2 Disponible</div>
                                 <button class="btn btn-sm btn-outline-primary" style="padding: 2px 5px; font-size:0.7rem; margin-top:5px; width:100%;">+ Apartar</button>
@@ -1103,162 +1290,231 @@ async function renderAgendaModule(container) {
                         `;
                     }
                 } else {
-                    // Disponible card
-                    colHtml += `
-                        <div class="agenda-slot-card card-available" onclick="bookSlot('${dateStr}', '${slot}')">
+                    slotHtml = `
+                        <div class="agenda-slot-card card-available" onclick="bookSlot('${dateStr}', '${slot}', event)">
                             <div class="card-slot-time">⏱️ ${slot}</div>
                             <div class="card-available-text">🟢 Disponible</div>
                             <button class="btn btn-sm btn-outline-secondary" style="padding: 2px 5px; font-size:0.7rem; margin-top:5px; width:100%;">+ Reservar</button>
                         </div>
                     `;
                 }
-            });
 
-            if (canManageExtraordinary) {
-                if (dayOfWeek === 6) {
-                    colHtml += `
-                        <div class="extra-slot-btn-container" style="text-align: center; margin-top: 8px; margin-bottom: 8px;">
-                            <button class="btn btn-sm btn-outline-warning" style="width: 100%; font-size: 0.75rem; border-style: dashed; padding: 2px 4px;" onclick="bookExtraordinarySlot('${dateStr}', 'saturday_late')">
-                                ➕ Sábado Tarde / Domingo
-                            </button>
-                        </div>
-                    `;
+                if (shellEl.innerHTML !== slotHtml) {
+                    shellEl.innerHTML = slotHtml;
                 }
-                colHtml += `
-                    <div class="extra-slot-btn-container" style="text-align: center; margin-top: 8px;">
-                        <button class="btn btn-sm btn-outline-primary" style="width: 100%; font-size: 0.75rem; border-style: dashed; padding: 2px 4px;" onclick="bookExtraordinarySlot('${dateStr}', 'after')">
-                            ➕ Cupo Extraordinario Tarde
-                        </button>
-                    </div>
-                `;
-            }
-
-            colHtml += `
-                </div>
-            `;
-            col.innerHTML = colHtml;
-            grid.appendChild(col);
+            });
         });
+    };
 
-    } catch (error) {
-        console.error("Error al renderizar agenda semanal:", error);
+    try {
+        const cached = await dbGetAll('orders');
+        if (cached && cached.length > 0) {
+            drawAgenda(cached);
+        }
+    } catch (e) {
+        console.warn("IndexedDB read error:", e);
     }
+
+    try {
+        const ordersRes = await routeAction('GOS_CORE', 'getOrders');
+        if (ordersRes.status === 'success') {
+            const orders = ordersRes.data;
+            await dbClear('orders');
+            for (let o of orders) {
+                await dbSet('orders', o.id, o);
+            }
+            drawAgenda(orders);
+        }
+    } catch (error) {
+        console.error("Error al actualizar agenda semanal en segundo plano:", error);
+    }
+
+    if (dashboardInterval) clearInterval(dashboardInterval);
+    dashboardInterval = setInterval(async () => {
+        if (AppState.currentSection === 'agenda') {
+            try {
+                const res = await routeAction('GOS_CORE', 'getOrders');
+                if (res.status === 'success') {
+                    await dbClear('orders');
+                    for (let o of res.data) {
+                        await dbSet('orders', o.id, o);
+                    }
+                    drawAgenda(res.data);
+                }
+            } catch (err) {
+                console.warn("Silent background agenda update failed:", err);
+            }
+        }
+    }, 30000);
 }
 
-window.bookSlot = (date, slot) => {
-    const selectOverlay = document.createElement('div');
-    selectOverlay.className = 'modal-overlay';
-    selectOverlay.innerHTML = `
-        <div class="modal-content" style="max-width:400px; text-align:center;">
-            <h3>Seleccionar Tipo de Trabajo</h3>
-            <p>Seleccione el tipo de trabajo para este cupo:</p>
-            <div style="display:flex; flex-direction:column; gap:10px; margin-top:15px; margin-bottom:15px;">
-                <button class="btn btn-primary work-type-opt" data-value="Instalación nueva">Instalación nueva</button>
-                <button class="btn btn-outline work-type-opt" data-value="Revisión por falla" style="color:var(--dark); border-color:#ddd;">Revisión por falla</button>
-                <button class="btn btn-outline work-type-opt" data-value="Desinstalación" style="color:var(--dark); border-color:#ddd;">Desinstalación</button>
-                <button class="btn btn-outline work-type-opt" data-value="Mantenimiento" style="color:var(--dark); border-color:#ddd;">Mantenimiento</button>
-                <button class="btn btn-outline work-type-opt" data-value="Traspaso" style="color:var(--dark); border-color:#ddd;">Traspaso</button>
-            </div>
-            <button class="btn btn-secondary" id="cancel-work-type" style="width:100%;">Cancelar</button>
-        </div>
-    `;
-    document.body.appendChild(selectOverlay);
+function showDropMenu(anchor, options, onSelect) {
+    const existing = document.querySelector('.gos-drop-menu');
+    if (existing) {
+        existing.remove();
+    }
 
-    selectOverlay.querySelectorAll('.work-type-opt').forEach(btn => {
-        btn.onclick = () => {
-            const selectedType = btn.getAttribute('data-value');
-            document.body.removeChild(selectOverlay);
+    const menu = document.createElement('div');
+    menu.className = 'gos-drop-menu';
+    menu.style.position = 'absolute';
+    menu.style.zIndex = '2000';
+    menu.style.background = 'rgba(255, 255, 255, 0.94)';
+    menu.style.backdropFilter = 'blur(6px)';
+    menu.style.border = '1px solid rgba(226, 232, 240, 0.9)';
+    menu.style.borderRadius = '8px';
+    menu.style.boxShadow = '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)';
+    menu.style.padding = '6px 0';
+    menu.style.minWidth = '170px';
+    menu.style.display = 'flex';
+    menu.style.flexDirection = 'column';
 
-            const contentEl = document.getElementById('section-content');
-            renderOrderForm(contentEl);
+    options.forEach(opt => {
+        const item = document.createElement('div');
+        item.style.padding = '8px 16px';
+        item.style.fontSize = '0.85rem';
+        item.style.color = '#1e293b';
+        item.style.cursor = 'pointer';
+        item.style.transition = 'background-color 0.2s';
+        item.textContent = opt.label;
 
-            setTimeout(() => {
-                const tipoTrabajoSelect = document.getElementById('order-tipo-trabajo');
-                if (tipoTrabajoSelect) {
-                    let exists = false;
-                    for (let opt of tipoTrabajoSelect.options) {
-                        if (opt.value === selectedType) {
-                            exists = true;
-                            break;
-                        }
-                    }
-                    if (!exists) {
-                        const newOpt = document.createElement('option');
-                        newOpt.value = selectedType;
-                        newOpt.textContent = selectedType;
-                        tipoTrabajoSelect.appendChild(newOpt);
-                    }
-                    tipoTrabajoSelect.value = selectedType;
-                    tipoTrabajoSelect.dispatchEvent(new Event('change'));
-                }
-
-                // If Instalación nueva, prefill date and hour from Agenda slot
-                if (selectedType === "Instalación nueva") {
-                    const dateInput = document.getElementById('order-fecha');
-                    if (dateInput) {
-                        dateInput.value = date;
-                        dateInput.dispatchEvent(new Event('change'));
-                    }
-                    const horaSelect = document.getElementById('order-hora');
-                    if (horaSelect) {
-                        let exists = false;
-                        for (let option of horaSelect.options) {
-                            if (option.value === slot) {
-                                exists = true;
-                                break;
-                            }
-                        }
-                        if (!exists) {
-                            const newOpt = document.createElement('option');
-                            newOpt.value = slot;
-                            newOpt.textContent = slot;
-                            horaSelect.appendChild(newOpt);
-                        }
-                        horaSelect.value = slot;
-                        horaSelect.dispatchEvent(new Event('change'));
-                    }
-                } else {
-                    const dateInput = document.getElementById('order-fecha');
-                    if (dateInput) {
-                        dateInput.value = date;
-                        dateInput.dispatchEvent(new Event('change'));
-                    }
-                    const horaSelect = document.getElementById('order-hora');
-                    if (horaSelect) {
-                        let exists = false;
-                        for (let option of horaSelect.options) {
-                            if (option.value === slot) {
-                                exists = true;
-                                break;
-                            }
-                        }
-                        if (!exists) {
-                            const newOpt = document.createElement('option');
-                            newOpt.value = slot;
-                            newOpt.textContent = slot;
-                            horaSelect.appendChild(newOpt);
-                        }
-                        horaSelect.value = slot;
-                        horaSelect.dispatchEvent(new Event('change'));
-                    }
-                }
-            }, 400);
+        item.onmouseenter = () => {
+            item.style.backgroundColor = 'rgba(59, 130, 246, 0.08)';
         };
+        item.onmouseleave = () => {
+            item.style.backgroundColor = 'transparent';
+        };
+        item.onclick = (e) => {
+            e.stopPropagation();
+            onSelect(opt.value);
+            menu.remove();
+        };
+        menu.appendChild(item);
     });
 
-    selectOverlay.querySelector('#cancel-work-type').onclick = () => {
-        document.body.removeChild(selectOverlay);
+    document.body.appendChild(menu);
+
+    const rect = anchor.getBoundingClientRect();
+    const menuWidth = menu.offsetWidth || 170;
+    let left = rect.left + window.scrollX;
+    if (left + menuWidth > window.innerWidth) {
+        left = window.innerWidth - menuWidth - 10;
+    }
+    let top = rect.bottom + window.scrollY;
+
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+
+    const clickOutside = (e) => {
+        if (!menu.contains(e.target) && e.target !== anchor && !anchor.contains(e.target)) {
+            menu.remove();
+            document.removeEventListener('click', clickOutside);
+        }
     };
+    setTimeout(() => {
+        document.addEventListener('click', clickOutside);
+    }, 10);
+}
+
+window.bookSlot = (date, slot, event) => {
+    if (event) {
+        event.stopPropagation();
+    }
+    const anchor = event ? (event.currentTarget || event.target) : null;
+
+    const proceedWithBooking = async (selectedType) => {
+        try {
+            const lockRes = await routeAction('GOS_CORE', 'lockSlot', {
+                date,
+                slot,
+                username: AppState.user?.Nombre_Usuario || 'Carlos Ruiz'
+            });
+            if (lockRes.status !== 'success') {
+                showToast("⚠️ " + (lockRes.message || 'El cupo ya está siendo reservado por otro usuario.'), true);
+                if (AppState.currentSection === 'agenda') {
+                    const contentEl = document.getElementById('section-content');
+                    renderAgendaModule(contentEl);
+                }
+                return;
+            }
+            AppState.activeLock = { date, slot };
+        } catch (err) {
+            console.error("Error locking slot:", err);
+            showToast("⚠️ Error al reservar cupo: " + err.message, true);
+            return;
+        }
+
+        const contentEl = document.getElementById('section-content');
+        renderOrderForm(contentEl);
+
+        setTimeout(() => {
+            const tipoTrabajoSelect = document.getElementById('order-tipo-trabajo');
+            if (tipoTrabajoSelect) {
+                let exists = false;
+                for (let opt of tipoTrabajoSelect.options) {
+                    if (opt.value === selectedType) {
+                        exists = true;
+                        break;
+                    }
+                }
+                if (!exists) {
+                    const newOpt = document.createElement('option');
+                    newOpt.value = selectedType;
+                    newOpt.textContent = selectedType;
+                    tipoTrabajoSelect.appendChild(newOpt);
+                }
+                tipoTrabajoSelect.value = selectedType;
+                tipoTrabajoSelect.dispatchEvent(new Event('change'));
+            }
+
+            const dateInput = document.getElementById('order-fecha');
+            if (dateInput) {
+                dateInput.value = date;
+                dateInput.dispatchEvent(new Event('change'));
+            }
+            const horaSelect = document.getElementById('order-hora');
+            if (horaSelect) {
+                let exists = false;
+                for (let option of horaSelect.options) {
+                    if (option.value === slot) {
+                        exists = true;
+                        break;
+                    }
+                }
+                if (!exists) {
+                    const newOpt = document.createElement('option');
+                    newOpt.value = slot;
+                    newOpt.textContent = slot;
+                    horaSelect.appendChild(newOpt);
+                }
+                horaSelect.value = slot;
+                horaSelect.dispatchEvent(new Event('change'));
+            }
+        }, 400);
+    };
+
+    const options = [
+        { label: "Instalación nueva", value: "Instalación nueva" },
+        { label: "Revisión por falla", value: "Revisión por falla" },
+        { label: "Desinstalación", value: "Desinstalación" },
+        { label: "Mantenimiento", value: "Mantenimiento" },
+        { label: "Traspaso", value: "Traspaso" }
+    ];
+
+    if (anchor) {
+        showDropMenu(anchor, options, proceedWithBooking);
+    } else {
+        proceedWithBooking("Instalación nueva");
+    }
 };
 
-window.bookExtraordinarySlot = (date, position) => {
+window.bookExtraordinarySlot = (date, position, event) => {
     let slot = '17:00 - 19:00';
     if (position === 'before') {
         slot = '06:00 - 08:00';
     } else if (position === 'saturday_late') {
         slot = '12:00 - 14:00';
     }
-    window.bookSlot(date, slot);
+    window.bookSlot(date, slot, event);
 };
 
 window.authorizeOrder = async (orderId, coords) => {
@@ -1692,35 +1948,54 @@ function renderOrderForm(container) {
             }
         };
 
-        // Listen for Google Maps pasted links in the Location search field:
+        // Listen for Google Maps links, raw coordinates, or addresses in the Location search field:
         if (savedLocInput) {
             savedLocInput.addEventListener('change', async () => {
                 const val = savedLocInput.value.trim();
-                if (val.startsWith('http') && (val.includes('google.com/maps') || val.includes('maps.google') || val.includes('goo.gl/maps'))) {
-                    const parsedCoords = parseGoogleMapsLink(val);
-                    if (parsedCoords) {
-                        const { lat, lng } = parsedCoords;
-                        if (orderCoordsInput) orderCoordsInput.value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-                        if (orderMapsLinkInput) orderMapsLinkInput.value = val;
+                let lat = null, lng = null;
 
-                        if (formMap && formMarker) {
-                            formMarker.setLatLng([lat, lng]);
-                            formMap.setView([lat, lng], 15);
-                        }
+                // 1. Check Google Maps link
+                if (val.startsWith('http') && (val.includes('google.com/maps') || val.includes('maps.google') || val.includes('goo.gl/maps') || val.includes('maps.app.goo.gl'))) {
+                    const parsed = parseGoogleMapsLink(val);
+                    if (parsed) {
+                        lat = parsed.lat;
+                        lng = parsed.lng;
+                    }
+                }
+                // 2. Check raw coordinates string, e.g. "15.5042, -88.0250" or "15.5042 -88.0250"
+                else {
+                    const coordMatch = val.match(/^\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*$/);
+                    const coordSpaceMatch = val.match(/^\s*(-?\d+\.\d+)\s+(-?\d+\.\d+)\s*$/);
+                    if (coordMatch) {
+                        lat = parseFloat(coordMatch[1]);
+                        lng = parseFloat(coordMatch[2]);
+                    } else if (coordSpaceMatch) {
+                        lat = parseFloat(coordSpaceMatch[1]);
+                        lng = parseFloat(coordSpaceMatch[2]);
+                    }
+                }
 
-                        const address = await reverseGeocode(lat, lng);
-                        savedLocInput.value = address;
-                        if (orderDireccionInput) orderDireccionInput.value = address;
+                if (lat !== null && lng !== null) {
+                    if (orderCoordsInput) orderCoordsInput.value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+                    if (orderMapsLinkInput) orderMapsLinkInput.value = val.startsWith('http') ? val : `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
 
-                        const isNear = isNearExistingSavedLocation(lat, lng, allSavedLocations);
-                        if (isNear) {
-                            if (saveLocationBtn) saveLocationBtn.style.display = 'none';
-                        } else {
-                            if (saveLocationBtn) {
-                                saveLocationBtn.style.display = 'inline-block';
-                                saveLocationBtn.textContent = '💾 Guardar ubicación';
-                                saveLocationBtn.className = "btn btn-sm btn-outline-primary";
-                            }
+                    if (formMap && formMarker) {
+                        formMarker.setLatLng([lat, lng]);
+                        formMap.setView([lat, lng], 15);
+                    }
+
+                    const address = await reverseGeocode(lat, lng);
+                    savedLocInput.value = address;
+                    if (orderDireccionInput) orderDireccionInput.value = address;
+
+                    const isNear = isNearExistingSavedLocation(lat, lng, allSavedLocations);
+                    if (isNear) {
+                        if (saveLocationBtn) saveLocationBtn.style.display = 'none';
+                    } else {
+                        if (saveLocationBtn) {
+                            saveLocationBtn.style.display = 'inline-block';
+                            saveLocationBtn.textContent = '💾 Guardar ubicación';
+                            saveLocationBtn.className = "btn btn-sm btn-outline-primary";
                         }
                     }
                 }
@@ -1869,6 +2144,16 @@ function renderOrderForm(container) {
                         <div style="margin-bottom:15px; font-size: 0.9rem; line-height: 1.4;">
                             <strong>Últimos Datos Registrados:</strong><br>
                             🚗 Vehículo: ${lastRecord.marca || ''} ${lastRecord.modelo || ''} (${lastRecord.anio || ''}) | Color: ${lastRecord.color || ''} | Placa: ${lastRecord.placa || ''} | Motor: ${lastRecord.motor || ''}
+                            ${(lastRecord.fotos && (lastRecord.fotos.frontal || lastRecord.fotos.posterior || lastRecord.fotos.interior_derecho)) ? `
+                            <div style="margin-top:10px;">
+                                <strong>📷 Fotografías del Historial:</strong>
+                                <div style="display:flex; gap:10px; margin-top:5px; flex-wrap: wrap;">
+                                    ${lastRecord.fotos.frontal ? `<img src="${lastRecord.fotos.frontal}" style="width:70px; height:70px; object-fit:cover; border-radius:4px; border:1px solid #ddd; cursor:pointer;" onclick="window.open('${lastRecord.fotos.frontal}', '_blank')" title="Vista Frontal">` : ''}
+                                    ${lastRecord.fotos.posterior ? `<img src="${lastRecord.fotos.posterior}" style="width:70px; height:70px; object-fit:cover; border-radius:4px; border:1px solid #ddd; cursor:pointer;" onclick="window.open('${lastRecord.fotos.posterior}', '_blank')" title="Vista Posterior">` : ''}
+                                    ${lastRecord.fotos.interior_derecho ? `<img src="${lastRecord.fotos.interior_derecho}" style="width:70px; height:70px; object-fit:cover; border-radius:4px; border:1px solid #ddd; cursor:pointer;" onclick="window.open('${lastRecord.fotos.interior_derecho}', '_blank')" title="Lado Derecho / Interior">` : ''}
+                                </div>
+                            </div>
+                            ` : ''}
                         </div>
 
                         <strong>Historial Operativo de Servicios:</strong>
@@ -2314,7 +2599,11 @@ function renderOrderForm(container) {
                 if (isRegular) {
                     let maxTechCount = 4;
                     try {
-                        const techCountRes = await routeAction('GOS_CORE', 'getDivisionTechniciansCount', { sector: payload.sector });
+                        const techCountRes = await routeAction('GOS_CORE', 'getDivisionTechniciansCount', {
+                            sector: payload.sector,
+                            date: payload.fecha,
+                            slot: payload.hora
+                        });
                         if (techCountRes.status === 'success') {
                             maxTechCount = techCountRes.count || 4;
                         }
@@ -2345,6 +2634,7 @@ function renderOrderForm(container) {
             }
             const result = await routeAction('GOS_CORE', 'createOrder', payload);
             if (result.status === 'success') {
+                AppState.activeLock = null; // Clear lock
                 const orderId = result.orderId;
 
                 // Guardar/Incrementar Uso de Ubicación en Base de Datos
@@ -2587,667 +2877,649 @@ async function renderDashboardModule(container) {
     const isPowerUser = ['desarrollador', 'jefe', 'gerente', 'jefe de tienda', 'administrador'].includes((user.Privilegios || '').toLowerCase().trim());
     let activeSector = isPowerUser ? 'Todos' : (user.Sector || 'San Pedro Sula');
 
-    const updateDashboard = async () => {
-        try {
-            const result = await routeAction('GOS_CORE', 'getOrders');
-            if (result.status !== 'success') {
-                container.innerHTML = `<p class="error-msg">Error al cargar datos del dashboard: ${result.message}</p>`;
-                return;
-            }
+    let shell = document.getElementById('dashboard-shell-container');
+    if (!shell) {
+        container.innerHTML = `<div id="dashboard-shell-container"></div>`;
+        shell = document.getElementById('dashboard-shell-container');
+    }
 
-            const orders = result.data;
+    const updateDashboardView = (orders) => {
+        const filteredOrders = orders.filter(order => {
+            if (activeSector === 'Todos') return true;
+            return (order.sector || '').toLowerCase().trim() === activeSector.toLowerCase().trim();
+        });
 
-            // Filtrar órdenes por el sector seleccionado
-            const filteredOrders = orders.filter(order => {
-                if (activeSector === 'Todos') return true;
-                return (order.sector || '').toLowerCase().trim() === activeSector.toLowerCase().trim();
+        let html = `
+            <div class="dashboard-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:15px;">
+                <div>
+                    <p style="margin:0; font-size:0.95rem; color:var(--secondary);">
+                        Sector Operativo Activo: <strong id="sector-display" style="color:var(--primary); font-size:1.1rem;">${activeSector}</strong>
+                    </p>
+                </div>
+        `;
+
+        if (isPowerUser) {
+            const sectores = ['Todos', 'San Pedro Sula', 'Tegucigalpa', 'La Ceiba', 'Choluteca', 'Occidente'];
+            html += `
+                <div>
+                    <label style="font-weight:bold; margin-right:8px; font-size:0.9rem;">Zona Operativa:</label>
+                    <select id="sector-selector" class="form-control" style="width:auto; display:inline-block; padding: 5px 10px;">
+                        ${sectores.map(sec => `<option value="${sec}" ${activeSector === sec ? 'selected' : ''}>${sec}</option>`).join('')}
+                    </select>
+                </div>
+            `;
+        }
+
+        html += `
+            </div>
+        `;
+
+        if (isPowerUser) {
+            const today = new Date();
+            const nextWeek = new Date();
+            nextWeek.setDate(today.getDate() + 7);
+
+            const formatLocalDate = (d) => d.toISOString().split('T')[0];
+            const startStr = formatLocalDate(today);
+            const endStr = formatLocalDate(nextWeek);
+
+            const weeklyInstalls = filteredOrders.filter(o => {
+                const dateVal = o.fecha || '';
+                const isInstall = ['instalacion', 'reinstalacion'].includes((o.tipotrabajo || '').toLowerCase().trim());
+                return dateVal >= startStr && dateVal <= endStr && isInstall;
             });
 
-            let html = `
-                <div class="dashboard-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:15px;">
-                    <div>
-                        <p style="margin:0; font-size:0.95rem; color:var(--secondary);">
-                            Sector Operativo Activo: <strong id="sector-display" style="color:var(--primary); font-size:1.1rem;">${activeSector}</strong>
-                        </p>
-                    </div>
-            `;
+            const techCounts = {};
+            weeklyInstalls.forEach(o => {
+                const t = o.tecnicoasignado || 'Sin asignar';
+                techCounts[t] = (techCounts[t] || 0) + 1;
+            });
+            const chartData = Object.entries(techCounts).map(([label, value]) => ({ label, value }));
 
-            if (isPowerUser) {
-                const sectores = ['Todos', 'San Pedro Sula', 'Tegucigalpa', 'La Ceiba', 'Choluteca', 'Occidente'];
-                html += `
-                    <div>
-                        <label style="font-weight:bold; margin-right:8px; font-size:0.9rem;">Zona Operativa:</label>
-                        <select id="sector-selector" class="form-control" style="width:auto; display:inline-block; padding: 5px 10px;">
-                            ${sectores.map(sec => `<option value="${sec}" ${activeSector === sec ? 'selected' : ''}>${sec}</option>`).join('')}
-                        </select>
+            html += `
+                <div style="background: #e3f2fd; padding:15px; border-radius:8px; margin-bottom:20px; font-size:0.95rem; color:#0d47a1;">
+                    📅 <strong>Planificación de Instalaciones de la Semana (Jefatura/Gerencia)</strong><br>
+                    Mostrando instalaciones programadas desde hoy hasta el ${endStr}.
+                </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:25px; flex-wrap:wrap;">
+                    <div class="orders-table-container">
+                        <h3 style="margin-top:0; margin-bottom:15px; border-bottom:2px solid var(--light); padding-bottom:8px; color:var(--dark);">Distribución de Trabajos</h3>
+                        ${chartData.length > 0 ? UI_TEMPLATES.chart(chartData) : '<p style="color:var(--secondary); font-style:italic;">No hay instalaciones distribuidas esta semana.</p>'}
                     </div>
-                `;
+                    <div class="orders-table-container">
+                        <h3 style="margin-top:0; margin-bottom:15px; border-bottom:2px solid var(--light); padding-bottom:8px; color:var(--dark);">Estados de Ejecución</h3>
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; font-size:0.9rem;">
+                            <div>⏳ Pendientes: <strong>${weeklyInstalls.filter(o => (o.estado || '').toLowerCase().trim() === 'pendiente').length}</strong></div>
+                            <div>🔧 Asignadas: <strong>${weeklyInstalls.filter(o => (o.estado || '').toLowerCase().trim() === 'asignada').length}</strong></div>
+                            <div>🚚 En Camino/Llegó: <strong>${weeklyInstalls.filter(o => ['en camino', 'llego'].includes((o.estado || '').toLowerCase().trim())).length}</strong></div>
+                            <div>✅ Completadas: <strong>${weeklyInstalls.filter(o => ['finalizada', 'instalacion completada'].includes((o.estado || '').toLowerCase().trim())).length}</strong></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="orders-table-container">
+                    <h3 style="margin-top:0; margin-bottom:15px; border-bottom:2px solid var(--light); padding-bottom:8px; color:var(--dark);">Planificación Semanal de Instalaciones</h3>
+                    <table class="gos-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Fecha Programada</th>
+                                <th>Hora</th>
+                                <th>Cliente</th>
+                                <th>Vehículo</th>
+                                <th>Prioridad</th>
+                                <th>Estado de Ejecución</th>
+                                <th>Técnico</th>
+                                <th>Sector</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${weeklyInstalls.map(o => `
+                                <tr>
+                                    <td><strong>${o.id}</strong></td>
+                                    <td>${o.fecha || ''}</td>
+                                    <td>${o.hora || ''}</td>
+                                    <td>${o.cliente || ''}</td>
+                                    <td>${o.marca || ''} ${o.modelo || ''}</td>
+                                    <td>${UI_TEMPLATES.priorityBadge(o.prioridad)}</td>
+                                    <td>${UI_TEMPLATES.badge(o.estado)}</td>
+                                    <td><small>${o.tecnicoasignado || 'Sin asignar'}</small></td>
+                                    <td><span class="badge" style="background:#e8f4fd; color:#1a73e8;">${o.sector || ''}</span></td>
+                                </tr>
+                            `).join('')}
+                            ${weeklyInstalls.length === 0 ? '<tr><td colspan="9" style="text-align:center; color:var(--secondary);">No hay instalaciones planificadas para esta semana.</td></tr>' : ''}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        } else {
+            const isTech = RBAC.isTech();
+            const activeJobs = filteredOrders.filter(o => {
+                const statusLower = (o.estado || '').toLowerCase().trim().normalize("NFD").replace(/[̀-ͯ]/g, "");
+                const statusMatch = ['pendiente', 'asignada', 'en camino', 'llego', 'vehiculo recibido', 'iniciando', 'instalando', 'haciendo pruebas', 'instalacion completada', 'finalizada', 'trabajo retrasado', 'vehiculo no disponible'].includes(statusLower);
+                if (!statusMatch) return false;
+
+                if (isTech) {
+                    const tAsignado = (o.tecnicoasignado || '').toString().toLowerCase().trim();
+                    const userName = (user.Nombre_Completo || '').toString().toLowerCase().trim();
+                    const userLogin = (user.Nombre_Usuario || '').toString().toLowerCase().trim();
+                    return tAsignado === userName || tAsignado === userLogin || tAsignado.includes(userLogin) || userName.includes(tAsignado);
+                }
+                return true;
+            });
+
+            if (isTech) {
+                const activeTechJob = activeJobs.find(o => !['finalizada', 'cancelada', 'expirada'].includes((o.estado || '').toLowerCase().trim()));
+                if (activeTechJob) {
+                    AppState.activeOrder = {
+                        id: activeTechJob.id,
+                        estado: activeTechJob.estado,
+                        coordenadas: activeTechJob.coordenadas
+                    };
+                } else {
+                    AppState.activeOrder = null;
+                }
             }
 
             html += `
+                <div style="background: #f8f9fa; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <span style="font-weight:bold; color:var(--dark); font-size:1.1rem;">🛠️ Panel de Técnico: ${user.Nombre_Completo || user.Nombre_Usuario}</span><br>
+                        <small style="color:var(--secondary);">Rol: ${user.Privilegios} | Sector: ${user.Sector}</small>
+                    </div>
+                    <button class="btn btn-secondary" id="btn-tech-change-pass" style="padding: 6px 12px; font-size:0.85rem;">🔄 Cambiar Mi Contraseña</button>
                 </div>
             `;
 
-            if (isPowerUser) {
-                // DASHBOARD PARA JEFE DE TIENDA Y GERENTE: Planificación de Instalaciones Programadas
-                const today = new Date();
-                const nextWeek = new Date();
-                nextWeek.setDate(today.getDate() + 7);
-
-                const formatLocalDate = (d) => d.toISOString().split('T')[0];
-                const startStr = formatLocalDate(today);
-                const endStr = formatLocalDate(nextWeek);
-
-                // Filtrar por semana y tipo "Instalación" / "Reinstalación"
-                const weeklyInstalls = filteredOrders.filter(o => {
-                    const dateVal = o.fecha || '';
-                    const isInstall = ['instalacion', 'reinstalacion'].includes((o.tipotrabajo || '').toLowerCase().trim());
-                    return dateVal >= startStr && dateVal <= endStr && isInstall;
-                });
-
-                // Distribución de trabajos (por técnico para "Distribución de trabajos")
-                const techCounts = {};
-                weeklyInstalls.forEach(o => {
-                    const t = o.tecnicoasignado || 'Sin asignar';
-                    techCounts[t] = (techCounts[t] || 0) + 1;
-                });
-                const chartData = Object.entries(techCounts).map(([label, value]) => ({ label, value }));
-
-                html += `
-                    <div style="background: #e3f2fd; padding:15px; border-radius:8px; margin-bottom:20px; font-size:0.95rem; color:#0d47a1;">
-                        📅 <strong>Planificación de Instalaciones de la Semana (Jefatura/Gerencia)</strong><br>
-                        Mostrando instalaciones programadas desde hoy hasta el ${endStr}.
+            html += `
+                <div class="orders-table-container">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid var(--light); padding-bottom:10px;">
+                        <h3 style="margin:0; font-size:1.1rem; color:var(--dark);">Trabajos Programados y Asignaciones - Sector ${activeSector}</h3>
+                        <span class="badge" style="background:var(--light); color:var(--secondary); font-size:0.8rem;">Total: ${activeJobs.length}</span>
                     </div>
-
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:25px; flex-wrap:wrap;">
-                        <div class="orders-table-container">
-                            <h3 style="margin-top:0; margin-bottom:15px; border-bottom:2px solid var(--light); padding-bottom:8px; color:var(--dark);">Distribución de Trabajos</h3>
-                            ${chartData.length > 0 ? UI_TEMPLATES.chart(chartData) : '<p style="color:var(--secondary); font-style:italic;">No hay instalaciones distribuidas esta semana.</p>'}
-                        </div>
-                        <div class="orders-table-container">
-                            <h3 style="margin-top:0; margin-bottom:15px; border-bottom:2px solid var(--light); padding-bottom:8px; color:var(--dark);">Estados de Ejecución</h3>
-                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; font-size:0.9rem;">
-                                <div>⏳ Pendientes: <strong>${weeklyInstalls.filter(o => (o.estado || '').toLowerCase().trim() === 'pendiente').length}</strong></div>
-                                <div>🔧 Asignadas: <strong>${weeklyInstalls.filter(o => (o.estado || '').toLowerCase().trim() === 'asignada').length}</strong></div>
-                                <div>🚚 En Camino/Llegó: <strong>${weeklyInstalls.filter(o => ['en camino', 'llego'].includes((o.estado || '').toLowerCase().trim())).length}</strong></div>
-                                <div>✅ Completadas: <strong>${weeklyInstalls.filter(o => ['finalizada', 'instalacion completada'].includes((o.estado || '').toLowerCase().trim())).length}</strong></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="orders-table-container">
-                        <h3 style="margin-top:0; margin-bottom:15px; border-bottom:2px solid var(--light); padding-bottom:8px; color:var(--dark);">Planificación Semanal de Instalaciones</h3>
-                        <table class="gos-table">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Fecha Programada</th>
-                                    <th>Hora</th>
-                                    <th>Cliente</th>
-                                    <th>Vehículo</th>
-                                    <th>Prioridad</th>
-                                    <th>Estado de Ejecución</th>
-                                    <th>Técnico</th>
-                                    <th>Sector</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${weeklyInstalls.map(o => `
-                                    <tr>
-                                        <td><strong>${o.id}</strong></td>
-                                        <td>${o.fecha || ''}</td>
-                                        <td>${o.hora || ''}</td>
-                                        <td>${o.cliente || ''}</td>
-                                        <td>${o.marca || ''} ${o.modelo || ''}</td>
-                                        <td>${UI_TEMPLATES.priorityBadge(o.prioridad)}</td>
-                                        <td>${UI_TEMPLATES.badge(o.estado)}</td>
-                                        <td><small>${o.tecnicoasignado || 'Sin asignar'}</small></td>
-                                        <td><span class="badge" style="background:#e8f4fd; color:#1a73e8;">${o.sector || ''}</span></td>
-                                    </tr>
-                                `).join('')}
-                                ${weeklyInstalls.length === 0 ? '<tr><td colspan="9" style="text-align:center; color:var(--secondary);">No hay instalaciones planificadas para esta semana.</td></tr>' : ''}
-                            </tbody>
-                        </table>
-                    </div>
-                `;
-            } else {
-                // DASHBOARD PARA TÉCNICOS Y OPERATIVOS: Personal Technician Dashboard
-                const isTech = RBAC.isTech();
-                const activeJobs = filteredOrders.filter(o => {
-                const statusLower = (o.estado || '').toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                const statusMatch = ['pendiente', 'asignada', 'en camino', 'llego', 'vehiculo recibido', 'iniciando', 'instalando', 'haciendo pruebas', 'instalacion completada', 'finalizada', 'trabajo retrasado', 'vehiculo no disponible'].includes(statusLower);
-                    if (!statusMatch) return false;
-
-                    if (isTech) {
-                        const tAsignado = (o.tecnicoasignado || '').toString().toLowerCase().trim();
-                        const userName = (user.Nombre_Completo || '').toString().toLowerCase().trim();
-                        const userLogin = (user.Nombre_Usuario || '').toString().toLowerCase().trim();
-                        return tAsignado === userName || tAsignado === userLogin || tAsignado.includes(userLogin) || userName.includes(tAsignado);
-                    }
-                    return true;
-                });
-
-                // Sincronizar activeOrder en AppState para persistencia
-                if (isTech) {
-                    const activeTechJob = activeJobs.find(o => !['finalizada', 'cancelada', 'expirada'].includes((o.estado || '').toLowerCase().trim()));
-                    if (activeTechJob) {
-                        AppState.activeOrder = {
-                            id: activeTechJob.id,
-                            estado: activeTechJob.estado,
-                            coordenadas: activeTechJob.coordenadas
-                        };
-                    } else {
-                        AppState.activeOrder = null;
-                    }
-                }
-
-                // Personal Info and Password Change for Technician
-                html += `
-                    <div style="background: #f8f9fa; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                        <div>
-                            <span style="font-weight:bold; color:var(--dark); font-size:1.1rem;">🛠️ Panel de Técnico: ${user.Nombre_Completo || user.Nombre_Usuario}</span><br>
-                            <small style="color:var(--secondary);">Rol: ${user.Privilegios} | Sector: ${user.Sector}</small>
-                        </div>
-                        <button class="btn btn-secondary" id="btn-tech-change-pass" style="padding: 6px 12px; font-size:0.85rem;">🔄 Cambiar Mi Contraseña</button>
-                    </div>
-                `;
-
-                html += `
-                    <div class="orders-table-container">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid var(--light); padding-bottom:10px;">
-                            <h3 style="margin:0; font-size:1.1rem; color:var(--dark);">Trabajos Programados y Asignaciones - Sector ${activeSector}</h3>
-                            <span class="badge" style="background:var(--light); color:var(--secondary); font-size:0.8rem;">Total: ${activeJobs.length}</span>
-                        </div>
-                `;
-
-                if (activeJobs.length === 0) {
-                    html += `<p style="padding:20px; text-align:center; color:var(--secondary); font-size:0.95rem;">No hay trabajos asignados o programados en este sector.</p>`;
-                } else {
-                    html += `
-                        <table class="gos-table">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Hora</th>
-                                    <th>Cliente</th>
-                                    <th>Vehículo</th>
-                                    <th>Prioridad</th>
-                                    <th>Estado de la Orden</th>
-                                    <th>Técnico</th>
-                                    <th style="min-width: 150px;">Control Operativo</th>
-                                    <th>Tickets</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                    `;
-
-                    activeJobs.forEach(o => {
-                        const status = o.estado || 'Pendiente';
-                        const id = o.id;
-                        const time = o.hora || '--:--';
-                        const client = o.cliente || 'Sin nombre';
-                        const vehicle = `${o.marca || ''} ${o.modelo || ''}`.trim() || 'Desconocido';
-                        const priority = o.prioridad || 'Normal';
-                        const tech = o.tecnicoasignado || 'Sin asignar';
-
-                        let controlBtn = '';
-                        const statusLower = (status || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-
-                        if (statusLower === 'pendiente' || statusLower === 'asignada') {
-                            controlBtn = `<button class="btn btn-sm btn-secondary" onclick="markStatus('${id}', 'En Camino')">🚚 Moviéndose al lugar</button>`;
-                        } else if (statusLower === 'en camino') {
-                            controlBtn = `<small style="color:var(--primary); font-weight:bold;">🚚 En camino (Ubicación activa)</small>`;
-                        } else if (statusLower === 'llego') {
-                            controlBtn = `
-                                <div style="display:flex; flex-direction:column; gap:5px;">
-                                    <button class="btn btn-sm btn-success receive-vehicle-btn" data-id="${id}">🚗 Se recibió el vehículo</button>
-                                    <button class="btn btn-sm btn-danger not-available-btn" data-id="${id}">❌ Vehículo no disponible</button>
-                                </div>
-                            `;
-                        } else if (statusLower === 'vehiculo recibido') {
-                            controlBtn = `<button class="btn btn-sm btn-primary" onclick="markStatus('${id}', 'Iniciando')">➡️ Iniciar Trabajo</button>`;
-                        } else if (statusLower === 'iniciando') {
-                            controlBtn = `<button class="btn btn-sm btn-secondary" disabled>➡️ Iniciando Trabajo...</button>`;
-                            setTimeout(() => {
-                                markStatus(id, 'Instalando');
-                            }, 1000);
-                        } else if (statusLower === 'instalando') {
-                            const isRevision = (o.tipotrabajo || '').toLowerCase().includes('revision') || (o.tipotrabajo || '').toLowerCase().includes('revisión');
-                            if (isRevision && !(o.observaciones || '').toLowerCase().includes('cambio') && !(o.observaciones || '').toLowerCase().includes('conexion') && !(o.observaciones || '').toLowerCase().includes('conexión') && !(o.observaciones || '').toLowerCase().includes('reparacion') && !(o.observaciones || '').toLowerCase().includes('reparación')) {
-                                controlBtn = `<button class="btn btn-sm btn-warning diagnosis-btn" data-id="${id}">🔍 Registrar Diagnóstico</button>`;
-                            } else {
-                                controlBtn = `<button class="btn btn-sm btn-primary test-monitoreo-btn" data-id="${id}">📞 Iniciar Pruebas (Monitoreo)</button>`;
-                            }
-                        } else if (statusLower === 'diagnostico realizado' || statusLower === 'diagnóstico realizado') {
-                            controlBtn = `<button class="btn btn-sm btn-outline-primary diagnosis-btn" data-id="${id}">➡️ Seleccionar Intervención</button>`;
-                        } else if (statusLower === 'esperando autorizacion' || statusLower === 'esperando autorización') {
-                            controlBtn = `<button class="btn btn-sm btn-success" onclick="markStatus('${id}', 'Instalando', 'Autorizado por Ventas')">✅ Autorizar e Instalar</button>`;
-                        } else if (statusLower === 'haciendo pruebas' || statusLower === 'pruebas con monitoreo') {
-                            controlBtn = `<button class="btn btn-sm btn-primary" onclick="markStatus('${id}', 'Instalación completada')">➡️ Concluir Pruebas</button>`;
-                        } else if (statusLower === 'instalacion completada' || statusLower === 'terminando la instalacion' || statusLower === 'terminando la instalación') {
-                            controlBtn = `<button class="btn btn-sm btn-success deliver-vehicle-btn" data-id="${id}">🤝 Entregar Vehículo</button>`;
-                        } else if (statusLower === 'vehiculo no disponible' || statusLower === 'vehículo no disponible') {
-                            const waitTime = getWaitTimeInMinutes(o);
-                            let waitStyle = '';
-                            let waitLabel = '';
-                            if (waitTime <= 40) {
-                                waitStyle = 'background: #fff9db; color: #856404; border: 1px solid #ffeeba;';
-                                waitLabel = `⏳ Espera Prudente (${waitTime} min)`;
-                            } else {
-                                waitStyle = 'background: #ffe8cc; color: #d9480f; border: 1px solid #ffd8a8;';
-                                waitLabel = `⚠️ Espera Prolongada (${waitTime} min)`;
-                            }
-                            controlBtn = `
-                                <div style="display:flex; flex-direction:column; gap:5px; padding: 5px; border-radius: 5px; ${waitStyle}">
-                                    <small style="font-weight:bold; font-size:0.75rem;">${waitLabel}</small>
-                                    <button class="btn btn-sm btn-secondary not-available-btn" data-id="${id}" style="font-size:0.75rem; padding:2px 5px;">🔄 Cambiar Estado</button>
-                                </div>
-                            `;
-                        } else if (statusLower === 'trabajo retrasado' || statusLower === 'retrasado') {
-                            controlBtn = `
-                                <div style="display:flex; flex-direction:column; gap:5px; background:#f8d7da; border:1px solid #f5c6cb; color:#721c24; padding:5px; border-radius:5px;">
-                                    <small style="font-weight:bold; font-size:0.75rem;">⚠️ ¡Trabajo Retrasado!</small>
-                                    <button class="btn btn-sm btn-danger check-subsequent-btn" data-id="${id}" style="font-size:0.75rem; padding: 2px 5px;">Revisar Siguiente</button>
-                                </div>
-                            `;
-                        } else if (statusLower === 'finalizada') {
-                            controlBtn = `<span class="badge" style="background:#d4edda; color:#155724;">✅ Entregado</span>`;
-                        } else {
-                            controlBtn = `<small style="color:var(--secondary); font-style:italic;">Esperando llegada</small>`;
-                        }
-
-                        // Tickets buttons
-                        const hasReceived = !['pendiente', 'asignada', 'en camino', 'llego'].includes(statusLower);
-                        const isFinalized = statusLower === 'finalizada';
-
-                        const ticketPreBtn = hasReceived
-                            ? `<button class="btn btn-sm btn-outline view-ticket-pre-btn" data-id="${id}" title="Ticket Pre-instalación" style="padding: 4px 8px; font-size: 0.8rem;">🎟️ Pre</button>`
-                            : `<button class="btn btn-sm btn-outline" disabled title="Falta recepción" style="padding: 4px 8px; font-size: 0.8rem; opacity:0.5;">🎟️ Pre</button>`;
-
-                        const ticketPostBtn = isFinalized
-                            ? `<button class="btn btn-sm btn-outline view-ticket-post-btn" data-id="${id}" title="Evidencia Post-instalación" style="padding: 4px 8px; font-size: 0.8rem;">🎟️ Post</button>`
-                            : `<button class="btn btn-sm btn-outline" disabled title="No entregado" style="padding: 4px 8px; font-size: 0.8rem; opacity:0.5;">🎟️ Post</button>`;
-
-                        html += `
-                            <tr data-id="${id}">
-                                <td><strong>${id}</strong></td>
-                                <td>${time}</td>
-                                <td>${client}</td>
-                                <td>${vehicle}</td>
-                                <td>${UI_TEMPLATES.priorityBadge(priority)}</td>
-                                <td>${UI_TEMPLATES.badge(status)}</td>
-                                <td><small>${tech}</small></td>
-                                <td>${controlBtn}</td>
-                                <td>
-                                    <div style="display:flex; gap:5px;">
-                                        ${ticketPreBtn}
-                                        ${ticketPostBtn}
-                                    </div>
-                                </td>
+                    <table class="gos-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Hora</th>
+                                <th>Cliente</th>
+                                <th>Vehículo</th>
+                                <th>Prioridad</th>
+                                <th>Estado de la Orden</th>
+                                <th>Técnico</th>
+                                <th style="min-width: 150px;">Control Operativo</th>
+                                <th>Tickets</th>
                             </tr>
-                        `;
-                    });
+                        </thead>
+                        <tbody>
+            `;
 
-                    html += `
-                            </tbody>
-                        </table>
+            activeJobs.forEach(o => {
+                const status = o.estado || 'Pendiente';
+                const id = o.id;
+                const time = o.hora || '--:--';
+                const client = o.cliente || 'Sin nombre';
+                const vehicle = `${o.marca || ''} ${o.modelo || ''}`.trim() || 'Desconocido';
+                const priority = o.prioridad || 'Normal';
+                const tech = o.tecnicoasignado || 'Sin asignar';
+
+                let controlBtn = '';
+                const statusLower = (status || '').toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+
+                if (statusLower === 'pendiente' || statusLower === 'asignada') {
+                    controlBtn = `<button class="btn btn-sm btn-secondary" onclick="markStatus('${id}', 'En Camino')">🚚 Moviéndose al lugar</button>`;
+                } else if (statusLower === 'en camino') {
+                    controlBtn = `<small style="color:var(--primary); font-weight:bold;">🚚 En camino (Ubicación activa)</small>`;
+                } else if (statusLower === 'llego') {
+                    controlBtn = `
+                        <div style="display:flex; flex-direction:column; gap:5px;">
+                            <button class="btn btn-sm btn-success receive-vehicle-btn" data-id="${id}">🚗 Se recibió el vehículo</button>
+                            <button class="btn btn-sm btn-danger not-available-btn" data-id="${id}">❌ Vehículo no disponible</button>
+                        </div>
                     `;
+                } else if (statusLower === 'vehiculo recibido') {
+                    controlBtn = `<button class="btn btn-sm btn-primary" onclick="markStatus('${id}', 'Iniciando')">➡️ Iniciar Trabajo</button>`;
+                } else if (statusLower === 'iniciando') {
+                    controlBtn = `<button class="btn btn-sm btn-secondary" disabled>➡️ Iniciando Trabajo...</button>`;
+                    setTimeout(() => {
+                        markStatus(id, 'Instalando');
+                    }, 1000);
+                } else if (statusLower === 'instalando') {
+                    const isRevision = (o.tipotrabajo || '').toLowerCase().includes('revision') || (o.tipotrabajo || '').toLowerCase().includes('revisión');
+                    if (isRevision && !(o.observaciones || '').toLowerCase().includes('cambio') && !(o.observaciones || '').toLowerCase().includes('conexion') && !(o.observaciones || '').toLowerCase().includes('conexión') && !(o.observaciones || '').toLowerCase().includes('reparacion') && !(o.observaciones || '').toLowerCase().includes('reparación')) {
+                        controlBtn = `<button class="btn btn-sm btn-warning diagnosis-btn" data-id="${id}">🔍 Registrar Diagnóstico</button>`;
+                    } else {
+                        controlBtn = `<button class="btn btn-sm btn-primary test-monitoreo-btn" data-id="${id}">📞 Iniciar Pruebas (Monitoreo)</button>`;
+                    }
+                } else if (statusLower === 'diagnostico realizado' || statusLower === 'diagnóstico realizado') {
+                    controlBtn = `<button class="btn btn-sm btn-outline-primary diagnosis-btn" data-id="${id}">➡️ Seleccionar Intervención</button>`;
+                } else if (statusLower === 'esperando autorizacion' || statusLower === 'esperando autorización') {
+                    controlBtn = `<button class="btn btn-sm btn-success" onclick="markStatus('${id}', 'Instalando', 'Autorizado por Ventas')">✅ Autorizar e Instalar</button>`;
+                } else if (statusLower === 'haciendo pruebas' || statusLower === 'pruebas con monitoreo') {
+                    controlBtn = `<button class="btn btn-sm btn-primary" onclick="markStatus('${id}', 'Instalación completada')">➡️ Concluir Pruebas</button>`;
+                } else if (statusLower === 'instalacion completada' || statusLower === 'terminando la instalacion' || statusLower === 'terminando la instalación') {
+                    controlBtn = `<button class="btn btn-sm btn-success deliver-vehicle-btn" data-id="${id}">🤝 Entregar Vehículo</button>`;
+                } else if (statusLower === 'vehiculo no disponible' || statusLower === 'vehículo no disponible') {
+                    const waitTime = getWaitTimeInMinutes(o);
+                    let waitStyle = '';
+                    let waitLabel = '';
+                    if (waitTime <= 40) {
+                        waitStyle = 'background: #fff9db; color: #856404; border: 1px solid #ffeeba;';
+                        waitLabel = `⏳ Espera Prudente (${waitTime} min)`;
+                    } else {
+                        waitStyle = 'background: #ffe8cc; color: #d9480f; border: 1px solid #ffd8a8;';
+                        waitLabel = `⚠️ Espera Prolongada (${waitTime} min)`;
+                    }
+                    controlBtn = `
+                        <div style="display:flex; flex-direction:column; gap:5px; padding: 5px; border-radius: 5px; ${waitStyle}">
+                            <small style="font-weight:bold; font-size:0.75rem;">${waitLabel}</small>
+                            <button class="btn btn-sm btn-secondary not-available-btn" data-id="${id}" style="font-size:0.75rem; padding:2px 5px;">🔄 Cambiar Estado</button>
+                        </div>
+                    `;
+                } else if (statusLower === 'trabajo retrasado' || statusLower === 'retrasado') {
+                    controlBtn = `
+                        <div style="display:flex; flex-direction:column; gap:5px; background:#f8d7da; border:1px solid #f5c6cb; color:#721c24; padding:5px; border-radius:5px;">
+                            <small style="font-weight:bold; font-size:0.75rem;">⚠️ ¡Trabajo Retrasado!</small>
+                            <button class="btn btn-sm btn-danger check-subsequent-btn" data-id="${id}" style="font-size:0.75rem; padding: 2px 5px;">Revisar Siguiente</button>
+                        </div>
+                    `;
+                } else if (statusLower === 'finalizada') {
+                    controlBtn = `<span class="badge" style="background:#d4edda; color:#155724;">✅ Entregado</span>`;
+                } else {
+                    controlBtn = `<small style="color:var(--secondary); font-style:italic;">Esperando llegada</small>`;
                 }
 
-                html += `</div>`;
-            }
+                const hasReceived = !['pendiente', 'asignada', 'en camino', 'llego'].includes(statusLower);
+                const isFinalized = statusLower === 'finalizada';
 
-            container.innerHTML = html;
+                const ticketPreBtn = hasReceived
+                    ? `<button class="btn btn-sm btn-outline view-ticket-pre-btn" data-id="${id}" title="Ticket Pre-instalación" style="padding: 4px 8px; font-size: 0.8rem;">🎟️ Pre</button>`
+                    : `<button class="btn btn-sm btn-outline" disabled title="Falta recepción" style="padding: 4px 8px; font-size: 0.8rem; opacity:0.5;">🎟️ Pre</button>`;
 
-            const btnChangePass = container.querySelector('#btn-tech-change-pass');
-            if (btnChangePass) {
-                btnChangePass.onclick = () => {
-                    const modalHtml = `
-                        <div style="padding:15px; text-align:left;">
-                            <div class="form-group" style="margin-bottom:12px;">
-                                <label style="font-weight:bold; font-size:0.85rem;">Contraseña Actual:</label>
-                                <input type="password" id="tech-current-pass" class="form-control" required>
+                const ticketPostBtn = isFinalized
+                    ? `<button class="btn btn-sm btn-outline view-ticket-post-btn" data-id="${id}" title="Evidencia Post-instalación" style="padding: 4px 8px; font-size: 0.8rem;">🎟️ Post</button>`
+                    : `<button class="btn btn-sm btn-outline" disabled title="No entregado" style="padding: 4px 8px; font-size: 0.8rem; opacity:0.5;">🎟️ Post</button>`;
+
+                html += `
+                    <tr data-id="${id}">
+                        <td><strong>${id}</strong></td>
+                        <td>${time}</td>
+                        <td>${client}</td>
+                        <td>${vehicle}</td>
+                        <td>${UI_TEMPLATES.priorityBadge(priority)}</td>
+                        <td>${UI_TEMPLATES.badge(status)}</td>
+                        <td><small>${tech}</small></td>
+                        <td>${controlBtn}</td>
+                        <td>
+                            <div style="display:flex; gap:5px;">
+                                ${ticketPreBtn}
+                                ${ticketPostBtn}
                             </div>
-                            <div class="form-group" style="margin-bottom:12px;">
-                                <label style="font-weight:bold; font-size:0.85rem;">Nueva Contraseña:</label>
-                                <input type="password" id="tech-new-pass" class="form-control" required>
-                            </div>
-                        </div>
-                    `;
-                    UI_TEMPLATES.modal(
-                        'Modificar Mi Contraseña',
-                        modalHtml,
-                        async () => {
-                            const currentPassword = document.getElementById('tech-current-pass').value;
-                            const newPassword = document.getElementById('tech-new-pass').value;
-                            if (!currentPassword || !newPassword) {
-                                alert("Todos los campos son obligatorios.");
-                                return;
-                            }
-                            try {
-                                const res = await routeAction('GOS_CORE', 'changePassword', {
-                                    username: user.Nombre_Usuario,
-                                    currentPassword,
-                                    newPassword
-                                });
-                                alert(res.message);
-                            } catch (err) {
-                                alert("Error: " + err.message);
-                            }
-                        }
-                    );
-                };
-            }
-
-            const selector = document.getElementById('sector-selector');
-            if (selector) {
-                selector.addEventListener('change', (e) => {
-                    activeSector = e.target.value;
-                    const disp = document.getElementById('sector-display');
-                    if (disp) disp.textContent = activeSector;
-                    updateDashboard();
-                });
-            }
-
-            const btns = container.querySelectorAll('.receive-vehicle-btn');
-            btns.forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const orderId = e.target.dataset.id;
-                    const order = orders.find(ord => ord.id === orderId);
-                    if (!order) return;
-
-                    try {
-                        const configRes = await routeAction('GOS_CORE', 'getOTConfig');
-                        const otConfig = configRes.status === 'success' ? configRes.data : { OT_Auto_Numeration: 'active', OT_Generation_Method: 'automatic' };
-
-                        const isManual = otConfig.OT_Auto_Numeration !== 'active' || otConfig.OT_Generation_Method === 'manual';
-
-                        const modalHtml = `
-                            <div style="padding:15px; text-align:left; font-size:0.9rem; line-height:1.5;">
-                                <p style="margin-bottom:15px; color:var(--dark);">Por seguridad y para validar que el vehículo coincide con la orden comercial, <strong>ingrese el número VIN completo de 17 dígitos:</strong></p>
-                                <div class="form-group" style="margin-bottom:15px;">
-                                    <label style="font-weight:bold; font-size:0.85rem;">Número VIN/Chasis:</label>
-                                    <input type="text" id="validation-vin" class="form-control" placeholder="Ingrese VIN de 17 dígitos..." maxlength="17" required style="text-transform:uppercase;">
-                                </div>
-                                ${isManual ? `
-                                    <div class="form-group" style="margin-bottom:15px;">
-                                        <label style="font-weight:bold; font-size:0.85rem;">ID de Orden de Trabajo (Manual):</label>
-                                        <input type="text" id="validation-manual-ot-id" class="form-control" placeholder="Ingrese identificador de OT..." required>
-                                    </div>
-                                ` : ''}
-                            </div>
-                        `;
-
-                        UI_TEMPLATES.modal(
-                            'Validación de Vehículo',
-                            modalHtml,
-                            async () => {
-                                const inputVin = document.getElementById('validation-vin').value.trim().toUpperCase();
-                                if (!inputVin) {
-                                    alert("El número VIN es requerido.");
-                                    return;
-                                }
-
-                                let manualOtId = '';
-                                if (isManual) {
-                                    manualOtId = document.getElementById('validation-manual-ot-id').value.trim();
-                                    if (!manualOtId) {
-                                        alert("El ID de la Orden de Trabajo manual es requerido.");
-                                        return;
-                                    }
-                                }
-
-                                try {
-                                    const result = await routeAction('GOS_CORE', 'createOT', {
-                                        oiId: order.id,
-                                        enteredVin: inputVin,
-                                        manualOtId: manualOtId
-                                    });
-
-                                    if (result.status === 'success') {
-                                        alert(`¡Vehículo Validado con Éxito!\nSe ha generado la Orden de Trabajo ID: ${result.otId}`);
-                                        renderVehicleReceptionForm(container, order, result.otId);
-                                    } else {
-                                        alert(`⚠️ Error de Validación: ${result.message}`);
-                                    }
-                                } catch (err) {
-                                    alert("Error al procesar validación: " + err.message);
-                                }
-                            }
-                        );
-                    } catch (err) {
-                        alert("Error de conexión al obtener configuración de OT: " + err.message);
-                    }
-                });
+                        </td>
+                    </tr>
+                `;
             });
 
-            // Enlazar botones de entrega de vehículo (firma digital)
-            const deliverBtns = container.querySelectorAll('.deliver-vehicle-btn');
-            deliverBtns.forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const orderId = e.currentTarget.dataset.id;
-                    const order = orders.find(ord => ord.id === orderId);
-                    if (order) {
-                        renderPostInstallationForm(container, order);
-                    }
-                });
-            });
+            html += `
+                    </tbody>
+                </table>
+            `;
+        }
 
-            // Enlazar botones para ver Tickets
-            const viewPreBtns = container.querySelectorAll('.view-ticket-pre-btn');
-            viewPreBtns.forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const orderId = e.currentTarget.dataset.id;
-                    const order = orders.find(ord => ord.id === orderId);
-                    if (order) {
-                        renderTicketPreView(container, order);
-                    }
-                });
-            });
+        html += `</div>`;
 
-            const viewPostBtns = container.querySelectorAll('.view-ticket-post-btn');
-            viewPostBtns.forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const orderId = e.currentTarget.dataset.id;
-                    const order = orders.find(ord => ord.id === orderId);
-                    if (order) {
-                        renderTicketPostView(container, order);
-                    }
-                });
-            });
-
-            // Enlazar botones de Diagnóstico
-            const diagBtns = container.querySelectorAll('.diagnosis-btn');
-            diagBtns.forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const orderId = e.currentTarget.dataset.id;
-                    const selectHtml = `
-                        <div style="padding:15px; text-align:left;">
-                            <p style="font-weight:bold; margin-bottom:10px;">Seleccione el Tipo de Intervención Derivada del Diagnóstico:</p>
-                            <select id="diag-intervention-select" class="form-control" style="margin-bottom:15px;">
-                                <option value="Cambio de unidad (compatible)">Cambio de unidad (compatible)</option>
-                                <option value="Cambio de unidad no compatible (60 min)">Cambio de unidad (tecnología diferente / instalación completa 60 min)</option>
-                                <option value="Cambio de arnés (60 min)">Cambio de arnés (60 min)</option>
-                                <option value="Reparación de conexión (35 min)">Reparación de conexión (35 min)</option>
-                            </select>
-                        </div>
-                    `;
-                    UI_TEMPLATES.modal(
-                        'Registrar Diagnóstico',
-                        selectHtml,
-                        async () => {
-                            const selVal = document.getElementById('diag-intervention-select').value;
-                            markStatus(orderId, 'Instalando', selVal);
-                        }
-                    );
-                });
-            });
-
-            // Enlazar botones de Monitoreo / Iniciar Pruebas
-            const testBtns = container.querySelectorAll('.test-monitoreo-btn');
-            testBtns.forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const orderId = e.currentTarget.dataset.id;
-                    const testHtml = `
-                        <div style="padding:15px; text-align:left; line-height: 1.5;">
-                            <p>Para realizar las pruebas del dispositivo GPS, comuníquese directamente con los números de monitoreo:</p>
-                            <ul>
-                                <li>📞 <strong>Soporte Técnico SPS:</strong> +504 2550-1234</li>
-                                <li>📞 <strong>Soporte Técnico Tegucigalpa:</strong> +504 2220-4321</li>
-                                <li>📞 <strong>Móvil Pruebas Rápidas:</strong> +504 9990-1234</li>
-                            </ul>
-                            <p style="font-weight:bold; color:var(--primary); margin-top:15px;">¿Confirmar inicio de pruebas con monitoreo?</p>
-                        </div>
-                    `;
-                    UI_TEMPLATES.modal(
-                        'Iniciar Pruebas con Monitoreo',
-                        testHtml,
-                        async () => {
-                            markStatus(orderId, 'Haciendo pruebas');
-                        }
-                    );
-                });
-            });
-
-            // Enlazar botones de Vehículo No Disponible
-            const notAvailBtns = container.querySelectorAll('.not-available-btn');
-            notAvailBtns.forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const orderId = e.currentTarget.dataset.id;
-                    const notAvailHtml = `
-                        <div style="padding:15px; text-align:left;">
-                            <p style="font-weight:bold; margin-bottom:10px;">Seleccione el Motivo:</p>
-                            <div style="margin-bottom:15px;">
-                                <label><input type="radio" name="not-avail-reason" value="alistamiento" checked> 🧽 Alistamiento (Lavado, polarizado, etc.)</label><br>
-                                <label><input type="radio" name="not-avail-reason" value="taller"> 🔧 Taller (Mecánica, reparación, etc.)</label>
-                            </div>
-
-                            <div id="alistamiento-options" style="margin-bottom:15px;">
-                                <p style="font-weight:bold; margin-bottom:5px;">Proceso de Alistamiento:</p>
-                                <select id="alistamiento-process" class="form-control" style="margin-bottom:10px;">
-                                    <option value="Lavado">Lavado</option>
-                                    <option value="Polarizado">Polarizado</option>
-                                    <option value="Instalación de accesorios">Instalación de accesorios</option>
-                                    <option value="Preparación previa">Preparación previa</option>
-                                    <option value="Otros procesos">Otros procesos</option>
-                                </select>
-                                <p style="font-weight:bold; margin-bottom:5px;">Hora Estimada de Disponibilidad:</p>
-                                <input type="time" id="alistamiento-time" class="form-control" value="15:30">
-                            </div>
-
-                            <div id="taller-options" style="display:none; margin-bottom:15px;">
-                                <p style="font-weight:bold; margin-bottom:10px;">Opción del Técnico:</p>
-                                <label><input type="radio" name="taller-choice" value="esperar" checked> Esperar liberación del vehículo</label><br>
-                                <label><input type="radio" name="taller-choice" value="reasignar"> El tiempo justifica adelantar otro trabajo (Reasignar posterior)</label>
-                            </div>
-                        </div>
-                    `;
-                    UI_TEMPLATES.modal(
-                        'Vehículo No Disponible',
-                        notAvailHtml,
-                        async () => {
-                            const reason = document.querySelector('input[name="not-avail-reason"]:checked').value;
-                            if (reason === 'alistamiento') {
-                                const process = document.getElementById('alistamiento-process').value;
-                                const time = document.getElementById('alistamiento-time').value;
-                                const obs = `Motivo: Alistamiento (${process}). Disponible a las ${time}. [WaitStart: ${new Date().toISOString()}]`;
-                                markStatus(orderId, 'Vehículo no disponible', obs);
-                            } else {
-                                const tallerChoice = document.querySelector('input[name="taller-choice"]:checked').value;
-                                if (tallerChoice === 'esperar') {
-                                    const obs = `Motivo: Taller. Esperando liberación. [WaitStart: ${new Date().toISOString()}]`;
-                                    markStatus(orderId, 'Vehículo no disponible', obs);
-                                } else {
-                                    // Reasignar
-                                    const reassignRes = await routeAction('GOS_CORE', 'reassignNextJob', { currentOrderId: orderId, force: true });
-                                    alert(reassignRes.message);
-                                    markStatus(orderId, 'Vehículo no disponible', 'Taller - Reasignado por tiempo prolongado');
-                                }
-                            }
-                        }
-                    );
-
-                    // Toggle options display
-                    setTimeout(() => {
-                        const rAlist = document.querySelector('input[name="not-avail-reason"][value="alistamiento"]');
-                        const rTall = document.querySelector('input[name="not-avail-reason"][value="taller"]');
-                        if (rAlist && rTall) {
-                            rAlist.addEventListener('change', () => {
-                                document.getElementById('alistamiento-options').style.display = 'block';
-                                document.getElementById('taller-options').style.display = 'none';
-                            });
-                            rTall.addEventListener('change', () => {
-                                document.getElementById('alistamiento-options').style.display = 'none';
-                                document.getElementById('taller-options').style.display = 'block';
-                            });
-                        }
-                    }, 200);
-                });
-            });
-
-            // Enlazar botones de Revisar Siguiente (Trabajo Retrasado)
-            const checkBtns = container.querySelectorAll('.check-subsequent-btn');
-            checkBtns.forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const orderId = e.currentTarget.dataset.id;
-                    try {
-                        const checkRes = await routeAction('GOS_CORE', 'reassignNextJob', { currentOrderId: orderId });
-                        if (checkRes.status === 'no_next_job') {
-                            alert("ℹ️ " + checkRes.message);
-                        } else if (checkRes.status === 'no_tech_available') {
-                            alert("ℹ️ Recordatorio: " + checkRes.message);
-                        } else if (checkRes.status === 'tech_available') {
-                            UI_TEMPLATES.modal(
-                                'Aviso de Retraso y Reasignación',
-                                `
-                                    <div style="padding:15px; text-align:left;">
-                                        <p style="font-weight:bold; color:#721c24;">⚠️ ¡Estás retrasado en este trabajo!</p>
-                                        <p>${checkRes.message}</p>
-                                    </div>
-                                `,
-                                async () => {
-                                    // "Sí, podré" -> No hace nada, se compromete a cumplirlo
-                                    alert("Entendido. Por favor continúa lo más rápido posible.");
-                                },
-                                async () => {
-                                    // "No podré" -> Reasignar automáticamente
-                                    const reassignRes = await routeAction('GOS_CORE', 'reassignNextJob', { currentOrderId: orderId, force: true });
-                                    alert(reassignRes.message);
-                                    updateDashboard();
-                                }
-                            );
-                            // Cambiar etiqueta del botón de cancelar para que sea "No podré"
-                            setTimeout(() => {
-                                const btnCancel = document.getElementById('modal-cancel');
-                                if (btnCancel) {
-                                    btnCancel.textContent = '❌ No podré (Reasignar)';
-                                    btnCancel.className = 'btn btn-secondary';
-                                }
-                                const btnConfirm = document.getElementById('modal-confirm');
-                                if (btnConfirm) {
-                                    btnConfirm.textContent = '✅ Sí podré cumplir';
-                                }
-                            }, 100);
-                        }
-                    } catch (err) {
-                        console.error("Error check subsequent:", err);
-                    }
-                });
-            });
-
-        } catch (error) {
-            console.error("Error al actualizar dashboard:", error);
-            container.innerHTML = `<p style="color:var(--danger); padding:20px;">Error al conectar con el servidor: ${error.message}</p>`;
+        if (shell.innerHTML !== html) {
+            shell.innerHTML = html;
+            bindDashboardEvents(orders);
         }
     };
 
-    await updateDashboard();
+    const bindDashboardEvents = (orders) => {
+        const btnChangePass = shell.querySelector('#btn-tech-change-pass');
+        if (btnChangePass) {
+            btnChangePass.onclick = () => {
+                const modalHtml = `
+                    <div style="padding:15px; text-align:left;">
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <label style="font-weight:bold; font-size:0.85rem;">Contraseña Actual:</label>
+                            <input type="password" id="tech-current-pass" class="form-control" required>
+                        </div>
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <label style="font-weight:bold; font-size:0.85rem;">Nueva Contraseña:</label>
+                            <input type="password" id="tech-new-pass" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label style="font-weight:bold; font-size:0.85rem;">Confirmar Contraseña:</label>
+                            <input type="password" id="tech-confirm-pass" class="form-control" required>
+                        </div>
+                    </div>
+                `;
+                UI_TEMPLATES.modal(
+                    'Cambiar Contraseña',
+                    modalHtml,
+                    async () => {
+                        const cur = document.getElementById('tech-current-pass').value;
+                        const nw = document.getElementById('tech-new-pass').value;
+                        const conf = document.getElementById('tech-confirm-pass').value;
+                        if(!cur || !nw || !conf) {
+                            alert("Todos los campos son obligatorios.");
+                            return;
+                        }
+                        if(nw !== conf) {
+                            alert("Las nuevas contraseñas no coinciden.");
+                            return;
+                        }
+                        try {
+                            const passRes = await routeAction('GOS_CORE', 'changePassword', {
+                                username: user.Nombre_Usuario,
+                                currentPassword: cur,
+                                newPassword: nw
+                            });
+                            if (passRes.status === 'success') {
+                                alert("¡Contraseña actualizada con éxito!");
+                            } else {
+                                alert("Error: " + passRes.message);
+                            }
+                        } catch(err) {
+                            alert("Error de conexión: " + err.message);
+                        }
+                    }
+                );
+            };
+        }
+
+        const sectorSelector = shell.querySelector('#sector-selector');
+        if (sectorSelector) {
+            sectorSelector.addEventListener('change', (e) => {
+                activeSector = e.target.value;
+                if (shell) shell.innerHTML = '<p>Actualizando sector...</p>';
+                refreshDashboard();
+            });
+        }
+
+        const receiveBtns = shell.querySelectorAll('.receive-vehicle-btn');
+        receiveBtns.forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const orderId = e.currentTarget.dataset.id;
+                const order = orders.find(ord => ord.id === orderId);
+                if (!order) return;
+
+                try {
+                    const configRes = await routeAction('GOS_CORE', 'getOTConfig');
+                    const otConfig = configRes.status === 'success' ? configRes.data : { OT_Auto_Numeration: 'active', OT_Generation_Method: 'automatic' };
+
+                    const isManual = otConfig.OT_Auto_Numeration !== 'active' || otConfig.OT_Generation_Method === 'manual';
+
+                    const modalHtml = `
+                        <div style="padding:15px; text-align:left; font-size:0.9rem; line-height:1.5;">
+                            <p style="margin-bottom:15px; color:var(--dark);">Por seguridad y para validar que el vehículo coincide con la orden comercial, <strong>ingrese el número VIN/Chasis del vehículo:</strong></p>
+                            <div class="form-group" style="margin-bottom:15px;">
+                                <label style="font-weight:bold; font-size:0.85rem;">Número VIN/Chasis:</label>
+                                <input type="text" id="validation-vin" class="form-control" placeholder="Ingrese VIN del vehículo..." required style="text-transform:uppercase;">
+                            </div>
+                            ${isManual ? `
+                                <div class="form-group" style="margin-bottom:15px;">
+                                    <label style="font-weight:bold; font-size:0.85rem;">ID de Orden de Trabajo (Manual):</label>
+                                    <input type="text" id="validation-manual-ot-id" class="form-control" placeholder="Ingrese identificador de OT..." required>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+
+                    UI_TEMPLATES.modal(
+                        'Validación de Vehículo',
+                        modalHtml,
+                        async () => {
+                            const inputVin = document.getElementById('validation-vin').value.trim().toUpperCase();
+                            if (!inputVin) {
+                                alert("El número VIN es requerido.");
+                                return;
+                            }
+
+                            let manualOtId = '';
+                            if (isManual) {
+                                manualOtId = document.getElementById('validation-manual-ot-id').value.trim();
+                                if (!manualOtId) {
+                                    alert("El ID de la Orden de Trabajo manual es requerido.");
+                                    return;
+                                }
+                            }
+
+                            try {
+                                const result = await routeAction('GOS_CORE', 'createOT', {
+                                    oiId: order.id,
+                                    enteredVin: inputVin,
+                                    manualOtId: manualOtId
+                                });
+
+                                if (result.status === 'success') {
+                                    alert(`¡Vehículo Validado con Éxito!
+Se ha generado la Orden de Trabajo ID: ${result.otId}`);
+                                    renderVehicleReceptionForm(container, order, result.otId);
+                                } else {
+                                    alert(`⚠️ Error de Validación: ${result.message}`);
+                                }
+                            } catch (err) {
+                                alert("Error al procesar validación: " + err.message);
+                            }
+                        }
+                    );
+                } catch (err) {
+                    alert("Error de conexión al obtener configuración de OT: " + err.message);
+                }
+            });
+        });
+
+        const deliverBtns = shell.querySelectorAll('.deliver-vehicle-btn');
+        deliverBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const orderId = e.currentTarget.dataset.id;
+                const order = orders.find(ord => ord.id === orderId);
+                if (order) {
+                    renderPostInstallationForm(container, order);
+                }
+            });
+        });
+
+        const viewPreBtns = shell.querySelectorAll('.view-ticket-pre-btn');
+        viewPreBtns.forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const orderId = e.currentTarget.dataset.id;
+                const order = orders.find(ord => ord.id === orderId);
+                if (order) {
+                    renderTicketPreView(container, order);
+                }
+            });
+        });
+
+        const viewPostBtns = shell.querySelectorAll('.view-ticket-post-btn');
+        viewPostBtns.forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const orderId = e.currentTarget.dataset.id;
+                const order = orders.find(ord => ord.id === orderId);
+                if (order) {
+                    renderTicketPostView(container, order);
+                }
+            });
+        });
+
+        const diagBtns = shell.querySelectorAll('.diagnosis-btn');
+        diagBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const orderId = e.currentTarget.dataset.id;
+                const order = orders.find(ord => ord.id === orderId);
+                if (order) {
+                    renderDiagnosisInterventionSelection(container, order);
+                }
+            });
+        });
+
+        const testBtns = shell.querySelectorAll('.test-monitoreo-btn');
+        testBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const orderId = e.currentTarget.dataset.id;
+                const order = orders.find(ord => ord.id === orderId);
+                if (order) {
+                    renderMonitoreoTestsForm(container, order);
+                }
+            });
+        });
+
+        const notAvailBtns = shell.querySelectorAll('.not-available-btn');
+        notAvailBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const orderId = e.currentTarget.dataset.id;
+                const order = orders.find(ord => ord.id === orderId);
+                if (!order) return;
+
+                const modalHtml = `
+                    <div style="padding:15px; text-align:left; font-size:0.9rem; line-height:1.5;">
+                        <p style="font-weight:bold; color:var(--dark);">Seleccione el motivo de indisponibilidad:</p>
+
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <label><input type="radio" name="not-avail-reason" value="alistamiento" checked> 🧼 Alistamiento (Lavado, polarizado, accesorios)</label>
+                        </div>
+                        <div id="alistamiento-options" style="margin-left:20px; margin-bottom:15px;">
+                            <label style="font-size:0.8rem; font-weight:bold;">Hora estimada de disponibilidad:</label>
+                            <input type="time" id="alistamiento-time" class="form-control" style="width:auto; margin-top:5px;">
+                        </div>
+
+                        <div class="form-group">
+                            <label><input type="radio" name="not-avail-reason" value="taller"> 🔧 Taller (Mecánica, reparaciones)</label>
+                        </div>
+                        <div id="taller-options" style="margin-left:20px; display:none; margin-bottom:15px;">
+                            <p style="font-size:0.8rem; margin:5px 0;">El tiempo de espera podría ser prolongado.</p>
+                            <label><input type="checkbox" id="taller-wait-confirm"> Deseo esperar el vehículo en el taller</label>
+                        </div>
+                    </div>
+                `;
+
+                UI_TEMPLATES.modal(
+                    'Vehículo No Disponible',
+                    modalHtml,
+                    async () => {
+                        const reason = document.querySelector('input[name="not-avail-reason"]:checked').value;
+                        if (reason === 'alistamiento') {
+                            const estTime = document.getElementById('alistamiento-time').value;
+                            if (!estTime) {
+                                alert("Por favor ingrese la hora estimada.");
+                                return;
+                            }
+                            await markStatus(orderId, 'Vehículo no disponible', `Alistamiento - Disponible aprox: ${estTime}`);
+                            refreshDashboard();
+                        } else {
+                            const wait = document.getElementById('taller-wait-confirm').checked;
+                            if (wait) {
+                                await markStatus(orderId, 'Vehículo no disponible', 'Taller - Esperando en taller');
+                                refreshDashboard();
+                            } else {
+                                alert("Se notificará a la jefatura para la reasignación automática de su siguiente trabajo.");
+                                await routeAction('GOS_CORE', 'reassignNextJob', { currentOrderId: orderId, force: true });
+                                markStatus(orderId, 'Vehículo no disponible', 'Taller - Reasignado por tiempo prolongado');
+                            }
+                        }
+                    }
+                );
+
+                setTimeout(() => {
+                    const rAlist = document.querySelector('input[name="not-avail-reason"][value="alistamiento"]');
+                    const rTall = document.querySelector('input[name="not-avail-reason"][value="taller"]');
+                    if (rAlist && rTall) {
+                        rAlist.addEventListener('change', () => {
+                            document.getElementById('alistamiento-options').style.display = 'block';
+                            document.getElementById('taller-options').style.display = 'none';
+                        });
+                        rTall.addEventListener('change', () => {
+                            document.getElementById('alistamiento-options').style.display = 'none';
+                            document.getElementById('taller-options').style.display = 'block';
+                        });
+                    }
+                }, 200);
+            });
+        });
+
+        const checkBtns = shell.querySelectorAll('.check-subsequent-btn');
+        checkBtns.forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const orderId = e.currentTarget.dataset.id;
+                try {
+                    const checkRes = await routeAction('GOS_CORE', 'reassignNextJob', { currentOrderId: orderId });
+                    if (checkRes.status === 'no_next_job') {
+                        alert("ℹ️ " + checkRes.message);
+                    } else if (checkRes.status === 'no_tech_available') {
+                         alert("ℹ️ Recordatorio: " + checkRes.message);
+                    } else if (checkRes.status === 'tech_available') {
+                        UI_TEMPLATES.modal(
+                            'Aviso de Retraso y Reasignación',
+                            `
+                                <div style="padding:15px; text-align:left;">
+                                    <p style="font-weight:bold; color:#721c24;">⚠️ ¡Estás retrasado en este trabajo!</p>
+                                    <p>${checkRes.message}</p>
+                                </div>
+                            `,
+                            async () => {
+                                alert("Entendido. Por favor continúa lo más rápido posible.");
+                            },
+                            async () => {
+                                const reassignRes = await routeAction('GOS_CORE', 'reassignNextJob', { currentOrderId: orderId, force: true });
+                                alert(reassignRes.message);
+                                refreshDashboard();
+                            }
+                        );
+                        setTimeout(() => {
+                            const btnCancel = document.getElementById('modal-cancel');
+                            if (btnCancel) {
+                                btnCancel.textContent = '❌ No podré (Reasignar)';
+                                btnCancel.className = 'btn btn-secondary';
+                            }
+                            const btnConfirm = document.getElementById('modal-confirm');
+                            if (btnConfirm) {
+                                btnConfirm.textContent = '✅ Sí podré cumplir';
+                            }
+                        }, 100);
+                    }
+                } catch (err) {
+                    console.error("Error check subsequent:", err);
+                }
+            });
+        });
+    };
+
+    const refreshDashboard = async () => {
+        try {
+            const result = await routeAction('GOS_CORE', 'getOrders');
+            if (result.status === 'success') {
+                const orders = result.data;
+                await dbClear('orders');
+                for (let o of orders) {
+                    await dbSet('orders', o.id, o);
+                }
+                updateDashboardView(orders);
+            }
+        } catch (error) {
+            console.error("Error refreshDashboard:", error);
+        }
+    };
+
+    try {
+        const cached = await dbGetAll('orders');
+        if (cached && cached.length > 0) {
+            updateDashboardView(cached);
+        }
+    } catch (e) {
+        console.warn("IndexedDB read error:", e);
+    }
+
+    await refreshDashboard();
 
     if (dashboardInterval) clearInterval(dashboardInterval);
-    dashboardInterval = setInterval(updateDashboard, 30000);
-}
-
-/**
+    dashboardInterval = setInterval(async () => {
+        if (AppState.currentSection === 'dashboard') {
+            await refreshDashboard();
+        }
+    }, 30000);
+}/**
  * Renderiza el Formulario Inteligente de Recepción de Vehículos.
  */
 function renderVehicleReceptionForm(container, order, otId = '') {
@@ -3354,7 +3626,7 @@ function renderVehicleReceptionForm(container, order, otId = '') {
                         </div>
                         <div class="form-group">
                             <label>Número de Chasis (VIN):</label>
-                            <input type="text" name="vin" class="form-control" value="${order.vin || ''}" required placeholder="Ej: 17 dígitos">
+                            <input type="text" name="vin" class="form-control" value="${order.vin || ''}" required placeholder="Ej: Número de chasis (VIN)...">
                         </div>
                         <div class="form-group">
                             <label>Número de Motor:</label>
@@ -4288,7 +4560,7 @@ async function renderAdminModule(container) {
         `;
     };
 
-    const renderDesempenoTab = (subEl, orders) => {
+    const renderDesempenoTab = async (subEl, orders) => {
         const isJefe = RBAC.isJefe();
         const requestorSector = user.Sector || 'San Pedro Sula';
 
@@ -4304,7 +4576,6 @@ async function renderAdminModule(container) {
         filtered.forEach(o => {
             const advisor = o.vendedor || 'Carlos Ruiz';
             const tech = o.tecnicoasignado || 'Sin asignar';
-            const type = o.tipotrabajo || 'Otros';
 
             advisorsData[advisor] = (advisorsData[advisor] || 0) + 1;
             if ((o.estado || '').toLowerCase().trim() === 'finalizada') {
@@ -4315,7 +4586,96 @@ async function renderAdminModule(container) {
         const advisorSlices = Object.entries(advisorsData).map(([label, value]) => ({ label, value }));
         const techSlices = Object.entries(techniciansData).map(([label, value]) => ({ label, value }));
 
+        let metricsHtml = '<p style="color:var(--secondary); font-style:italic;">Cargando métricas de desempeño detalladas...</p>';
+        let metricsChartHtml = '';
+
+        try {
+            const metricsRes = await routeAction('GOS_CORE', 'getTechnicianMetrics');
+            if (metricsRes.status === 'success') {
+                const metrics = metricsRes.data || metricsRes.metrics || [];
+                if (metrics.length > 0) {
+                    metricsHtml = `
+                        <table class="gos-table" style="font-size:0.8rem; margin-top:15px;">
+                            <thead>
+                                <tr>
+                                    <th>Técnico</th>
+                                    <th>Trabajos</th>
+                                    <th>Duración Prom.</th>
+                                    <th>Retrasos</th>
+                                    <th>Puntualidad</th>
+                                    <th>Local vs Remoto</th>
+                                    <th>Mejor Vehículo</th>
+                                    <th>Peor Vehículo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${metrics.map(m => `
+                                    <tr>
+                                        <td><strong>${m.technician}</strong></td>
+                                        <td>${m.totalJobs}</td>
+                                        <td>${m.avgDuration} min</td>
+                                        <td><span class="badge" style="background:#fff3cd; color:#856404;">${m.delaysCount}</span></td>
+                                        <td><span class="badge" style="background:#d4edda; color:#155724;">${m.punctualityRate}%</span></td>
+                                        <td><small>Local: ${m.avgByLoc?.Local || 0}m / Ext: ${m.avgByLoc?.Remoto || 0}m</small></td>
+                                        <td><small style="color:#2b8a3e;">${m.bestVehicle || 'N/A'}</small></td>
+                                        <td><small style="color:#c92a2a;">${m.worstVehicle || 'N/A'}</small></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+
+                    // Generate SVG bar chart comparing averages against division average
+                    const totalAvg = metrics.reduce((sum, m) => sum + m.avgDuration, 0);
+                    const divAvg = Math.round(totalAvg / metrics.length);
+                    const chartHeight = 150;
+                    const maxVal = Math.max(...metrics.map(m => m.avgDuration), divAvg, 120);
+
+                    let barsHtml = '';
+                    metrics.forEach((m, idx) => {
+                        const barHeight = Math.round((m.avgDuration / maxVal) * 100);
+                        const x = 50 + idx * 80;
+                        const y = 120 - barHeight;
+                        barsHtml += `
+                            <rect x="${x}" y="${y}" width="40" height="${barHeight}" fill="#1a73e8" rx="4"></rect>
+                            <text x="${x + 20}" y="${y - 6}" font-size="9" font-weight="bold" fill="#1e293b" text-anchor="middle">${m.avgDuration}m</text>
+                            <text x="${x + 20}" y="135" font-size="9" fill="#64748b" text-anchor="middle">${m.technician.split(' ')[0]}</text>
+                        `;
+                    });
+
+                    const divY = 120 - Math.round((divAvg / maxVal) * 100);
+                    const lineHtml = `
+                        <line x1="30" y1="${divY}" x2="${50 + metrics.length * 80 + 10}" y2="${divY}" stroke="#dc3545" stroke-width="1.5" stroke-dasharray="3"></line>
+                        <text x="${50 + metrics.length * 80 + 15}" y="${divY + 3}" font-size="9" font-weight="bold" fill="#dc3545">Prom: ${divAvg}m</text>
+                    `;
+
+                    metricsChartHtml = `
+                        <div style="text-align:center; margin-top:20px;">
+                            <h4 style="margin-bottom:10px; color:var(--secondary); font-size:0.95rem;">Comparativa de Tiempos Promedio (Nativo SVG)</h4>
+                            <svg width="100%" height="${chartHeight}" viewBox="0 0 500 ${chartHeight}" style="background:#fafbfc; border-radius:8px; border:1px solid #e2e8f0; max-width:450px; margin:0 auto; display:block;">
+                                <line x1="30" y1="120" x2="450" y2="120" stroke="#cbd5e1" stroke-width="1"></line>
+                                ${barsHtml}
+                                ${lineHtml}
+                            </svg>
+                        </div>
+                    `;
+                } else {
+                    metricsHtml = '<p style="color:var(--secondary); font-style:italic;">No hay registros de rendimiento acumulados todavía.</p>';
+                }
+            }
+        } catch (err) {
+            console.error("Error loading tech metrics:", err);
+            metricsHtml = '<p style="color:var(--danger); font-style:italic;">No se pudieron cargar las métricas detalladas.</p>';
+        }
+
         subEl.innerHTML = `
+            <div class="orders-table-container" style="background:#fff; padding:20px; border-radius:8px; border:1px solid #ddd; margin-bottom:20px;">
+                <h3 style="margin-top:0; margin-bottom:15px; border-bottom:2px solid var(--light); padding-bottom:8px; color:var(--dark);">Métricas de Desempeño Histórico por Técnico</h3>
+                <p style="font-size:0.85rem; color:var(--secondary); margin:0 0 10px 0;">Registro acumulativo de duraciones promedio, vehículos y puntualidad.</p>
+                ${metricsHtml}
+                ${metricsChartHtml}
+            </div>
+
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; flex-wrap:wrap; margin-bottom:30px;">
                 <!-- Productividad Asesores -->
                 <div class="orders-table-container" style="background:#fff; padding:20px; border-radius:8px; border:1px solid #ddd;">
@@ -4510,6 +4870,16 @@ async function renderAdminModule(container) {
         const isJefe = RBAC.isJefe();
         const requestorSector = user.Sector || 'San Pedro Sula';
 
+        let techs = [];
+        try {
+            const techsRes = await routeAction('GOS_CORE', 'getTechnicians');
+            techs = (techsRes.status === 'success' ? techsRes.data : []).filter(t => {
+                return (t.sector || '').toLowerCase().trim() === requestorSector.toLowerCase().trim();
+            });
+        } catch (err) {
+            console.error("Error loading techs for unavail form:", err);
+        }
+
         subEl.innerHTML = `
             <div class="orders-table-container" style="background:#fff; padding:20px; border-radius:8px; border:1px solid #ddd; max-width:600px; margin:0 auto;">
                 <h3 style="margin-top:0; margin-bottom:20px; border-bottom:2px solid var(--light); padding-bottom:10px; color:var(--dark);">⚙️ Preferencias Locales y Configuración de División</h3>
@@ -4533,6 +4903,46 @@ async function renderAdminModule(container) {
                     <button type="submit" class="btn btn-primary" style="width:100%; margin-top:10px; padding:10px;">Guardar Cambios de Configuración</button>
                 </form>
             </div>
+
+            <div class="orders-table-container" style="background:#fff; padding:20px; border-radius:8px; border:1px solid #ddd; max-width:600px; margin:20px auto 0 auto;">
+                <h3 style="margin-top:0; margin-bottom:20px; border-bottom:2px solid var(--light); padding-bottom:10px; color:var(--dark);">🛑 Gestión de Indisponibilidad Temporal de Técnicos</h3>
+                <form id="admin-unavail-form">
+                    <div class="form-group" style="margin-bottom:15px;">
+                        <label style="font-weight:bold; font-size:0.9rem;">Seleccionar Técnico:</label>
+                        <select id="unavail-tecnico" class="form-control" required>
+                            <option value="">Seleccione...</option>
+                            ${techs.map(t => `<option value="${t.nombre}">${t.nombre}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:15px;">
+                        <label style="font-weight:bold; font-size:0.9rem;">Fecha de Inicio:</label>
+                        <input type="date" id="unavail-inicio" class="form-control" required>
+                    </div>
+                    <div class="form-group" style="margin-bottom:15px;">
+                        <label style="font-weight:bold; font-size:0.9rem;">Fecha de Finalización:</label>
+                        <input type="date" id="unavail-fin" class="form-control" required>
+                    </div>
+
+                    <div id="unavail-partial-container" style="display:none; background: #fff8f8; border: 1px solid #ffe3e3; padding: 12px; border-radius: 6px; margin-bottom:15px;">
+                        <label style="font-weight:bold; font-size:0.85rem; color:#c92a2a; display:block; margin-bottom:5px;">⚠️ Ausencia Parcial (Mismo Día)</label>
+                        <label style="font-size:0.8rem; display:block; margin-bottom:5px;">Indique la hora en que el técnico volverá a estar disponible (máximo hasta el turno de 3:00 PM - 5:00 PM):</label>
+                        <select id="unavail-retorno" class="form-control">
+                            <option value="">Seleccione...</option>
+                            <option value="10:00">10:00 AM</option>
+                            <option value="12:00">12:00 PM</option>
+                            <option value="13:00">01:00 PM</option>
+                            <option value="15:00">03:00 PM (Turno 3:00 PM - 5:00 PM)</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-danger" style="width:100%; padding:10px; font-weight:bold;">Registrar Ausencia de Técnico</button>
+                </form>
+
+                <div id="unavail-list-container" style="margin-top:20px; border-top:1px dashed #ddd; padding-top:15px;">
+                    <h4 style="margin-top:0; margin-bottom:10px; color:var(--dark);">Historial de Ausencias / Indisponibilidades:</h4>
+                    <div id="unavail-table-wrapper">Cargando ausencias...</div>
+                </div>
+            </div>
         `;
 
         document.getElementById('admin-config-form').addEventListener('submit', async (e) => {
@@ -4541,12 +4951,10 @@ async function renderAdminModule(container) {
             const time = document.getElementById('cfg-tiempo-confirmacion').value;
             const drive = document.getElementById('cfg-drive-root').value;
 
-            // Restricción Jefe de División:
             if (isJefe) {
                 alert(`Guardando configuración local únicamente para la división: ${requestorSector}. Las carpetas globales de Drive permanecen restringidas.`);
             }
 
-            // Update configuration in AppState memory
             if (!AppState.config) AppState.config = {};
             if (!AppState.config.Sistema) AppState.config.Sistema = {};
 
@@ -4555,6 +4963,208 @@ async function renderAdminModule(container) {
             if (!isJefe) AppState.config.Sistema.RootFolderId = drive;
 
             alert("Configuraciones de la división guardadas correctamente de forma local en la sesión.");
+        });
+
+        // Event listeners for start and end date of unavailability
+        const startInput = document.getElementById('unavail-inicio');
+        const endInput = document.getElementById('unavail-fin');
+        const partialContainer = document.getElementById('unavail-partial-container');
+        const returnSelect = document.getElementById('unavail-retorno');
+
+        const checkPartialDates = () => {
+            if (startInput.value && endInput.value && startInput.value === endInput.value) {
+                partialContainer.style.display = 'block';
+                returnSelect.setAttribute('required', 'true');
+            } else {
+                partialContainer.style.display = 'none';
+                returnSelect.removeAttribute('required');
+                returnSelect.value = '';
+            }
+        };
+
+        startInput.addEventListener('change', checkPartialDates);
+        endInput.addEventListener('change', checkPartialDates);
+
+        // Load unavailability list
+        const loadUnavailabilityList = async () => {
+            const tableWrapper = document.getElementById('unavail-table-wrapper');
+            if (!tableWrapper) return;
+            try {
+                const res = await routeAction('GOS_CORE', 'getUnavailability');
+                if (res.status === 'success') {
+                    const filteredList = res.data.filter(u => u.division.toLowerCase().trim() === requestorSector.toLowerCase().trim());
+                    if (filteredList.length === 0) {
+                        tableWrapper.innerHTML = '<p style="color:var(--secondary); font-style:italic;">No hay registros de indisponibilidad para esta división.</p>';
+                        return;
+                    }
+                    tableWrapper.innerHTML = `
+                        <table class="gos-table" style="font-size:0.8rem;">
+                            <thead>
+                                <tr>
+                                    <th>Técnico</th>
+                                    <th>Inicio</th>
+                                    <th>Finalización</th>
+                                    <th>Tipo</th>
+                                    <th>Hora Retorno</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${filteredList.map(u => `
+                                    <tr>
+                                        <td><strong>${u.tecnico}</strong></td>
+                                        <td>${u.fechaInicio}</td>
+                                        <td>${u.fechaFin}</td>
+                                        <td>${u.esParcial ? 'Ausencia Parcial' : 'Día Completo'}</td>
+                                        <td>${u.horaRetorno || '--:--'}</td>
+                                        <td><span class="badge" style="background:${u.estado === 'Activo' ? '#28a745' : '#6c757d'}; color:white;">${u.estado}</span></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
+            } catch (err) {
+                console.error("Error loading unavailability list:", err);
+                tableWrapper.innerHTML = '<p style="color:var(--danger); font-style:italic;">Error al cargar indisponibilidades.</p>';
+            }
+        };
+
+        await loadUnavailabilityList();
+
+        document.getElementById('admin-unavail-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const tecnico = document.getElementById('unavail-tecnico').value;
+            const fechaInicio = startInput.value;
+            const fechaFin = endInput.value;
+            const esParcial = (fechaInicio === fechaFin);
+            const horaRetorno = returnSelect.value;
+
+            try {
+                const res = await routeAction('GOS_CORE', 'saveUnavailability', {
+                    tecnico,
+                    fechaInicio,
+                    fechaFin,
+                    esParcial,
+                    horaRetorno,
+                    division: requestorSector
+                });
+
+                if (res.status === 'success') {
+                    alert("¡Indisponibilidad del técnico registrada con éxito!");
+                    document.getElementById('admin-unavail-form').reset();
+                    partialContainer.style.display = 'none';
+                    await loadUnavailabilityList();
+                } else {
+                    alert("Error: " + res.message);
+                }
+            } catch (err) {
+                alert("Error de conexión: " + err.message);
+            }
+        });
+
+        // Insert Asignación Preferencial Form
+        const prefDiv = document.createElement('div');
+        prefDiv.className = 'orders-table-container';
+        prefDiv.style = 'background:#fff; padding:20px; border-radius:8px; border:1px solid #ddd; max-width:600px; margin:20px auto 0 auto;';
+        prefDiv.innerHTML = `
+            <h3 style="margin-top:0; margin-bottom:20px; border-bottom:2px solid var(--light); padding-bottom:10px; color:var(--dark);">🛠️ Asignación Preferencial de Técnico a Trabajo</h3>
+            <form id="admin-specialization-form">
+                <div class="form-group" style="margin-bottom:15px;">
+                    <label style="font-weight:bold; font-size:0.9rem;">Seleccionar Técnico:</label>
+                    <select id="pref-tecnico" class="form-control" required>
+                        <option value="">Seleccione...</option>
+                        ${techs.map(t => `<option value="${t.nombre}">${t.nombre}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom:15px;">
+                    <label style="font-weight:bold; font-size:0.9rem;">Buscar y Seleccionar Trabajo:</label>
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" id="pref-work-id" class="form-control" readonly required placeholder="Seleccione un trabajo ->">
+                        <button type="button" class="btn btn-outline-primary" id="btn-select-pref-work" style="padding: 6px 12px; font-size:0.85rem; font-weight:bold; min-width:160px;">Seleccionar trabajo ></button>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%; padding:10px; font-weight:bold;">Guardar Asignación Preferencial</button>
+            </form>
+        `;
+        subEl.appendChild(prefDiv);
+
+        document.getElementById('btn-select-pref-work').addEventListener('click', async () => {
+            try {
+                const ordersRes = await routeAction('GOS_CORE', 'getOrders');
+                if (ordersRes.status !== 'success') {
+                    alert("Error al cargar órdenes para selección.");
+                    return;
+                }
+                const activeOrds = ordersRes.data.filter(o => {
+                    const stateLower = (o.estado || '').toLowerCase().trim();
+                    if (['cancelada', 'expirada', 'finalizada'].includes(stateLower)) return false;
+                    return (o.sector || '').toLowerCase().trim() === requestorSector.toLowerCase().trim();
+                });
+
+                const modalHtml = `
+                    <div style="padding:15px; text-align:left; max-height:350px; overflow-y:auto;">
+                        <p style="margin-bottom:15px; font-weight:bold;">Seleccione un trabajo activo de la planificación semanal:</p>
+                        <div style="display:flex; flex-direction:column; gap:10px;">
+                            ${activeOrds.map(o => `
+                                <button class="btn btn-outline pref-work-select-opt" data-id="${o.id}" style="text-align:left; border-color:#ddd; color:var(--dark); padding:10px; border-radius:6px; background:#fafbfc; transition:all 0.2s;">
+                                    📅 <strong>OT-#${o.id}</strong> - ${o.fecha} (${o.hora})<br>
+                                    👤 Cliente: ${o.cliente} | 🚗 ${o.marca || ''} ${o.modelo || ''} | Estado: ${o.estado}
+                                </button>
+                            `).join('')}
+                            ${activeOrds.length === 0 ? '<p style="color:var(--secondary); font-style:italic;">No hay trabajos activos/reservados esta semana.</p>' : ''}
+                        </div>
+                        <div style="border-top: 1px dashed #ddd; margin-top:20px; padding-top:15px; text-align:center;">
+                            <button class="btn btn-primary" id="btn-pref-create-new-work">+ Crear Nuevo Trabajo</button>
+                        </div>
+                    </div>
+                `;
+
+                UI_TEMPLATES.modal(
+                    'Selección de Trabajo para Especialización',
+                    modalHtml,
+                    () => {}
+                );
+
+                const modalConfirmBtn = document.getElementById('modal-confirm');
+                if (modalConfirmBtn) modalConfirmBtn.style.display = 'none';
+                const modalCancelBtn = document.getElementById('modal-cancel');
+                if (modalCancelBtn) modalCancelBtn.textContent = 'Cancelar';
+
+                document.querySelectorAll('.pref-work-select-opt').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const oId = e.currentTarget.dataset.id;
+                        document.getElementById('pref-work-id').value = oId;
+                        document.querySelector('.modal-overlay')?.remove();
+                    });
+                });
+
+                document.getElementById('btn-pref-create-new-work').addEventListener('click', () => {
+                    document.querySelector('.modal-overlay')?.remove();
+                    loadSection('agenda');
+                });
+
+            } catch (err) {
+                alert("Error al cargar agenda para selección: " + err.message);
+            }
+        });
+
+        document.getElementById('admin-specialization-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const tecnico = document.getElementById('pref-tecnico').value;
+            const orderId = document.getElementById('pref-work-id').value;
+
+            try {
+                const res = await routeAction('GOS_CORE', 'updateOrderTechnician', { orderId, technician: tecnico });
+                if (res.status === 'success') {
+                    alert(`¡Asignación preferencial guardada exitosamente!\nTécnico ${tecnico} ha sido asignado a la orden #${orderId}.`);
+                    document.getElementById('admin-specialization-form').reset();
+                } else {
+                    alert("Error: " + res.message);
+                }
+            } catch (err) {
+                alert("Error de conexión: " + err.message);
+            }
         });
     };
 
@@ -5286,6 +5896,13 @@ function showOrderDetailsModal(o) {
                 <div>⏱️ <strong>Hora (Turno):</strong> ${o.hora || ''}</div>
                 <div style="grid-column: 1 / -1; border-top:1px dashed #eee; padding-top:8px; margin-top:5px;">👤 <strong>Persona de Contacto:</strong> ${o.contactonombre || o.contacto_nombre || 'No registrado'}</div>
                 <div style="grid-column: 1 / -1;">📞 <strong>Teléfono del Contacto:</strong> ${o.contactotelefono || o.contacto_telefono || 'No registrado'}</div>
+
+                ${o.coordenadas ? `
+                <div style="grid-column: 1 / -1; margin-top: 10px; text-align: center;">
+                    <strong>📍 Ubicación en Mapa (Haga clic para navegar):</strong>
+                    <div id="details-map" style="width: 100%; max-width: 250px; aspect-ratio: 1 / 1; border-radius: 8px; border: 1px solid #ddd; margin-top: 5px; cursor: pointer; margin-left: auto; margin-right: auto;" title="Haga clic para abrir en Google Maps"></div>
+                </div>
+                ` : ''}
             </div>
 
             <div style="border-top:1px solid #eee; padding-top:10px; margin-top:10px;">
@@ -5321,6 +5938,35 @@ function showOrderDetailsModal(o) {
     }
     const modalCancelBtn = document.getElementById('modal-cancel');
     if (modalCancelBtn) modalCancelBtn.style.display = 'none';
+
+    // Initialize details map if available and coords exist
+    setTimeout(() => {
+        const detailsMapEl = document.getElementById('details-map');
+        if (detailsMapEl && window.L && o.coordenadas) {
+            const [lat, lng] = o.coordenadas.split(',').map(Number);
+            if (!isNaN(lat) && !isNaN(lng)) {
+                try {
+                    const dMap = L.map(detailsMapEl, {
+                        zoomControl: false,
+                        attributionControl: false
+                    }).setView([lat, lng], 14);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        maxZoom: 19
+                    }).addTo(dMap);
+                    L.marker([lat, lng]).addTo(dMap);
+
+                    detailsMapEl.onclick = (e) => {
+                        e.stopPropagation();
+                        // Open native Google Maps app
+                        window.open(`geo:${lat},${lng}?q=${lat},${lng}`, '_system');
+                        window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank');
+                    };
+                } catch (mapErr) {
+                    console.error("Error loading details map:", mapErr);
+                }
+            }
+        }
+    }, 400);
 
     document.getElementById('act-open-agenda').onclick = () => {
         document.querySelector('.modal-overlay')?.remove();
