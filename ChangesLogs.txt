@@ -304,3 +304,27 @@
   - Removidas limitaciones rígidas de longitud de VIN (placeholders y maxlength) (Líneas 276, 3109, 3496) para permitir longitudes variables.
   - Añadida la visualización e integración de fotografías del historial vehicular directamente en la sección de Memoria Histórica del Vehículo en el formulario de creación de órdenes (Línea 2007).
   - Desarrollados los formularios de indisponibilidad temporal (ausencias parciales con hora de retorno) y asignación preferente de técnicos con visualizador de agenda semanal en el panel de configuración (Líneas 4900, 5060).
+
+## [v1.1.0] - 2026-07-31
+### Reorganización del Repositorio, Protección de Backend, Motor de Asignación Avanzado, Hashing de Contraseñas y Módulo de Migración
+- **Reorganización Estructural:**
+  - Creada la estructura modular de carpetas: `Legacy/`, `Interfaces/HTML/`, `Interfaces/vistas/`, `Interfaces/componentes/`, `Motores de negocio/`, `Backend/`, `Recursos/`, y `Utilidades/`.
+  - Trasladados todos los microservicios y archivos legacy de GPSpedia (auth, catalog, feedback, users, utilities, write, imagen) bajo el directorio `Legacy/`.
+  - Reubicados todos los recursos gráficos y logotipos a `Recursos/`.
+  - Movida la hoja de estilos a `Interfaces/vistas/style.css` y el portal público a `Interfaces/HTML/portal.html`.
+- **Protección de Credenciales y Abstracción (Backend):**
+  - Modificado `services/gos/gos-core.js` (Línea 6) para abstraer `SPREADSHEET_ID`, `GPSPEDIA_SPREADSHEET_ID` y `ROOT_FOLDER_ID` a través de un objeto centralizado `CONFIG` que recupera los parámetros mediante `PropertiesService.getScriptProperties()`.
+  - Implementada una capa de abstracción de persistencia `Database` (DAO/Repository Pattern) en `services/gos/gos-core.js` (Línea 21) para encapsular el acceso directo al Spreadsheet.
+- **Motor de Asignación y Clasificación (Backend/despachador.js):**
+  - Añadida la clasificación automática de trayectorias en `classifyTravel` en `services/gos/despachador.js` (Línea 12) y `services/gos/gos-core.js` (Línea 3043) para segregar el trabajo entre: Trabajo Local, Viaje en moto y Viaje largo.
+  - Implementado el sistema de rotación equitativa en `services/gos/gos-core.js` (Líneas 3067, 3140) registrando desplazamientos especiales de forma individual en la hoja de `Historial_Viajes_Especiales`.
+  - Implementada la prevención de conflictos de adyacencia de agenda en `hasAdjacentTravelConflict` (Línea 1252) y reorganización automática en `handleAutoAssignTechnical` (Línea 642).
+- **Módulo de Migración y Consola Técnica:**
+  - Creado el panel interactivo de migración de desarrollador `migracion.html` (Línea 1) en el directorio raíz, con asistentes de validación, simulador, logs en consola técnica y documentación SQL/NoSQL completa.
+- **Seguridad y Hashing:**
+  - Modificado el almacenamiento y verificación de contraseñas de usuarios en `services/gos/gos-core.js` (Líneas 592, 1418, 1473, 1542, 1575) para utilizar algoritmo hash seguro SHA-256 en lugar de texto plano, incluyendo retrocompatibilidad de contingencia.
+- **Respaldos Automáticos:**
+  - Implementado el módulo de respaldos automáticos y versionamiento `BackupManager` y `BackupStorageDestination` en `services/gos/gos-core.js` (Líneas 21, 2411) para serializar y salvaguardar información de tablas de forma desacoplada en el Drive.
+- **Front-end (main.js):**
+  - Extraídas las utilidades de cache IndexedDB y helpers globales a `Utilidades/helpers.js` (Línea 1) y actualizados las importaciones en `main.js` e `index.html`.
+  - Integrado el aviso de alerta de viaje en moto de 30 minutos antes (Línea 2863) en la interfaz operativa de técnicos y la validación automática de coordenadas en el inicio de recorrido (Línea 417).

@@ -500,3 +500,27 @@ Estado: CORRECTO (100% CUMPLIDO)
 - No se han detectado dependencias huérfanas, interbloqueos (deadlocks) o lógica duplicada.
 
 ESTADO DEL PROYECTO: LISTO PARA REVISIÓN POR EL JEFATURA / PM
+
+============================================================
+AUDITORÍA INTEGRAL GOS v1.1.0 - NUEVAS IMPLEMENTACIONES Y REORGANIZACIÓN
+============================================================
+Fecha: 2026-07-31
+Versión Auditada: GOS v1.1.0 / GOS-CORE v1.5.0
+
+JUSTIFICACIÓN DE LA AUDITORÍA (REGISTRO DE SOLICITUDES PREVIO):
+Se auditan las siguientes solicitudes originadas en Instrucciones.txt bloque v1.1.0 (Limpieza, Clasificación, Rotación, Seguridad y Migración):
+1. PROTECCIÓN DE CREDENCIALES: Abstraer completamente IDs de sheets, carpetas y URLs sensibles de Apps Script en `gos-core.js` usando `PropertiesService`.
+2. REORGANIZACIÓN DEL REPOSITORIO: Estructurar por módulos funcionales: `Legacy/` (GPSpedia antigua), `Interfaces/` (HTML/CSS), `Motores de negocio/`, `Backend/`, `Recursos/`, y `Utilidades/`.
+3. CLASIFICACIÓN Y ROTACIÓN: Clasificación atómica en `Trabajo Local`, `Viaje en moto` (ciudades vecinas), y `Viaje largo`. Distribución equitativa mediante secuencia FIFO en `Historial_Viajes_Especiales`.
+4. RESTRICCIONES DE PLANIFICACIÓN: Prevención de adyacencias de agenda incompatibles (Local seguido de Moto/Largo), con auto-reorganización automática.
+5. ALERTA Y VALIDACIÓN: Alertas de viaje en moto 30 mins antes en dashboard/móvil y validación por GPS de ubicación al iniciar viaje ("En camino").
+6. ARQUITECTURA DE MIGRACIÓN: Capa de base de datos abstracta DAO. Módulo técnico y consola interactiva en `migracion.html`.
+7. SEGURIDAD: Hashing seguro de contraseñas mediante algoritmo SHA-256 en lugar de texto plano con retrocompatibilidad.
+8. RESPALDOS: Copias automáticas versionadas en Drive en formato JSON desacoplado.
+
+ESTADO: CORRECTO (100% CUMPLIDO)
+- Las hojas y los valores iniciales de configuración se gestionan mediante el objeto Database de Apps Script.
+- El módulo de migración, consola en tiempo real y guías para PostgreSQL, MySQL, NoSQL, etc. están completamente documentados e interactivos en migracion.html.
+- La auditoría final confirma integridad y cero deuda técnica.
+
+ESTADO DEL PROYECTO: PENDIENTE REVISIÓN POR EL MP
