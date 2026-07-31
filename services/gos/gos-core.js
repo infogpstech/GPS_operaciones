@@ -46,7 +46,15 @@ function initializeSystem() {
     { sheet: "Sectores", headers: ["ID", "Nombre", "Estado"] },
     { sheet: "Usuarios_Sectores", headers: ["Usuario", "Sector", "Estado"] },
     { sheet: "RecepcionVehiculos", headers: ["ID", "OrdenID", "Tecnico", "FechaHora", "Sector", "ClienteInfo", "VehiculoInfo", "Fotos", "Danos", "CalidadCheck"] },
-    { sheet: "UbicacionesGuardadas", headers: ["ID", "Nombre", "Dirección", "Coordenadas", "División", "Usos", "Historial"] }
+    { sheet: "UbicacionesGuardadas", headers: ["ID", "Nombre", "Dirección", "Coordenadas", "División", "Usos", "Historial"] },
+    { sheet: "Indisponibilidad", headers: ["ID", "Técnico", "Fecha Inicio", "Fecha Fin", "Es Parcial", "Hora Retorno", "División", "Estado"] },
+    { sheet: "Ordenes_Trabajo", headers: [
+      "ID", "OI_ID", "Estado", "Firma_Tecnico", "Firma_Cliente_Recepcion", "Firma_Cliente_Entrega",
+      "FechaHora_Recepcion", "FechaHora_Inicio", "FechaHora_Pruebas", "FechaHora_Fin", "FechaHora_Abandono", "FechaHora_Entrega",
+      "IMEI", "SIM", "Info_Interna", "Datos_Prog", "Funcionalidades", "Segundo_GPS", "Segundo_GPS_Info", "Tipo_Apagado_Remoto", "Otras_Funcionalidades",
+      "Fotos", "Danos", "CalidadCheck", "Observaciones"
+    ] },
+    { sheet: "Firmas_Tecnicos", headers: ["Tecnico", "Firma"] }
   ];
 
   config.forEach(item => {
@@ -264,8 +272,9 @@ function handleUpdateOrderStatus(payload) {
         var technicianName = data[orderRow - 1][headerMap["Técnico Asignado"] - 1] || "";
         var sector = data[orderRow - 1][headerMap["Sector"] - 1] || "San Pedro Sula";
         handleLunchAndRescheduling(orderId, technicianName, sector, new Date());
+        handleLogPerformance(orderId, status);
       } catch (err) {
-        console.error("Error running lunch rescheduling:", err);
+        console.error("Error running lunch rescheduling and metric log:", err);
       }
     }
 
@@ -289,12 +298,33 @@ function handleGetVehicleHistory(payload) {
   const vinIdx = headerMap["VIN"] - 1;
   if (vinIdx < 0) return { status: 'success', history: [] };
 
+  const recSheet = findOrCreateSheet("RecepcionVehiculos");
+  const recData = recSheet.getDataRange().getValues();
+  const recHeaderMap = getHeaderMap(recSheet);
+  const recOrderIdIdx = recHeaderMap["OrdenID"] - 1;
+  const recFotosIdx = recHeaderMap["Fotos"] - 1;
+
+  const orderFotosMap = {};
+  for (let j = 1; j < recData.length; j++) {
+    const oId = recData[j][recOrderIdIdx];
+    if (oId) {
+      orderFotosMap[oId.toString()] = recData[j][recFotosIdx] || "{}";
+    }
+  }
+
   const history = [];
   for (let i = 1; i < data.length; i++) {
     const rowVin = data[i][vinIdx] ? data[i][vinIdx].toString().trim() : "";
     if (rowVin.toLowerCase() === vin.toString().trim().toLowerCase()) {
+      const orderId = data[i][headerMap["ID"] - 1] || "";
+      const fotosJson = orderFotosMap[orderId.toString()] || "{}";
+      let parsedFotos = {};
+      try {
+        parsedFotos = JSON.parse(fotosJson);
+      } catch (e) {}
+
       history.push({
-        id: data[i][headerMap["ID"] - 1] || "",
+        id: orderId,
         fecha: data[i][headerMap["Fecha"] - 1] || "",
         tipoTrabajo: data[i][headerMap["Tipo Trabajo"] - 1] || "",
         tecnico: data[i][headerMap["Técnico Asignado"] - 1] || "",
@@ -307,7 +337,12 @@ function handleGetVehicleHistory(payload) {
         placa: data[i][headerMap["Placa"] - 1] || "",
         motor: data[i][headerMap["Motor"] - 1] || "",
         clasificacionVehiculo: data[i][headerMap["Clasificación Vehículo"] - 1] || "",
-        estado: data[i][headerMap["Estado"] - 1] || ""
+        estado: data[i][headerMap["Estado"] - 1] || "",
+        fotos: {
+          frontal: parsedFotos["vista_frontal"] || "",
+          posterior: parsedFotos["vista_trasera"] || "",
+          interior_derecho: parsedFotos["lado_derecho"] || parsedFotos["asientos_delanteros"] || ""
+        }
       });
     }
   }
@@ -1776,22 +1811,110 @@ function handleSaveSavedLocation(payload) {
 }
 
 function handleGetDivisionTechniciansCount(payload) {
-  const { sector } = payload;
+  const { sector, date, slot } = payload;
   if (!sector) return { status: 'error', message: 'Sector es requerido' };
 
   const sheet = findOrCreateSheet("Tecnicos");
   const data = sheet.getDataRange().getValues();
-  if (data.length <= 1) return { status: 'success', count: 4 }; // Fallback regular
+  if (data.length <= 1) return { status: 'success', count: 4 };
 
-  let count = 0;
+  const headerMap = getHeaderMap(sheet);
+  const sectorIdx = headerMap["Sector"] - 1;
+  const nameIdx = headerMap["Nombre"] - 1;
+
+  let totalTechs = [];
   for (let i = 1; i < data.length; i++) {
-    const techSector = data[i][5] || '';
+    const techSector = data[i][sectorIdx] || '';
     if (techSector.toLowerCase().trim() === sector.toLowerCase().trim()) {
-      count++;
+      totalTechs.push(data[i][nameIdx].toString().trim());
     }
   }
 
-  return { status: 'success', count: count || 4 };
+  if (!date) {
+    return { status: 'success', count: totalTechs.length || 4 };
+  }
+
+  const indSheet = findOrCreateSheet("Indisponibilidad", ["ID", "Técnico", "Fecha Inicio", "Fecha Fin", "Es Parcial", "Hora Retorno", "División", "Estado"]);
+  const indData = indSheet.getDataRange().getValues();
+  const indHeader = getHeaderMap(indSheet);
+
+  const indTechIdx = indHeader["Técnico"] - 1;
+  const indStartIdx = indHeader["Fecha Inicio"] - 1;
+  const indEndIdx = indHeader["Fecha Fin"] - 1;
+  const indParIdx = indHeader["Es Parcial"] - 1;
+  const indRetIdx = indHeader["Hora Retorno"] - 1;
+  const indEstIdx = indHeader["Estado"] - 1;
+
+  let unavailableTechs = new Set();
+
+  for (let j = 1; j < indData.length; j++) {
+    const status = (indData[j][indEstIdx] || "").toString().trim();
+    if (status === "Inactivo") continue;
+
+    const techName = (indData[j][indTechIdx] || "").toString().trim();
+    const startDate = (indData[j][indStartIdx] || "").toString().trim();
+    const endDate = (indData[j][indEndIdx] || "").toString().trim();
+    const isPartial = indData[j][indParIdx] === "Sí";
+    const returnTime = (indData[j][indRetIdx] || "").toString().trim();
+
+    if (date >= startDate && date <= endDate) {
+      if (isPartial) {
+        if (slot && returnTime) {
+          const slotMatch = slot.match(/(\d{2}):(\d{2})/);
+          const retMatch = returnTime.match(/(\d{2}):(\d{2})/);
+          if (slotMatch && retMatch) {
+            const slotMin = parseInt(slotMatch[1]) * 60 + parseInt(slotMatch[2]);
+            const retMin = parseInt(retMatch[1]) * 60 + parseInt(retMatch[2]);
+            if (slotMin < retMin) {
+              unavailableTechs.add(techName);
+            }
+          }
+        } else {
+          unavailableTechs.add(techName);
+        }
+      } else {
+        unavailableTechs.add(techName);
+      }
+    }
+  }
+
+  const activeTechs = totalTechs.filter(t => !unavailableTechs.has(t));
+  return { status: 'success', count: activeTechs.length || 1 };
+}
+
+function handleSaveUnavailability(payload) {
+  const { tecnico, fechaInicio, fechaFin, esParcial, horaRetorno, division } = payload;
+  if (!tecnico || !fechaInicio || !fechaFin) {
+    return { status: 'error', message: 'Datos incompletos para registrar indisponibilidad' };
+  }
+
+  const sheet = findOrCreateSheet("Indisponibilidad", ["ID", "Técnico", "Fecha Inicio", "Fecha Fin", "Es Parcial", "Hora Retorno", "División", "Estado"]);
+  const id = "IND-" + new Date().getTime();
+  sheet.appendRow([id, tecnico, fechaInicio, fechaFin, esParcial ? "Sí" : "No", horaRetorno || "", division || "San Pedro Sula", "Activo"]);
+
+  return { status: 'success', id: id };
+}
+
+function handleGetUnavailability(payload) {
+  const sheet = findOrCreateSheet("Indisponibilidad", ["ID", "Técnico", "Fecha Inicio", "Fecha Fin", "Es Parcial", "Hora Retorno", "División", "Estado"]);
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return { status: 'success', data: [] };
+
+  const headerMap = getHeaderMap(sheet);
+  const list = [];
+  for (let i = 1; i < data.length; i++) {
+    list.push({
+      id: data[i][headerMap["ID"] - 1],
+      tecnico: data[i][headerMap["Técnico"] - 1],
+      fechaInicio: data[i][headerMap["Fecha Inicio"] - 1],
+      fechaFin: data[i][headerMap["Fecha Fin"] - 1],
+      esParcial: data[i][headerMap["Es Parcial"] - 1] === "Sí",
+      horaRetorno: data[i][headerMap["Hora Retorno"] - 1],
+      division: data[i][headerMap["División"] - 1],
+      estado: data[i][headerMap["Estado"] - 1]
+    });
+  }
+  return { status: 'success', data: list };
 }
 
 function doGet(e) {
@@ -2096,7 +2219,11 @@ function doPost(e) {
       case 'getTechnicalConsultation': response = handleGetTechnicalConsultation(request.payload); break;
       case 'getSavedLocations': response = handleGetSavedLocations(); break;
       case 'saveSavedLocation': response = handleSaveSavedLocation(request.payload); break;
+      case 'getTechnicianMetrics': response = handleGetTechnicianMetrics(); break;
       case 'getDivisionTechniciansCount': response = handleGetDivisionTechniciansCount(request.payload); break;
+      case 'saveUnavailability': response = handleSaveUnavailability(request.payload); break;
+      case 'getUnavailability': response = handleGetUnavailability(request.payload); break;
+      case 'updateOrderTechnician': response = handleUpdateOrderTechnician(request.payload); break;
       case 'getOvertimeReport': response = handleGetOvertimeReport(request.payload); break;
       case 'getUsersList': response = handleGetUsersList(request.payload); break;
       case 'createUser': response = handleCreateUser(request.payload); break;
@@ -2106,6 +2233,8 @@ function doPost(e) {
       case 'verifyPassword': response = handleVerifyPassword(request.payload); break;
       case 'createOrder': response = handleCreateOrder(request.payload); break;
       case 'getOrders': response = handleGetOrders(); break;
+      case 'lockSlot': response = handleLockSlot(request.payload); break;
+      case 'unlockSlot': response = handleUnlockSlot(request.payload); break;
       case 'getSystemConfig': response = handleGetSystemConfig(); break;
       case 'initializeSystem': response = initializeSystem(); break;
       case 'getAgendaConfig': response = handleGetAgendaConfig(); break;
@@ -2162,6 +2291,100 @@ function calculateEstimatedDuration(tipoTrabajo, subTipo) {
   return 30; // Por defecto
 }
 
+function handleLockSlot(payload) {
+  const { date, slot, username } = payload;
+  if (!date || !slot || !username) {
+    return { status: 'error', message: 'Datos incompletos para bloquear cupo' };
+  }
+
+  checkAndExpireDrafts();
+
+  const sheet = findOrCreateSheet("Ordenes");
+  const data = sheet.getDataRange().getValues();
+  const headerMap = getHeaderMap(sheet);
+
+  const idIdx = headerMap["ID"] - 1;
+  const fechaIdx = headerMap["Fecha"] - 1;
+  const horaIdx = headerMap["Hora"] - 1;
+  const estadoIdx = headerMap["Estado"] - 1;
+  const sectorIdx = headerMap["Sector"] - 1;
+
+  const userSheet = findOrCreateSheet("Usuarios");
+  const uData = userSheet.getDataRange().getValues();
+  const uHeader = getHeaderMap(userSheet);
+  const uUserIdx = uHeader["Nombre_Usuario"] - 1;
+  const uSectorIdx = uHeader["Sector"] - 1;
+
+  let userSector = "San Pedro Sula";
+  for (let i = 1; i < uData.length; i++) {
+    if (uData[i][uUserIdx].toString().toLowerCase().trim() === username.toLowerCase().trim()) {
+      userSector = uData[i][uSectorIdx] || "San Pedro Sula";
+      break;
+    }
+  }
+
+  for (let i = 1; i < data.length; i++) {
+    const rowId = data[i][idIdx] ? data[i][idIdx].toString() : "";
+    const rowDate = data[i][fechaIdx] ? data[i][fechaIdx].toString().trim() : "";
+    const rowHora = data[i][horaIdx] ? data[i][horaIdx].toString().trim() : "";
+    const rowStatus = data[i][estadoIdx] ? data[i][estadoIdx].toString().toLowerCase().trim() : "";
+    const rowSector = data[i][sectorIdx] ? data[i][sectorIdx].toString().toLowerCase().trim() : "";
+
+    if (rowDate === date && rowHora === slot && rowSector === userSector.toLowerCase().trim()) {
+      if (rowStatus !== 'cancelada' && rowStatus !== 'expirada') {
+        return { status: 'error', message: 'El cupo ya está reservado o bloqueado por otro usuario.' };
+      }
+    }
+  }
+
+  const lockId = "LOCK-" + date + "-" + slot.replace(/\s+/g, '') + "-" + username;
+  const now = new Date();
+
+  const newRow = [];
+  const colCount = sheet.getLastColumn();
+  for (let c = 0; c < colCount; c++) {
+    newRow.push("");
+  }
+
+  newRow[headerMap["ID"] - 1] = lockId;
+  newRow[headerMap["Fecha"] - 1] = date;
+  newRow[headerMap["Hora"] - 1] = slot;
+  newRow[headerMap["Estado"] - 1] = "Reservando";
+  newRow[headerMap["Cliente"] - 1] = "Reservando...";
+  newRow[headerMap["Vendedor"] - 1] = username;
+  newRow[headerMap["Sector"] - 1] = userSector;
+  newRow[headerMap["Observaciones"] - 1] = "LOCK_TS:" + now.toISOString();
+
+  sheet.appendRow(newRow);
+
+  return { status: 'success' };
+}
+
+function handleUnlockSlot(payload) {
+  const { date, slot } = payload;
+  if (!date || !slot) {
+    return { status: 'error', message: 'Datos incompletos para desbloquear' };
+  }
+
+  const sheet = findOrCreateSheet("Ordenes");
+  const data = sheet.getDataRange().getValues();
+  const headerMap = getHeaderMap(sheet);
+
+  const idIdx = headerMap["ID"] - 1;
+  const estadoIdx = headerMap["Estado"] - 1;
+
+  for (let i = data.length - 1; i >= 1; i--) {
+    const rowId = data[i][idIdx] ? data[i][idIdx].toString() : "";
+    const rowStatus = data[i][estadoIdx] ? data[i][estadoIdx].toString().toLowerCase().trim() : "";
+
+    if (rowId.indexOf("LOCK-" + date + "-" + slot.replace(/\s+/g, '')) === 0 && rowStatus === "reservando") {
+      sheet.deleteRow(i + 1);
+    }
+  }
+
+  return { status: 'success' };
+}
+
 function checkAndExpireDrafts() {
   var sheet = findOrCreateSheet("Ordenes");
   var data = sheet.getDataRange().getValues();
@@ -2172,12 +2395,13 @@ function checkAndExpireDrafts() {
   var estadoIdx = headerMap["Estado"] - 1;
   var fechaIdx = headerMap["Fecha"] - 1;
   var horaIdx = headerMap["Hora"] - 1;
+  var obsIdx = headerMap["Observaciones"] - 1;
 
   var histSheet = findOrCreateSheet("Historial_Estados", ["Fecha", "Hora", "OrdenID", "Estado Anterior", "Estado Nuevo", "Usuario", "Observaciones"]);
 
   var now = new Date();
 
-  for (var i = 1; i < data.length; i++) {
+  for (var i = data.length - 1; i >= 1; i--) {
     var status = (data[i][estadoIdx] || "").toString().toLowerCase().trim();
     if (status === "borrador") {
       var orderId = data[i][idIdx];
@@ -2188,10 +2412,8 @@ function checkAndExpireDrafts() {
       if (startTime) {
         var expTime = new Date(startTime.getTime() + 60 * 60 * 1000); // 60 minutes past shift start
         if (now > expTime) {
-          // Expirar borrador
           sheet.getRange(i + 1, estadoIdx + 1).setValue("Expirada");
 
-          // Registrar en historial de estados
           histSheet.appendRow([
             now.toISOString().split('T')[0],
             now.toTimeString().split(' ')[0].substring(0, 5),
@@ -2201,6 +2423,19 @@ function checkAndExpireDrafts() {
             "Sistema",
             "Borrador expirado automáticamente después de 60 minutos"
           ]);
+        }
+      }
+    } else if (status === "reservando") {
+      var obsVal = (data[i][obsIdx] || "").toString();
+      if (obsVal.indexOf("LOCK_TS:") === 0) {
+        var tsStr = obsVal.substring(8);
+        var lockTime = new Date(tsStr);
+        if (isNaN(lockTime.getTime())) {
+          lockTime = new Date();
+        }
+        var lockExp = new Date(lockTime.getTime() + 5 * 60 * 1000);
+        if (now > lockExp) {
+          sheet.deleteRow(i + 1);
         }
       }
     }
@@ -2456,4 +2691,218 @@ function handleReassignNextJob(payload) {
     otherTechs: otherTechs,
     message: 'Tienes una asignación posterior (Orden #' + nextOrder.id + '). ¿Podrás cumplir con ella dentro del horario previsto?'
   };
+}
+
+function handleLogPerformance(orderId, status) {
+  try {
+    const oSheet = findOrCreateSheet("Ordenes");
+    const oData = oSheet.getDataRange().getValues();
+    const oHeader = getHeaderMap(oSheet);
+
+    let oRow = -1;
+    for (let i = 1; i < oData.length; i++) {
+      if (oData[i][oHeader["ID"] - 1].toString() === orderId.toString()) {
+        oRow = i + 1;
+        break;
+      }
+    }
+    if (oRow === -1) return;
+
+    const brand = oData[oRow - 1][oHeader["Marca"] - 1] || "";
+    const model = oData[oRow - 1][oHeader["Modelo"] - 1] || "";
+    const year = parseInt(oData[oRow - 1][oHeader["Año"] - 1]) || new Date().getFullYear();
+    const range = brand + " " + model + " " + (year - 1) + " - " + (year + 1);
+
+    const tech = oData[oRow - 1][oHeader["Técnico Asignado"] - 1] || "Sin asignar";
+    const fecha = oData[oRow - 1][oHeader["Fecha"] - 1] || "";
+    const slot = oData[oRow - 1][oHeader["Hora"] - 1] || "";
+    const tipoTrabajo = oData[oRow - 1][oHeader["Tipo Trabajo"] - 1] || "";
+    const direccion = oData[oRow - 1][oHeader["Dirección"] - 1] || "";
+    const servicio = oData[oRow - 1][oHeader["Servicio"] - 1] || "";
+
+    const locType = (!direccion || direccion.toLowerCase().indexOf("oficina") !== -1 || direccion.toLowerCase().indexOf("local") !== -1) ? "Local" : "Remoto";
+    const servType = servicio.toLowerCase().indexOf("tracklink") !== -1 ? "Tracklink" : "Controlcar";
+
+    const otSheet = findOrCreateSheet("Ordenes_Trabajo");
+    const otData = otSheet.getDataRange().getValues();
+    const otHeader = getHeaderMap(otSheet);
+
+    let receptionStr = "";
+    let startWorkStr = "";
+    for (let j = 1; j < otData.length; j++) {
+      if (otData[j][otHeader["OI_ID"] - 1].toString() === orderId.toString()) {
+        receptionStr = otData[j][otHeader["FechaHora_Recepcion"] - 1] || "";
+        startWorkStr = otData[j][otHeader["FechaHora_Inicio"] - 1] || "";
+        break;
+      }
+    }
+
+    const now = new Date();
+    let durationMins = 90;
+    if (startWorkStr) {
+      const startTime = new Date(startWorkStr);
+      if (!isNaN(startTime.getTime())) {
+        durationMins = Math.round((now - startTime) / (60 * 1000));
+      }
+    }
+
+    const estDuration = calculateEstimatedDuration(tipoTrabajo, "");
+    const retraso = durationMins > estDuration ? "Sí" : "No";
+
+    let puntualidad = "Puntual";
+    if (receptionStr && slot) {
+      const scheduledStart = parseDateTime(fecha, slot);
+      const receptionTime = new Date(receptionStr);
+      if (scheduledStart && !isNaN(receptionTime.getTime())) {
+        const diffMins = (receptionTime - scheduledStart) / (60 * 1000);
+        if (diffMins > 15) {
+          puntualidad = "Tarde";
+        }
+      }
+    }
+
+    const logSheet = findOrCreateSheet("Log_Rendimiento", [
+      "ID", "Técnico", "Fecha", "Hora Programada", "Hora Recepción", "Hora Fin",
+      "Duración Minutos", "Tipo Trabajo", "Vehículo Rango", "Ubicación Tipo", "Servicio Tipo", "Retraso", "Puntualidad"
+    ]);
+
+    logSheet.appendRow([
+      orderId,
+      tech,
+      fecha,
+      slot,
+      receptionStr || now.toISOString(),
+      now.toISOString(),
+      durationMins,
+      tipoTrabajo,
+      range,
+      locType,
+      servType,
+      retraso,
+      puntualidad
+    ]);
+
+  } catch (e) {
+    console.error("Error logging performance:", e);
+  }
+}
+
+function handleGetTechnicianMetrics() {
+  const sheet = findOrCreateSheet("Log_Rendimiento");
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return { status: 'success', metrics: [] };
+
+  const headerMap = getHeaderMap(sheet);
+  const techIdx = headerMap["Técnico"] - 1;
+  const durIdx = headerMap["Duración Minutos"] - 1;
+  const typeIdx = headerMap["Tipo Trabajo"] - 1;
+  const vehIdx = headerMap["Vehículo Rango"] - 1;
+  const locIdx = headerMap["Ubicación Tipo"] - 1;
+  const delayIdx = headerMap["Retraso"] - 1;
+  const puntIdx = headerMap["Puntualidad"] - 1;
+
+  const techMetrics = {};
+
+  for (let i = 1; i < data.length; i++) {
+    const tech = data[i][techIdx] || "Sin asignar";
+    const duration = parseFloat(data[i][durIdx]) || 0;
+    const type = data[i][typeIdx] || "";
+    const vehicle = data[i][vehIdx] || "";
+    const loc = data[i][locIdx] || "Local";
+    const delay = data[i][delayIdx] || "No";
+    const punt = data[i][puntIdx] || "Puntual";
+
+    if (!techMetrics[tech]) {
+      techMetrics[tech] = {
+        name: tech,
+        totalJobs: 0,
+        totalDuration: 0,
+        delaysCount: 0,
+        punctualCount: 0,
+        byType: {},
+        byVehicle: {},
+        byLoc: { "Local": { total: 0, count: 0 }, "Remoto": { total: 0, count: 0 } }
+      };
+    }
+
+    const m = techMetrics[tech];
+    m.totalJobs++;
+    m.totalDuration += duration;
+    if (delay === "Sí") m.delaysCount++;
+    if (punt === "Puntual") m.punctualCount++;
+
+    if (!m.byType[type]) m.byType[type] = { total: 0, count: 0 };
+    m.byType[type].total += duration;
+    m.byType[type].count++;
+
+    if (!m.byVehicle[vehicle]) m.byVehicle[vehicle] = { total: 0, count: 0 };
+    m.byVehicle[vehicle].total += duration;
+    m.byVehicle[vehicle].count++;
+
+    if (!m.byLoc[loc]) m.byLoc[loc] = { total: 0, count: 0 };
+    m.byLoc[loc].total += duration;
+    m.byLoc[loc].count++;
+  }
+
+  const metricsList = Object.values(techMetrics).map(m => {
+    const avgByType = {};
+    Object.entries(m.byType).forEach(([k, v]) => {
+      avgByType[k] = Math.round(v.total / v.count);
+    });
+
+    const avgByVehicle = {};
+    Object.entries(m.byVehicle).forEach(([k, v]) => {
+      avgByVehicle[k] = Math.round(v.total / v.count);
+    });
+
+    let bestVehicle = "N/A", bestTime = 99999;
+    let worstVehicle = "N/A", worstTime = 0;
+    Object.entries(avgByVehicle).forEach(([k, v]) => {
+      if (v < bestTime) {
+        bestTime = v;
+        bestVehicle = k;
+      }
+      if (v > worstTime) {
+        worstTime = v;
+        worstVehicle = k;
+      }
+    });
+
+    return {
+      technician: m.name,
+      totalJobs: m.totalJobs,
+      avgDuration: Math.round(m.totalDuration / m.totalJobs),
+      delaysCount: m.delaysCount,
+      punctualityRate: Math.round((m.punctualCount / m.totalJobs) * 100),
+      avgByType: avgByType,
+      bestVehicle: bestVehicle + " (" + bestTime + " min)",
+      worstVehicle: worstVehicle + " (" + worstTime + " min)",
+      avgByLoc: {
+        Local: m.byLoc["Local"].count > 0 ? Math.round(m.byLoc["Local"].total / m.byLoc["Local"].count) : 0,
+        Remoto: m.byLoc["Remoto"].count > 0 ? Math.round(m.byLoc["Remoto"].total / m.byLoc["Remoto"].count) : 0
+      }
+    };
+  });
+
+  return { status: 'success', metrics: metricsList };
+}
+
+function handleUpdateOrderTechnician(payload) {
+  const { orderId, technician } = payload;
+  if (!orderId || !technician) return { status: 'error', message: 'Datos incompletos' };
+
+  const sheet = findOrCreateSheet("Ordenes");
+  const data = sheet.getDataRange().getValues();
+  const headerMap = getHeaderMap(sheet);
+
+  const idIdx = headerMap["ID"] - 1;
+  const techIdx = headerMap["Técnico Asignado"];
+
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][idIdx].toString() === orderId.toString()) {
+      sheet.getRange(i + 1, techIdx).setValue(technician);
+      return { status: 'success', message: 'Técnico asignado exitosamente.' };
+    }
+  }
+  return { status: 'error', message: 'Orden no encontrada.' };
 }

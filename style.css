@@ -188,8 +188,9 @@ header h2 {
 
 /* Confirmed Slot */
 .card-confirmed {
-    background: #f8fafc;
-    border-left: 5px solid #3b82f6;
+    background: #e0f2fe; /* Celeste suave */
+    border: 1px solid #bae6fd;
+    color: #0369a1;
 }
 
 .card-confirmed-title {
@@ -227,16 +228,16 @@ header h2 {
 
 /* Available Slots */
 .card-available {
-    border: 1px dashed #cbd5e1;
-    background: #fafbfc;
-    color: #64748b;
+    border: 1px dashed #a7f3d0;
+    background: #f0fdf4; /* Verde claro */
+    color: #065f46;
     text-align: center;
     padding: 12px 10px;
 }
 
 .card-available:hover {
-    background: #f1f5f9;
-    border-color: #94a3b8;
+    background: #d1fae5;
+    border-color: #34d399;
 }
 
 .card-available-partial {
@@ -250,6 +251,38 @@ header h2 {
 .card-available-partial:hover {
     background: rgba(254, 243, 199, 0.35);
     border-color: #d97706;
+}
+
+.extra-slot-btn {
+    width: 100%;
+    background: #fafbfc;
+    border: 1px solid #cbd5e1; /* solid, thin border */
+    border-radius: 8px; /* same border-radius */
+    padding: 2px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: #475569;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 24px; /* minimal height, size of the symbol */
+    transition: all 0.2s ease;
+}
+
+.extra-slot-btn:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+    transform: translateY(-1px);
+}
+
+.card-locking {
+    background: #efebe9 !important; /* light brown */
+    border: 1px solid #a1887f !important;
+    color: #5d4037 !important;
+    cursor: not-allowed;
+    padding: 10px;
+    font-size: 0.85rem;
 }
 
 .card-available-text {

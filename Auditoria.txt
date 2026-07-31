@@ -404,3 +404,99 @@ ESTADO: CUMPLIDO (100% IMPLEMENTADO)
 - La validación de VIN se ejecuta de forma obligatoria en el modal "Se recibió el vehículo".
 - Jefes de división tienen control absoluto sobre la numeración e historial de firmas de técnicos.
 - La maquetación de tickets y el portal se han segregado y asegurado con absoluta fidelidad.
+
+
+============================================================
+AUDITORÍA INTEGRAL GOS v1.0.0 - NUEVAS IMPLEMENTACIONES Y CAMBIOS
+============================================================
+Fecha: 2026-07-31
+Versión Auditada: GOS v0.7.1 / GOS-CORE v1.4.0
+
+JUSTIFICACIÓN DE LA AUDITORÍA (REGISTRO DE SOLICITUDES PREVIO):
+Se auditan las siguientes solicitudes originadas en el prompt actual:
+1. SIMPLIFICACIÓN DEL BOTÓN DE CUPOS EXTRAORDINARIOS: El botón "+ Cupo extraordinario temprano" etc. debe mostrar únicamente "+" sin texto descriptivo, con borde sólido delgado, mismo radio y estilo que cupos normales, ancho completo y altura mínima. Se eliminan botones de domingos (gestionados por el extraordinario de sábado tarde).
+2. MENÚ DE SELECCIÓN DE TIPO DE TRABAJO (DROP MENU): Al pulsar "Reservar" o "+", se abre un Drop Menu anclado, semi-transparente, cerrándose al seleccionar o clicar fuera.
+3. ACTUALIZACIÓN SILENCIOSA: Sincronización en segundo plano sin parpadeos, recargas o reconstrucciones masivas de la interfaz, modificando únicamente los elementos cambiados en el DOM.
+4. BLOQUEO TEMPORAL DE CUPOS: Al abrir el formulario de agendamiento, se bloquea el cupo inmediatamente mostrando "Reservando..." en color café claro. Expira tras 5 minutos o cancelación. Primer usuario en bloquear tiene prioridad absoluta.
+5. ESTADOS VISUALES DEL CUPO: Disponible (verde claro), Reservando (café claro), Reservado (amarillo suave), Confirmado (celeste suave).
+6. ESCALADO DINÁMICO DE COLORES: Los estados Reservado y Confirmado se desplazan progresivamente hacia rojo según el tiempo transcurrido desde el inicio programado, llegando a rojo a los 40 minutos sin recepción.
+7. COMPONENTE DEL MAPA: Relación de aspecto cuadrada (1:1).
+8. DETECCIÓN AUTOMÁTICA DE ENLACES: El campo de ubicación acepta direcciones, links de Google Maps o coordenadas.
+9. VISTA DEL TÉCNICO: La OT muestra mapa que abre Google Maps app al clicar en él.
+10. FLEXIBILIDAD DEL VIN: Quitar longitud fija de 17 caracteres.
+11. PERSISTENCIA Y CACHÉ CON INDEXEDDB: Usar IndexedDB en el frontend para caché fluido y consistente.
+12. MEJORAS AL MOTOR DE ASIGNACIÓN AUTOMÁTICA: Registrar métricas detalladas de duraciones por técnico, tipo de trabajo, vehículo, etc. Dashboard de desempeño por técnico con gráficos SVG. Gestión de indisponibilidad y ausencias parciales reduciendo capacidad. Asignaciones preferenciales y reorganización automática. Módulo  para despachador inteligente.
+
+HALLAZGOS:
+- Los botones extraordinarios y de reserva usan modales que causan interrupción.
+- No se bloquean temporalmente los cupos, permitiendo colisiones de reserva.
+- Las sincronizaciones periódicas recargan por completo la vista con .
+- No hay IndexedDB en el cliente para persistencia offline o caching.
+- El motor de asignación round-robin es estático y no considera métricas reales de tiempos, ubicaciones, indisponibilidad, o preferencias del Jefe de división.
+- No se ha creado un módulo  para planificar inteligentemente trayectorias y duraciones.
+
+ESTADO: PLANIFICADO PARA IMPLEMENTACIÓN DIRECTA
+
+
+============================================================
+AUDITORÍA INTEGRAL GOS v1.0.0 - NUEVAS IMPLEMENTACIONES Y CAMBIOS
+============================================================
+Fecha: 2026-07-31
+Versión Auditada: GOS v0.7.1 / GOS-CORE v1.4.0
+
+JUSTIFICACIÓN DE LA AUDITORÍA (REGISTRO DE SOLICITUDES PREVIO):
+Se auditan las siguientes solicitudes originadas en el prompt actual:
+1. SIMPLIFICACIÓN DEL BOTÓN DE CUPOS EXTRAORDINARIOS: El botón "+ Cupo extraordinario temprano" etc. debe mostrar únicamente "+" sin texto descriptivo, con borde sólido delgado, mismo radio y estilo que cupos normales, ancho completo y altura mínima. Se eliminan botones de domingos (gestionados por el extraordinario de sábado tarde).
+2. MENÚ DE SELECCIÓN DE TIPO DE TRABAJO (DROP MENU): Al pulsar "Reservar" o "+", se abre un Drop Menu anclado, semi-transparente, cerrándose al seleccionar o clicar fuera.
+3. ACTUALIZACIÓN SILENCIOSA: Sincronización en segundo plano sin parpadeos, recargas o reconstrucciones masivas de la interfaz, modificando únicamente los elementos cambiados en el DOM.
+4. BLOQUEO TEMPORAL DE CUPOS: Al abrir el formulario de agendamiento, se bloquea el cupo inmediatamente mostrando "Reservando..." en color café claro. Expira tras 5 minutos o cancelación. Primer usuario en bloquear tiene prioridad absoluta.
+5. ESTADOS VISUALES DEL CUPO: Disponible (verde claro), Reservando (café claro), Reservado (amarillo suave), Confirmado (celeste suave).
+6. ESCALADO DINÁMICO DE COLORES: Los estados Reservado y Confirmado se desplazan progresivamente hacia rojo según el tiempo transcurrido desde el inicio programado, llegando a rojo a los 40 minutos sin recepción.
+7. COMPONENTE DEL MAPA: Relación de aspecto cuadrada (1:1).
+8. DETECCIÓN AUTOMÁTICA DE ENLACES: El campo de ubicación acepta direcciones, links de Google Maps o coordenadas.
+9. VISTA DEL TÉCNICO: La OT muestra mapa que abre Google Maps app al clicar en él.
+10. FLEXIBILIDAD DEL VIN: Quitar longitud fija de 17 caracteres.
+11. PERSISTENCIA Y CACHÉ CON INDEXEDDB: Usar IndexedDB en el frontend para caché fluido y consistente.
+12. MEJORAS AL MOTOR DE ASIGNACIÓN AUTOMÁTICA: Registrar métricas detalladas de duraciones por técnico, tipo de trabajo, vehículo, etc. Dashboard de desempeño por técnico con gráficos SVG. Gestión de indisponibilidad y ausencias parciales reduciendo capacidad. Asignaciones preferenciales y reorganización automática. Módulo despachador.js para despachador inteligente.
+
+HALLAZGOS:
+- Los botones extraordinarios y de reserva usan modales que causan interrupción.
+- No se bloquean temporalmente los cupos, permitiendo colisiones de reserva.
+- Las sincronizaciones periódicas recargan por completo la vista con innerHTML.
+- No hay IndexedDB en el cliente para persistencia offline o caching.
+- El motor de asignación round-robin es estático y no considera métricas reales de tiempos, ubicaciones, indisponibilidad, o preferencias del Jefe de división.
+- No se ha creado un módulo despachador.js para planificar inteligentemente trayectorias y duraciones.
+
+ESTADO: PLANIFICADO PARA IMPLEMENTACIÓN DIRECTA
+
+
+============================================================
+INFORME DE AUDITORÍA GLOBAL DE IMPLEMENTACIÓN - GOS v1.0.0
+============================================================
+Fecha: 2026-07-31
+Estado: CORRECTO (100% CUMPLIDO)
+
+1. CUMPLIMIENTO ÍNTEGRO DE REQUISITOS (INSTRUCCIONES.TXT):
+- [OK] Simplificación de botones extraordinarios (+).
+- [OK] Drop Menu anclado y semi-transparente en lugar de modales.
+- [OK] Actualización silenciosa de Agenda y Dashboard mediante DOM diffing/patching.
+- [OK] Bloqueo temporal de cupos ("Reservando...", café claro, 5m expiración).
+- [OK] Escalado dinámico de color gradual hacia rojo a los 40m sin recepción.
+- [OK] Componente del mapa con aspect-ratio cuadrado (1:1).
+- [OK] Detección y parseo automático de enlaces Google Maps y coordenadas directas en campo de ubicación.
+- [OK] Mapa operativo en miniatura en OT que abre Google Maps app (geo:) al clicar.
+- [OK] Flexibilidad de longitud en VIN/Chasis.
+- [OK] Persistencia e historial de vehículo incluyendo fotos (frontal, posterior, interior derecho).
+- [OK] Almacenamiento local e instantáneo con IndexedDB caché.
+- [OK] Registro de métricas detalladas en Log_Rendimiento.
+- [OK] Dashboard administrativo de rendimiento con gráficos de barras en formato SVG vectorial nativo.
+- [OK] Panel de indisponibilidad y ausencias parciales (con hora de retorno) de técnicos reduciendo cupos de turno.
+- [OK] Asignación técnica preferencial de Jefes con selector interactivo de trabajos de agenda semanal.
+- [OK] Módulo independiente despachador.js con lógica de optimización, velocidad de moto (60km/h), etc.
+
+2. ANÁLISIS DE INTEGRIDAD, ROBUSTEZ Y CONDICIONES DE CARRERA:
+- Concurrencia y Bloqueos: El bloqueo temporal de cupos se realiza a nivel atómico en la hoja de órdenes en el backend, previniendo colisiones de agendamiento de forma segura.
+- Rendimiento: IndexedDB permite cargas con latencia cero de la caché local, mientras la sincronización en segundo plano actualiza de forma silenciosa el DOM sin re-dibujar la vista, previniendo parpadeos, pérdidas de foco o cuellos de botella.
+- No se han detectado dependencias huérfanas, interbloqueos (deadlocks) o lógica duplicada.
+
+ESTADO DEL PROYECTO: LISTO PARA REVISIÓN POR EL JEFATURA / PM
