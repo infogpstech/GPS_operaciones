@@ -524,3 +524,33 @@ ESTADO: CORRECTO (100% CUMPLIDO)
 - La auditoría final confirma integridad y cero deuda técnica.
 
 ESTADO DEL PROYECTO: PENDIENTE REVISIÓN POR EL MP
+
+============================================================
+AUDITORÍA INTEGRAL GOS v1.1.1 - MENÚ DESPLEGABLE Y TURNOS VENCIDOS
+============================================================
+Fecha: 2026-07-31
+Versión Auditada: GOS v1.1.1 / GOS-CORE v1.5.1
+
+JUSTIFICACIÓN DE LA AUDITORÍA (REGISTRO DE SOLICITUDES PREVIO):
+Se auditan las siguientes solicitudes del PM:
+1. BLOQUEO DE FORMULARIO EN LOCKSLOT: La función proceedWithBooking() no debe abortar prematuramente en caso de que lockSlot devuelva error o falle en la red, asegurando la apertura continua del formulario.
+2. POBLACIÓN DE CAMPOS: La población automática de Fecha, Hora y Tipo de Trabajo en el formulario debe ocurrir de manera inmediata sin condiciones de carrera.
+3. TURNOS VENCIDOS: Impedir agendamiento, confirmación o guardado de borradores de turnos vencidos basados en la fecha y hora locales del sistema.
+4. MENSAJE SIN EMOTICON: El mensaje indicador para turnos caducados en la agenda debe ser "Turno Vencido", sin incluir emoticonos o emojis.
+5. DUPLICADOS: Identificar y remover el archivo duplicado Backend/gos-core.js.
+
+HALLAZGOS:
+- La función proceedWithBooking() retornaba en catch(err) impidiendo el despliegue del formulario en entornos de simulación offline.
+- La población asíncrona mediante setTimeout de 400ms puede provocar demoras perceptibles, por lo que se requiere ejecución síncrona inmediata con fallbacks de contingencia.
+- No existía validación robusta para denegar agendamientos y envíos de formulario sobre turnos caducados.
+- Se localizó el archivo obsoleto duplicado Backend/gos-core.js sin referencias activas.
+
+ESTADO: CUMPLIDO (100% IMPLEMENTADO)
+- [OK] Backend/gos-core.js eliminado, sin romper referencias ni dependencias.
+- [OK] proceedWithBooking refactorizado para continuar el flujo de renderizado en cualquier escenario de locking.
+- [OK] Población del formulario inmediata y robusta ante latencias.
+- [OK]isSlotExpired() implementada y validada en renderizado de la agenda, botones (+), bookSlot, bookExtraordinarySlot y envío de formulario.
+- [OK] Mensaje "Turno Vencido" rendered limpiamente sin emoticones.
+- [OK] Detección automática de cambio de día para shift de columnas en segundo plano.
+
+ESTADO DEL PROYECTO: PENDIENTE REVISIÓN POR EL MP
