@@ -328,3 +328,16 @@
 - **Front-end (main.js):**
   - Extraídas las utilidades de cache IndexedDB y helpers globales a `Utilidades/helpers.js` (Línea 1) y actualizados las importaciones en `main.js` e `index.html`.
   - Integrado el aviso de alerta de viaje en moto de 30 minutos antes (Línea 2863) en la interfaz operativa de técnicos y la validación automática de coordenadas en el inicio de recorrido (Línea 417).
+
+## [v1.1.1] - 2026-07-31
+### Solución de Menú Desplegable y Bloqueo de Turnos Caducados
+- **Limpieza del Repositorio:**
+  - Removido el archivo duplicado y obsoleto `Backend/gos-core.js` (Línea 1) tras auditar y confirmar que carecía de referencias en el codebase y que era idéntico a `services/gos/gos-core.js`.
+- **Selector de Tipo de Trabajo (main.js):**
+  - Modificada la función `proceedWithBooking()` (Línea 1273) en `main.js` para registrar warnings pero continuar la ejecución si ocurre una falla en `lockSlot`, asegurando que el formulario unificado se cargue de forma continua en cualquier entorno.
+  - Optimizada la población de campos de agendamiento (Fecha, Hora, Tipo de Trabajo) para ejecutarse de forma inmediata en el flujo de renderizado y con re-intentos controlados mediante `setTimeout` (Líneas 1332-1335) para eliminar condiciones de carrera.
+- **Validación de Turnos Caducados (main.js):**
+  - Implementada la función global `isSlotExpired()` (Línea 777) para evaluar la expiración de turnos a partir de la fecha y hora locales del sistema.
+  - Actualizado el renderizado de la agenda en `drawAgenda()` (Líneas 1003, 1015, 1073) para deshabilitar turnos transcurridos que no tengan órdenes confirmadas, renderizándolos como bloqueados con el texto "Turno Vencido" (sin emoticonos) y removiendo botones `+` y eventos de clic.
+  - Agregada validación de seguridad de turnos caducados en el envío del formulario `'order-form'` (Línea 2394) y en `bookSlot`/`bookExtraordinarySlot` (Líneas 1308, 1408) para bloquear cualquier agendamiento o borrador en franjas ya transcurridas.
+  - Implementada la re-evaluación automática de día y re-estructuración de columnas de la agenda semanal en el temporizador en segundo plano (Líneas 1217-1224) para mantener la coherencia temporal sin requerir recarga manual.
