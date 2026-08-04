@@ -4840,3 +4840,18 @@ La tipografía utilizada en el modal deberá conservar una escala contenida, pri
 - Panel administrativo de indisponibilidades, ausencias parciales y reducción dinámica de cupos (Pendiente de revisión por el PM).
 - Especializaciones y asignación técnica preferente por agenda semanal interactiva (Pendiente de revisión por el PM).
 - Despachador de trayectorias, distancias y velocidades de moto en despachador.js (Pendiente de revisión por el PM).
+
+================================================================================
+# NUEVAS IMPLEMENTACIONES (v1.1.0) - TAREAS PENDIENTES DE REVISIÓN POR EL PM
+================================================================================
+- Reorganización y Limpieza Modular del Repositorio (Interfaces, Motores, Backend, Recursos, Utilidades y Legacy) (Pendiente de revisión por el PM).
+- Protección de Backend y Abstracción de Credenciales e IDs mediante PropertiesService (Pendiente de revisión por el PM).
+- Clasificación Automática de Desplazamientos (Trabajo Local, Viaje en moto, Viaje largo) (Pendiente de revisión por el PM).
+- Sistema de Rotación Equitativa para Viajes Especiales en Historial_Viajes_Especiales (Pendiente de revisión por el PM).
+- Restricciones de Planificación de Agenda para Impedir Adyacencias Incompatibles (Pendiente de revisión por el PM).
+- Alertas de Viaje en Moto 30 minutos antes en el Dashboard de Técnicos (Pendiente de revisión por el PM).
+- Validación de Desplazamientos del Técnico mediante GPS y coordenadas al ir "En camino" (Pendiente de revisión por el PM).
+- Abstracción de Persistencia del Backend mediante DAO/Repository Pattern (Pendiente de revisión por el PM).
+- Módulo de Migración, Consola Técnica y Asistente Documentado en migracion.html (Pendiente de revisión por el PM).
+- Hashing de Contraseñas de Usuarios en SHA-256 con retrocompatibilidad (Pendiente de revisión por el PM).
+- Sistema de Respaldos de Tablas de contingencia en Drive con versionamiento (Pendiente de revisión por el PM).

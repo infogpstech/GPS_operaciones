@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consulta de Servicio | GOS</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .portal-header {
+            background: #343a40;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        .portal-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border: 1px solid #eee;
+        }
+        .portal-card h3 {
+            margin-top: 0;
+            color: #007bff;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 8px;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .portal-item {
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+        .portal-item strong {
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="portal-container" id="portal-app">
+        <div class="portal-card" style="text-align:center; padding: 40px 20px;">
+            <p style="font-size:1.5rem;">⏳</p>
+            <p>Cargando información autorizada de su servicio...</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { routeAction } from './api-config.js';
+
+        async function initPortal() {
+            const app = document.getElementById('portal-app');
+
+            // 1. Obtener parámetros de la URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const ot = urlParams.get('ot');
+            const token = urlParams.get('token');
+
+            if (!ot || !token) {
+                renderError(app, "Acceso Denegado. Enlace de consulta incompleto o inválido.");
+                return;
+            }
+
+            try {
+                // 2. Consultar información segura al backend
+                const result = await routeAction('GOS_CORE', 'getClientPortalData', { ot, token });
+                if (result.status !== 'success') {
+                    renderError(app, result.message || "Acceso Denegado. No tiene autorización para ver esta orden.");
+                    return;
+                }
+
+                const data = result.data;
+                renderPortal(app, data);
+            } catch (err) {
+                console.error(err);
+                renderError(app, "Error de conexión al portal. Por favor, intente más tarde.");
+            }
+        }
+
+        function renderError(container, message) {
+            container.innerHTML = `
+                <div class="portal-card" style="text-align:center; padding: 45px 20px; border-top: 4px solid var(--danger);">
+                    <span style="font-size:3rem; color:var(--danger);">⚠️</span>
+                    <h3 style="color:var(--danger); border:none; margin-top:15px; font-size:1.3rem;">Acceso Denegado</h3>
+                    <p style="color:var(--secondary); font-size:0.95rem; margin-bottom:0;">${message}</p>
+                </div>
+            `;
+        }
+
+        function renderPortal(container, data) {
+            const v = data.vehiculo;
+            const inst = data.instalador;
+            const vend = data.vendedor;
+            const serv = data.servicio;
+            const fotos = data.fotos || {};
+            const danos = data.danos || {};
+
+            // Mapear fotos por categoría
+            const slides = [];
+
+            const categoryLabels = {
+                vin: 'Identificación (VIN)',
+                odometro: 'Identificación (Odómetro)',
+                tablero: 'Identificación (Tablero)',
+                asientos_delanteros: 'Interior (Asientos Delanteros)',
+                asientos_traseros: 'Interior (Asientos Traseros)',
+                techo_interior: 'Interior (Techo)',
+                estribos: 'Interior (Estribos)',
+                lado_izquierdo: 'Exterior (Lado Izquierdo)',
+                vista_frontal: 'Exterior (Vista Frontal)',
+                lado_derecho: 'Exterior (Lado Derecho)',
+                vista_trasera: 'Exterior (Vista Trasera)'
+            };
+
+            Object.entries(fotos).forEach(([catId, base64]) => {
+                if (base64) {
+                    slides.push({
+                        url: base64,
+                        label: categoryLabels[catId] || catId.replace('_', ' ').toUpperCase(),
+                        context: 'Fotografía tomada previo a la intervención'
+                    });
+                }
+            });
+
+            let carouselHtml = '';
+            if (slides.length > 0) {
+                carouselHtml = `
+                    <div class="portal-card">
+                        <h3>Evidencia Fotográfica de Recepción</h3>
+                        <div class="carousel-wrapper">
+                            <div class="carousel-slides" id="carousel-slides">
+                                ${slides.map((s, idx) => `
+                                    <div class="carousel-slide" style="display: ${idx === 0 ? 'block' : 'none'};">
+                                        <img src="${s.url}" alt="${s.label}">
+                                        <div class="info-tag"><strong>${s.label}</strong> - ${s.context}</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            ${slides.length > 1 ? `
+                                <button class="carousel-control prev" id="carousel-prev">❮</button>
+                                <button class="carousel-control next" id="carousel-next">❯</button>
+                            ` : ''}
+                        </div>
+                        ${slides.length > 1 ? `
+                            <div class="carousel-indicator-container">
+                                ${slides.map((_, idx) => `
+                                    <span class="carousel-indicator ${idx === 0 ? 'active' : ''}" data-idx="${idx}"></span>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            } else {
+                carouselHtml = `
+                    <div class="portal-card">
+                        <h3>Evidencia Fotográfica</h3>
+                        <p style="font-style:italic; color:var(--secondary); text-align:center;">No hay fotografías disponibles para mostrar en este momento.</p>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = `
+                <div class="portal-header">
+                    <h2 style="margin:0; font-size:1.4rem;">Consulta de Servicio GPS</h2>
+                    <p style="margin:5px 0 0 0; font-size:0.85rem; opacity:0.8;">ORDEN DE TRABAJO: <strong>${v.ot}</strong></p>
+                </div>
+
+                <!-- Estado del Servicio -->
+                <div class="portal-card" style="border-left: 5px solid #007bff;">
+                    <h3>Estado del Servicio</h3>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:1.1rem; font-weight:bold; color:var(--dark);">${serv.estado}</span>
+                        <span class="badge" style="background:#b8daff; color:#004085; font-size:0.85rem; padding: 6px 12px;">OT: ${v.ot}</span>
+                    </div>
+                </div>
+
+                <!-- Detalles del Vehículo -->
+                <div class="portal-card">
+                    <h3>Información del Vehículo</h3>
+                    <div class="portal-grid">
+                        <div class="portal-item"><strong>Marca / Modelo:</strong> ${v.marca} ${v.modelo}</div>
+                        <div class="portal-item"><strong>Año:</strong> ${v.anio}</div>
+                        <div class="portal-item"><strong>Color:</strong> ${v.color}</div>
+                        <div class="portal-item"><strong>Placa:</strong> ${v.placa}</div>
+                    </div>
+                </div>
+
+                <!-- Datos del Servicio -->
+                <div class="portal-card">
+                    <h3>Detalles del Servicio</h3>
+                    <div class="portal-grid">
+                        <div class="portal-item"><strong>Lugar de Instalación:</strong> ${serv.lugar}</div>
+                        <div class="portal-item"><strong>Fecha de Recepción:</strong> ${serv.fechaRecepcion}</div>
+                        <div class="portal-item"><strong>Fecha de Instalación:</strong> ${serv.fechaInstalacion}</div>
+                        <div class="portal-item"><strong>Tipo de Trabajo:</strong> ${serv.tipoServicio}</div>
+                        ${serv.observaciones ? `<div class="portal-item" style="grid-column: 1 / -1;"><strong>Observaciones Autorizadas:</strong> ${serv.observaciones}</div>` : ''}
+                    </div>
+                </div>
+
+                <!-- Funcionalidades Instaladas -->
+                <div class="portal-card">
+                    <h3>Funcionalidades Instaladas en el Vehículo</h3>
+                    <div style="display:flex; flex-wrap:wrap; gap:10px;">
+                        ${(serv.funcionalidades || ["Dispositivo GPS"]).map(f => `
+                            <span class="badge" style="background:#e6fffa; color:#0d5a4d; font-size:0.85rem; padding:6px 12px; border:1px solid #b2f5ea; border-radius:15px; font-weight:600;">✅ ${f}</span>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <!-- Información del Personal Autorizado -->
+                <div class="portal-card">
+                    <h3>Personal Asignado</h3>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+                        <div>
+                            <p style="margin:0; font-size:0.75rem; color:var(--secondary); text-transform:uppercase; font-weight:bold;">Instalador Técnico</p>
+                            <p style="margin:4px 0 0 0; font-weight:bold; color:var(--dark);">${inst.nombre} ${inst.apellido}</p>
+                            <p style="margin:2px 0 0 0; font-size:0.75rem; color:var(--secondary);">${inst.puesto}</p>
+                        </div>
+                        <div>
+                            <p style="margin:0; font-size:0.75rem; color:var(--secondary); text-transform:uppercase; font-weight:bold;">Vendedor</p>
+                            <p style="margin:4px 0 0 0; font-weight:bold; color:var(--dark);">${vend.nombre} ${vend.apellido}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Carrusel Evidencias -->
+                ${carouselHtml}
+
+                <p style="text-align:center; font-size:0.75rem; color:var(--secondary); margin-top:30px; margin-bottom:20px;">
+                    © GOS - GPS Operations Suite. Todos los derechos reservados.
+                </p>
+            `;
+
+            // Inicializar lógica de carrusel si hay más de una foto
+            if (slides.length > 1) {
+                let currentSlideIdx = 0;
+                const slideEls = container.querySelectorAll('.carousel-slide');
+                const indicatorEls = container.querySelectorAll('.carousel-indicator');
+
+                const showSlide = (idx) => {
+                    slideEls.forEach((slide, sIdx) => {
+                        slide.style.display = sIdx === idx ? 'block' : 'none';
+                    });
+                    indicatorEls.forEach((ind, iIdx) => {
+                        ind.className = iIdx === idx ? 'carousel-indicator active' : 'carousel-indicator';
+                    });
+                    currentSlideIdx = idx;
+                };
+
+                const prevBtn = document.getElementById('carousel-prev');
+                const nextBtn = document.getElementById('carousel-next');
+
+                if (prevBtn && nextBtn) {
+                    prevBtn.onclick = () => {
+                        let nextIdx = currentSlideIdx - 1;
+                        if (nextIdx < 0) nextIdx = slides.length - 1;
+                        showSlide(nextIdx);
+                    };
+
+                    nextBtn.onclick = () => {
+                        let nextIdx = currentSlideIdx + 1;
+                        if (nextIdx >= slides.length) nextIdx = 0;
+                        showSlide(nextIdx);
+                    };
+                }
+
+                indicatorEls.forEach(ind => {
+                    ind.onclick = (e) => {
+                        const idx = parseInt(e.target.dataset.idx);
+                        showSlide(idx);
+                    };
+                });
+            }
+        }
+
+        window.onload = initPortal;
+    </script>
+</body>
+</html>

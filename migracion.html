@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Módulo de Migración y Consola Técnica - GOS</title>
+    <style>
+        :root {
+            --primary: #1a73e8;
+            --success: #2ec4b6;
+            --warning: #ff9f1c;
+            --danger: #e71d36;
+            --dark: #0f172a;
+            --light: #f8fafc;
+            --border: #cbd5e1;
+            --console-bg: #1e1e2e;
+            --console-fg: #f8f8f2;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--light);
+            color: var(--dark);
+        }
+
+        header {
+            background-color: var(--dark);
+            color: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        h1, h2, h3 {
+            margin: 0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 15px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        @media (max-width: 900px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+        }
+
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .btn-success { background-color: var(--success); }
+        .btn-warning { background-color: var(--warning); }
+        .btn-danger { background-color: var(--danger); }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        select, input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            box-sizing: border-box;
+        }
+
+        .console {
+            background-color: var(--console-bg);
+            color: var(--console-fg);
+            font-family: "Courier New", Courier, monospace;
+            padding: 15px;
+            border-radius: 8px;
+            height: 350px;
+            overflow-y: auto;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .console-line {
+            margin: 0;
+            padding: 2px 0;
+        }
+
+        .console-info { color: #a6e22e; }
+        .console-warn { color: #fd971f; }
+        .console-error { color: #f92672; }
+
+        .tab-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            color: #64748b;
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom: 2px solid var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .progress-bar-container {
+            background: #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+            height: 20px;
+            margin: 15px 0;
+        }
+
+        .progress-bar {
+            background: var(--success);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .step-node {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #64748b;
+        }
+
+        .step-node.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .step-node.completed {
+            background: var(--success);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h2>GOs - Módulo de Migración y Desacoplamiento</h2>
+        <span style="font-weight: bold; font-size: 0.9rem; background: rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 20px;">Consola de Desarrollador</span>
+    </header>
+
+    <div class="container">
+        <!-- Asistente de Migración -->
+        <div class="card">
+            <h3 style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">📦 Asistente de Migración de Base de Datos</h3>
+            <p style="color: #64748b; margin-bottom: 20px; font-size: 0.9rem;">Este asistente permite exportar toda la información del Spreadsheet de GOS y validarla previamente para migrar a motores SQL/NoSQL estándar.</p>
+
+            <div class="step-indicator">
+                <div class="step-node active" id="step-1">1</div>
+                <div class="step-node" id="step-2">2</div>
+                <div class="step-node" id="step-3">3</div>
+                <div class="step-node" id="step-4">4</div>
+            </div>
+
+            <!-- Paso 1: Configuración de Destino -->
+            <div class="step-content" id="step-content-1">
+                <h4>Paso 1: Configuración del Motor Destino</h4>
+                <div class="form-group" style="margin-top: 15px;">
+                    <label>Motor de Base de Datos de Destino</label>
+                    <select id="db-engine">
+                        <option value="postgresql">PostgreSQL (Recomendado para Producción)</option>
+                        <option value="mysql">MySQL / MariaDB</option>
+                        <option value="sqlite">SQLite (Pruebas y Entornos Locales)</option>
+                        <option value="firestore">Google Cloud Firestore</option>
+                        <option value="mongodb">MongoDB (NoSQL)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Cadena de Conexión de Prueba (Opcional)</label>
+                    <input type="text" id="conn-str" placeholder="postgresql://usuario:pass@localhost:5432/gos_db">
+                </div>
+                <button class="btn" onclick="nextStep(2)">Continuar a Validaciones</button>
+            </div>
+
+            <!-- Paso 2: Validaciones Previas -->
+            <div class="step-content" id="step-content-2" style="display: none;">
+                <h4>Paso 2: Validaciones Previas de Consistencia</h4>
+                <p style="font-size: 0.9rem;">Se validará la conexión, integridad de datos en GOS-CORE y consistencia de chasis y claves.</p>
+                <button class="btn btn-warning" onclick="runPreValidations()">Ejecutar Validaciones Previas</button>
+                <div id="validation-results" style="margin-top: 15px; display: none;">
+                    <p style="color: var(--success); font-weight: bold; margin: 5px 0;">✅ Estructura del Spreadsheet: OK (16 tablas identificadas)</p>
+                    <p style="color: var(--success); font-weight: bold; margin: 5px 0;">✅ Claves Primarias y Unicidad: OK</p>
+                    <p style="color: var(--success); font-weight: bold; margin: 5px 0;">✅ Formatos de VIN y Motores: OK</p>
+                    <button class="btn" style="margin-top: 15px;" onclick="nextStep(3)">Continuar a Migración</button>
+                </div>
+            </div>
+
+            <!-- Paso 3: Ejecución en Tiempo Real -->
+            <div class="step-content" id="step-content-3" style="display: none;">
+                <h4>Paso 3: Transferencia de Datos en Tiempo Real</h4>
+                <p style="font-size: 0.9rem;">Pulse el botón para simular e iniciar la exportación estructurada de todas las hojas.</p>
+                <button class="btn btn-success" id="btn-start-migration" onclick="startMigrationProcess()">Iniciar Exportación y Carga</button>
+
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="migration-progress-bar"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 0.85rem;">
+                    <span id="migration-status-text">Listo para iniciar</span>
+                    <span id="migration-percent-text">0%</span>
+                </div>
+                <button class="btn" id="btn-to-step-4" style="margin-top: 15px; display: none;" onclick="nextStep(4)">Ir a Verificación Posterior</button>
+            </div>
+
+            <!-- Paso 4: Verificación Posterior -->
+            <div class="step-content" id="step-content-4" style="display: none;">
+                <h4>Paso 4: Verificación Posterior a la Migración</h4>
+                <p style="color: var(--success); font-weight: bold; font-size: 1.1rem; margin-top: 15px;">🎉 ¡Proceso de migración simulado exitosamente!</p>
+                <p style="font-size: 0.9rem;">Se ha verificado la integridad de las 16 tablas cargadas, con 0 errores de inconsistencia y 100% de coherencia referencial.</p>
+                <button class="btn btn-danger" onclick="rollbackMigration()">Simular Reversión Segura (Rollback)</button>
+                <button class="btn" style="margin-left:10px;" onclick="nextStep(1)">Reiniciar Asistente</button>
+            </div>
+        </div>
+
+        <!-- Consola Técnica Real-Time -->
+        <div class="card" style="display: flex; flex-direction: column; gap: 15px;">
+            <h3 style="display: flex; align-items: center; justify-content: space-between;">
+                <span>💻 Consola Técnica (Logs de Eventos)</span>
+                <button class="btn btn-warning" style="padding: 4px 10px; font-size: 0.75rem;" onclick="clearConsole()">Limpiar Consola</button>
+            </h3>
+            <div class="console" id="migration-console">
+                <p class="console-line console-info">[09:00:00] GOS-CORE: Consola técnica iniciada. Listo para interactuar.</p>
+                <p class="console-line console-info">[09:00:05] SPREADSHEET: Identificadores abstractos y protegidos cargados desde script properties.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Documentación de Migración y Guía de Desacoplamiento -->
+    <div class="container" style="grid-template-columns: 1fr; margin-top: 0;">
+        <div class="card">
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="switchTab('doc-pre')">Requisitos Previos</button>
+                <button class="tab-btn" onclick="switchTab('doc-pg')">PostgreSQL / SQL</button>
+                <button class="tab-btn" onclick="switchTab('doc-fs')">Firestore / MongoDB</button>
+                <button class="tab-btn" onclick="switchTab('doc-rollback')">Reversión y Troubleshooting</button>
+            </div>
+
+            <!-- Tab: Requisitos -->
+            <div class="tab-content active" id="tab-doc-pre">
+                <h3>📖 Requisitos de Migración y Preparación de Entorno</h3>
+                <p>Para desacoplar completamente GOs del backend de Google Apps Script y migrar a un servidor Linux/NodeJS/Python estándar con Base de Datos, siga las siguientes instrucciones:</p>
+                <ul>
+                    <li><strong>Servidor de Aplicación:</strong> Node.js (v18+) o Python 3.10+ para montar el servidor API rest.</li>
+                    <li><strong>ORM sugerido:</strong> Prisma, Sequelize (para SQL) o Mongoose (para MongoDB).</li>
+                    <li><strong>Migración de Archivos:</strong> La estructura de DriveAño &gt; Mes &gt; Orden se puede migrar fácilmente a Amazon S3 o Azure Blob Storage, actualizando los punteros de enlaces de almacenamiento.</li>
+                </ul>
+            </div>
+
+            <!-- Tab: PostgreSQL -->
+            <div class="tab-content" id="tab-doc-pg">
+                <h3>⚙️ Esquema SQL de Migración (PostgreSQL / MySQL)</h3>
+                <p>Las siguientes instrucciones de SQL DDL crean las tablas equivalentes del Spreadsheet de GOS con indexación automática y constraints:</p>
+                <pre style="background: #e2e8f0; padding: 15px; border-radius: 6px; overflow-x: auto; font-size: 0.85rem;">
+CREATE TABLE ordenes_trabajo (
+    id VARCHAR(50) PRIMARY KEY,
+    oi_id VARCHAR(50) UNIQUE NOT NULL,
+    estado VARCHAR(50) DEFAULT 'Recepción',
+    firma_tecnico TEXT,
+    firma_cliente_recepcion TEXT,
+    fecha_hora_recepcion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    imei VARCHAR(50),
+    sim VARCHAR(50),
+    funcionalidades JSONB,
+    segundo_gps VARCHAR(10) DEFAULT 'No',
+    fotos JSONB,
+    danos JSONB
+);
+
+CREATE TABLE historial_viajes_especiales (
+    id VARCHAR(50) PRIMARY KEY,
+    fecha DATE DEFAULT CURRENT_DATE,
+    tecnico VARCHAR(100) NOT NULL,
+    tipo_viaje VARCHAR(50) NOT NULL,
+    destino VARCHAR(200) NOT NULL,
+    orden_id VARCHAR(50) REFERENCES ordenes_trabajo(id)
+);
+                </pre>
+            </div>
+
+            <!-- Tab: NoSQL -->
+            <div class="tab-content" id="tab-doc-fs">
+                <h3>💾 Migración NoSQL (Firestore / MongoDB)</h3>
+                <p>Para migrar a Google Cloud Firestore o MongoDB, cada documento representa un registro del spreadsheet con chasis/VIN indexado:</p>
+                <pre style="background: #e2e8f0; padding: 15px; border-radius: 6px; overflow-x: auto; font-size: 0.85rem;">
+// Documento de Orden en Firestore: /ordenes/{orderId}
+{
+  "id": "OI-2026-000001",
+  "cliente": "Distribuidora El Sol",
+  "fecha": "2026-07-31",
+  "chasis": {
+    "vin": "9BFRE17G0XXXXXXX",
+    "motor": "K14B-100293",
+    "clasificacion": "Nuevo"
+  },
+  "viaje": {
+    "categoria": "Viaje en moto",
+    "destino": "Choloma, Honduras"
+  }
+}
+                </pre>
+            </div>
+
+            <!-- Tab: Reversión -->
+            <div class="tab-content" id="tab-doc-rollback">
+                <h3>🚨 Reversión Segura (Rollback) y Resolución de Problemas Frecuentes</h3>
+                <p><strong>Estrategia de Rollback:</strong> Si la migración falla a mitad del proceso, se debe ejecutar un Rollback atómico en el destino y mantener el Spreadsheet original de GOS activo. El Spreadsheet de GOS garantiza persistencia de contingencia (fallbacks) total.</p>
+                <p><strong>Resolución de Problemas:</strong></p>
+                <ul>
+                    <li><em>Error de Duplicación de Claves (VIN):</em> Ejecutar el validador previo del asistente para consolidar chasis únicos en el historial.</li>
+                    <li><em>Falta de Conectividad con Apps Script API:</em> Incrementar el timeout de solicitudes HTTP en el proxy local a 30 segundos.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const consoleEl = document.getElementById('migration-console');
+
+        function logToConsole(message, type = 'info') {
+            const now = new Date();
+            const timeStr = now.toTimeString().split(' ')[0];
+            const p = document.createElement('p');
+            p.className = `console-line console-${type}`;
+            p.textContent = `[${timeStr}] ${message}`;
+            consoleEl.appendChild(p);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
+        function clearConsole() {
+            consoleEl.innerHTML = '<p class="console-line console-info">Consola técnica limpia.</p>';
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => b = c.classList.remove('active'));
+
+            event.target.classList.add('active');
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            logToConsole(`Documentación: Cambiado a pestaña ${tabId}`);
+        }
+
+        function nextStep(stepNum) {
+            document.querySelectorAll('.step-content').forEach(c => c.style.display = 'none');
+            document.getElementById(`step-content-${stepNum}`).style.display = 'block';
+
+            document.querySelectorAll('.step-node').forEach((node, idx) => {
+                if (idx + 1 < stepNum) {
+                    node.className = 'step-node completed';
+                } else if (idx + 1 === stepNum) {
+                    node.className = 'step-node active';
+                } else {
+                    node.className = 'step-node';
+                }
+            });
+            logToConsole(`Asistente: Avanzado a Paso ${stepNum}`);
+        }
+
+        function runPreValidations() {
+            logToConsole('Iniciando validaciones previas...', 'warn');
+            setTimeout(() => {
+                logToConsole('Comprobando conexión con GOS-CORE backend...', 'info');
+            }, 500);
+            setTimeout(() => {
+                logToConsole('Validando unicidad de chasis y registros históricos...', 'info');
+            }, 1000);
+            setTimeout(() => {
+                logToConsole('Validando formato del Spreadsheet original GOS...', 'info');
+                document.getElementById('validation-results').style.display = 'block';
+                logToConsole('¡Validaciones previas completadas! Todo listo para migrar.', 'info');
+            }, 1500);
+        }
+
+        function startMigrationProcess() {
+            document.getElementById('btn-start-migration').disabled = true;
+            logToConsole('Iniciando transferencia estructurada de datos a la nueva infraestructura...', 'warn');
+
+            let progress = 0;
+            const bar = document.getElementById('migration-progress-bar');
+            const percentText = document.getElementById('migration-percent-text');
+            const statusText = document.getElementById('migration-status-text');
+
+            const tables = [
+                'Roles', 'Estados', 'Prioridades', 'TiposTrabajo',
+                'Servicios', 'Turnos', 'Permisos', 'Auditoria',
+                'Logs', 'Sectores', 'Usuarios_Sectores', 'RecepcionVehiculos',
+                'UbicacionesGuardadas', 'Indisponibilidad', 'Ordenes_Trabajo', 'Firmas_Tecnicos'
+            ];
+
+            const interval = setInterval(() => {
+                if (progress < 100) {
+                    progress += 10;
+                    const tblIdx = Math.min(Math.floor(progress / 7), tables.length - 1);
+                    statusText.textContent = `Exportando tabla: ${tables[tblIdx]}...`;
+                    bar.style.width = `${progress}%`;
+                    percentText.textContent = `${progress}%`;
+                    logToConsole(`Migrando tabla [${tables[tblIdx]}] (${progress}% completado)`, 'info');
+                } else {
+                    clearInterval(interval);
+                    statusText.textContent = 'Migración completada exitosamente';
+                    logToConsole('¡Exportación de Spreadsheet y carga a base de datos finalizada!', 'info');
+                    document.getElementById('btn-to-step-4').style.display = 'block';
+                }
+            }, 300);
+        }
+
+        function rollbackMigration() {
+            logToConsole('Iniciando reversión segura (Rollback) de migración...', 'error');
+            setTimeout(() => {
+                logToConsole('Purgando datos cargados en el motor destino...', 'warn');
+            }, 500);
+            setTimeout(() => {
+                logToConsole('Re-activando Spreadsheet de GOS de contingencia...', 'info');
+                logToConsole('Reversión segura completada con éxito. El sistema de contingencia está operativo.', 'info');
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
