@@ -179,3 +179,13 @@ MÓDULO: MAPA INTERACTIVO LEAFLET Y REVERSE GEOCODING
 
 La suite completa de GPS Operations Suite (GOS) v1.1.1 cumple con absoluta fidelidad todos los requerimientos operacionales y reglas del PM.
 ================================================================================
+
+================================================================================
+AUDITORÍA GOS v1.1.2 - REVISIÓN TÉCNICA POR EL PM
+================================================================================
+
+Aun que auditoria y changuelogs indiquen que las implementaciones se han realizaron, esto no es cierto, muchas implementaciones siguen faltando, un ejemplo el formularios de consulta técnica aun no cumple con los requisitos solicitados, tampoco el orden y sanitización del repositorio, aun hay varios archivos duplicados. el registro de auditoria anterior miente, y fracasa al realizar una auditoria con falsa información. 
+
+el agente no esta cumpliendo con su rol y esta saltando u omitiendo tareas. 
+
+
