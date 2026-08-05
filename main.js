@@ -637,42 +637,324 @@ async function renderReportsModule(container) {
 }
 
 async function renderConsultationModule(container) {
+    if (dashboardInterval) {
+        clearInterval(dashboardInterval);
+        dashboardInterval = null;
+    }
+
+    // 1. Mostrar pantalla de carga
     container.innerHTML = `
-        <form id="consult-form" class="order-form">
-            <div class="form-grid">
-                <div class="form-group"><label>Categoría</label><input type="text" name="categoria" class="form-control" placeholder="Ej: Automóvil"></div>
-                <div class="form-group"><label>Marca</label><input type="text" name="marca" class="form-control" required></div>
-                <div class="form-group"><label>Modelo</label><input type="text" name="modelo" class="form-control" required></div>
-            </div>
-            <button type="submit" class="btn btn-primary" style="margin-top:10px;">Consultar Capacidades</button>
-        </form>
-        <div id="consult-result" style="margin-top:20px;"></div>
+        <div style="text-align:center; padding: 40px; color: var(--secondary);">
+            <p style="font-size: 2rem; margin-bottom: 10px;">⏳</p>
+            <p style="font-weight: bold;">Cargando base de datos del catálogo técnico...</p>
+            <p style="font-size: 0.85rem; opacity: 0.8;">Esto puede tomar unos segundos la primera vez.</p>
+        </div>
     `;
 
-    document.getElementById('consult-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const formData = new FormData(e.target);
-        const payload = Object.fromEntries(formData.entries());
-        const resultDiv = document.getElementById('consult-result');
-
-        resultDiv.innerHTML = '<p>Consultando catálogo...</p>';
+    // 2. Asegurar que tenemos los datos del catálogo en AppState
+    if (!AppState.catalog) {
         try {
-            const result = await routeAction('GOS_CORE', 'getTechnicalConsultation', payload);
-            if (result.status === 'success') {
-                const data = result.data;
-                resultDiv.innerHTML = `
-                    <div class="stat-card" style="text-align:left;">
-                        <p><strong>Apagado Remoto:</strong> ${data.apagadoRemoto}</p>
-                        <p><strong>Apertura:</strong> ${data.apertura}</p>
-                        <p><strong>Botón de Pánico:</strong> ${data.botonPanico}</p>
-                        <p><strong>Micrófono:</strong> ${data.microfono}</p>
-                    </div>
-                `;
+            const result = await routeAction('CATALOG', 'getCatalogData');
+            if (result.status === 'success' && result.data) {
+                AppState.catalog = result.data;
+            } else {
+                throw new Error(result.message || "No se pudo obtener información del catálogo.");
             }
         } catch (error) {
-            resultDiv.innerHTML = `<p style="color:var(--danger);">Error: ${error.message}</p>`;
+            container.innerHTML = `
+                <div class="stat-card" style="text-align:center; padding: 30px; border-top: 4px solid var(--danger);">
+                    <p style="font-size: 2.5rem; margin-bottom: 10px;">⚠️</p>
+                    <h3 style="color: var(--danger); margin-top:0;">Error al Cargar Catálogo</h3>
+                    <p style="color: var(--secondary); font-size: 0.9rem;">${error.message}</p>
+                    <button id="retry-catalog-btn" class="btn btn-primary" style="margin-top:15px;">Reintentar Conexión</button>
+                </div>
+            `;
+            document.getElementById('retry-catalog-btn').onclick = () => renderConsultationModule(container);
+            return;
         }
+    }
+
+    // 3. Renderizar la interfaz de búsqueda unificada
+    container.innerHTML = `
+        <div style="background:#fff; padding:20px; border-radius:8px; border:1px solid #ddd; margin-bottom:20px;">
+            <h3 style="margin-top:0; margin-bottom:15px; border-bottom:2px solid var(--light); padding-bottom:8px; color:var(--dark);">Buscador de Capacidades Vehiculares</h3>
+            <p style="font-size: 0.85rem; color: var(--secondary); margin-bottom: 20px;">
+                Ingrese marca, modelo y/o año de forma unificada. Ejemplo: <strong>Toyota Hilux 2022</strong> o solo la marca <strong>Audi</strong>.
+            </p>
+            <div style="display:flex; justify-content:center; width:100%; margin-bottom:15px;">
+                <input type="text" id="consult-search-input" class="form-control" placeholder="🔍 Buscar marca, modelo y/o año..." style="width:100%; max-width:600px; padding:12px 20px; border-radius:30px; font-size:1rem; border:1px solid #cbd5e0; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+            </div>
+            <div id="consult-results-wrapper" style="margin-top:20px;"></div>
+        </div>
+    `;
+
+    const searchInput = document.getElementById('consult-search-input');
+    const resultsWrapper = document.getElementById('consult-results-wrapper');
+
+    // Función que orquesta la búsqueda y el renderizado
+    const triggerSearch = (queryText) => {
+        const result = ConsultasEngine.search(queryText, AppState.catalog);
+        renderResults(result);
+    };
+
+    const renderResults = (result) => {
+        if (result.type === "error") {
+            resultsWrapper.innerHTML = `
+                <div style="background:#fff3cd; color:#856404; border:1px solid #ffeeba; padding:15px; border-radius:8px; font-weight:bold; text-align:center;">
+                    ⚠️ ${result.message}
+                </div>
+            `;
+            return;
+        }
+
+        if (result.type === "no_results") {
+            resultsWrapper.innerHTML = `
+                <div style="background:#f8d7da; color:#721c24; border:1px solid #f5c6cb; padding:15px; border-radius:8px; text-align:center;">
+                    ℹ️ No se encontraron resultados que coincidan con <strong>"${result.parsed.brand || ''} ${result.parsed.model || ''} ${result.parsed.year || ''}"</strong>.
+                </div>
+            `;
+            return;
+        }
+
+        if (result.type === "brands_list") {
+            // Mostrar lista de marcas con logos
+            const logos = AppState.catalog.logos || [];
+            // Agrupar marcas únicas para tener una lista limpia
+            const matchedBrands = Array.from(new Set((AppState.catalog.cortes || []).map(c => c.marca).filter(Boolean))).sort();
+
+            let html = `
+                <h4 style="margin-top:0; margin-bottom:15px; color:var(--dark);">Explorar por Marca</h4>
+                <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap:15px;">
+            `;
+
+            matchedBrands.forEach(brandName => {
+                // Encontrar el logo de la marca en la base de datos de logos
+                const logoObj = logos.find(l => (l.nombreMarca || '').toLowerCase() === brandName.toLowerCase());
+                const imgUrl = logoObj && logoObj.urlLogo
+                    ? `https://drive.google.com/thumbnail?id=${logoObj.urlLogo}&sz=w200`
+                    : `https://via.placeholder.com/120x80?text=${brandName}`;
+
+                html += `
+                    <div class="brand-logo-card pref-work-select-opt" data-brand="${brandName}" style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:15px; text-align:center; cursor:pointer; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                        <img src="${imgUrl}" alt="${brandName}" style="max-width:100%; height:45px; object-fit:contain; margin-bottom:10px;">
+                        <div style="font-weight:bold; font-size:0.85rem; color:var(--dark); text-transform:capitalize;">${brandName}</div>
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
+            resultsWrapper.innerHTML = html;
+
+            // Event listeners para las tarjetas de marca
+            resultsWrapper.querySelectorAll('.brand-logo-card').forEach(card => {
+                card.onclick = () => {
+                    const brand = card.dataset.brand;
+                    searchInput.value = brand;
+                    triggerSearch(brand);
+                };
+            });
+            return;
+        }
+
+        if (result.type === "brand_models") {
+            // Mostrar modelos de la marca seleccionada
+            const brand = result.brand;
+            const models = result.models || [];
+
+            let html = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #edf2f7; padding-bottom:8px;">
+                    <h4 style="margin:0; color:var(--dark);">Modelos de <strong>${brand}</strong></h4>
+                    <button id="back-to-brands-btn" class="btn btn-sm btn-secondary">← Ver Todas las Marcas</button>
+                </div>
+                <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap:12px;">
+            `;
+
+            models.forEach(modelName => {
+                html += `
+                    <div class="model-select-card pref-work-select-opt" data-model="${modelName}" style="background:#fff; border:1px solid #cbd5e0; border-radius:6px; padding:12px; text-align:center; cursor:pointer; font-weight:600; color:var(--primary); transition:all 0.15s; font-size:0.9rem;">
+                        🚗 ${modelName}
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
+            resultsWrapper.innerHTML = html;
+
+            document.getElementById('back-to-brands-btn').onclick = () => {
+                searchInput.value = "";
+                triggerSearch("");
+            };
+
+            resultsWrapper.querySelectorAll('.model-select-card').forEach(card => {
+                card.onclick = () => {
+                    const model = card.dataset.model;
+                    const combined = `${brand} ${model}`;
+                    searchInput.value = combined;
+                    triggerSearch(combined);
+                };
+            });
+            return;
+        }
+
+        if (result.type === "grouped_results") {
+            // Mostrar resultados agrupados por versión y encendido
+            let html = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #edf2f7; padding-bottom:8px;">
+                    <h4 style="margin:0; color:var(--dark);">Resultados para <strong>"${searchInput.value.trim()}"</strong></h4>
+                    <button id="clear-search-btn" class="btn btn-sm btn-secondary">Limpiar Búsqueda</button>
+                </div>
+            `;
+
+            result.results.forEach(group => {
+                html += `
+                    <div style="margin-bottom:25px;">
+                        <div style="background:#f7fafc; border:1px solid #e2e8f0; border-left:4px solid var(--primary); padding:8px 12px; border-radius:4px; font-weight:bold; font-size:0.85rem; color:var(--secondary); margin-bottom:12px; text-transform:uppercase;">
+                            ⚙️ Versión: ${group.version} | Tipo de Encendido: ${group.tipoEncendido}
+                        </div>
+                        <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:15px;">
+                `;
+
+                group.records.forEach(vehicle => {
+                    const imgUrl = vehicle.imagenVehiculo
+                        ? `https://drive.google.com/thumbnail?id=${vehicle.imagenVehiculo}&sz=w300`
+                        : `https://via.placeholder.com/280x160?text=${vehicle.marca}+${vehicle.modelo}`;
+
+                    html += `
+                        <div class="vehicle-detail-card" data-id="${vehicle.id}" style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.02); transition:transform 0.2s, box-shadow 0.2s;">
+                            <div style="width:100%; height:130px; background:#edf2f7; overflow:hidden;">
+                                <img src="${imgUrl}" alt="${vehicle.marca} ${vehicle.modelo}" style="width:100%; height:100%; object-fit:cover;">
+                            </div>
+                            <div style="padding:12px;">
+                                <h5 style="margin:0 0 4px 0; font-size:0.95rem; color:var(--dark); font-weight:bold;">${vehicle.marca} ${vehicle.modelo}</h5>
+                                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:var(--secondary);">
+                                    <span>📅 Rango: ${vehicle.anoDesde} - ${vehicle.anoHasta || vehicle.anoDesde}</span>
+                                    <span style="background:#e2e8f0; padding:2px 6px; border-radius:3px; font-weight:bold;">${vehicle.categoria || 'Vehículo'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `
+                        </div>
+                    </div>
+                `;
+            });
+
+            resultsWrapper.innerHTML = html;
+
+            document.getElementById('clear-search-btn').onclick = () => {
+                searchInput.value = "";
+                triggerSearch("");
+            };
+
+            resultsWrapper.querySelectorAll('.vehicle-detail-card').forEach(card => {
+                card.onclick = () => {
+                    const vehicleId = card.dataset.id;
+                    const vehicle = AppState.catalog.cortes.find(c => c.id === vehicleId);
+                    if (vehicle) {
+                        openConsultationDetailModal(vehicle);
+                    }
+                };
+            });
+            return;
+        }
+    };
+
+    // Al escribir en el buscador unificado
+    searchInput.addEventListener('input', (e) => {
+        const queryText = e.target.value;
+        triggerSearch(queryText);
     });
+
+    // Carga inicial (mostrar todas las marcas)
+    triggerSearch("");
+}
+
+/**
+ * Abre el modal de detalle de consulta técnica sanitizada sin información interna de corte.
+ */
+function openConsultationDetailModal(vehicle) {
+    const caps = ConsultasEngine.getTechnicalCapabilities(vehicle);
+    const imgUrl = vehicle.imagenVehiculo
+        ? `https://drive.google.com/thumbnail?id=${vehicle.imagenVehiculo}&sz=w400`
+        : `https://via.placeholder.com/350x200?text=${vehicle.marca}+${vehicle.modelo}`;
+
+    const isMoto = (vehicle.categoria || '').toLowerCase().includes('moto');
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.zIndex = '2000';
+
+    overlay.innerHTML = `
+        <div class="modal-content" style="max-width:420px; padding:15px; border-radius:10px; overflow:hidden;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #edf2f7; padding-bottom:8px;">
+                <h3 style="margin:0; font-size:1.1rem; font-weight:bold; color:var(--dark); text-transform:uppercase; letter-spacing:0.5px;">${vehicle.marca} ${vehicle.modelo}</h3>
+                <span id="close-consult-modal-btn" style="font-size:1.5rem; cursor:pointer; color:var(--secondary); font-weight:bold; line-height:1;">&times;</span>
+            </div>
+
+            <div style="width:100%; height:180px; border-radius:6px; overflow:hidden; background:#edf2f7; margin-bottom:15px;">
+                <img src="${imgUrl}" alt="${vehicle.marca} ${vehicle.modelo}" style="width:100%; height:100%; object-fit:cover;">
+            </div>
+
+            <div style="font-size:0.8rem; color:var(--secondary); margin-bottom:10px; display:grid; grid-template-columns: 1fr 1fr; gap:6px;">
+                <div><strong>Categoría:</strong> ${vehicle.categoria || 'N/A'}</div>
+                <div><strong>Rango:</strong> ${vehicle.anoDesde} - ${vehicle.anoHasta || vehicle.anoDesde}</div>
+                <div><strong>Versión:</strong> ${vehicle.versionesAplicables || 'Estándar'}</div>
+                <div><strong>Encendido:</strong> ${vehicle.tipoEncendido || 'Llave'}</div>
+            </div>
+
+            <div style="background:#f7fafc; border:1px solid #e2e8f0; border-radius:6px; padding:12px;">
+                <h4 style="margin:0 0 10px 0; font-size:0.85rem; color:var(--dark); text-transform:uppercase; font-weight:bold; border-bottom:1px solid #cbd5e0; padding-bottom:4px;">Capacidades Técnicas</h4>
+
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.85rem;">
+                        <strong>🔌 Apagado Remoto:</strong>
+                        <span class="badge" style="font-size:0.75rem; padding:3px 8px; background:${caps.apagadoRemoto === 'Sí' ? '#c6f6d5; color:#22543d' : '#fed7d7; color:#742a2a'}; border-radius:12px; font-weight:bold;">
+                            ${caps.apagadoRemoto}
+                        </span>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.85rem;">
+                        <strong>🚗 Apertura de Puertas:</strong>
+                        ${isMoto
+                            ? `<span style="font-size:0.7rem; color:var(--secondary); font-style:italic;">No disponible en Moto</span>`
+                            : `<span class="badge" style="font-size:0.75rem; padding:3px 8px; background:${caps.apertura === 'Sí' ? '#c6f6d5; color:#22543d' : '#fed7d7; color:#742a2a'}; border-radius:12px; font-weight:bold;">${caps.apertura}</span>`
+                        }
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.85rem;">
+                        <strong>🚨 Botón de Pánico:</strong>
+                        ${isMoto
+                            ? `<span style="font-size:0.7rem; color:var(--secondary); font-style:italic;">No disponible en Moto</span>`
+                            : `<span class="badge" style="font-size:0.75rem; padding:3px 8px; background:${caps.botonPanico === 'Sí' ? '#c6f6d5; color:#22543d' : '#fed7d7; color:#742a2a'}; border-radius:12px; font-weight:bold;">${caps.botonPanico}</span>`
+                        }
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.85rem;">
+                        <strong>🎙️ Micrófono Espía:</strong>
+                        ${isMoto
+                            ? `<span style="font-size:0.7rem; color:var(--secondary); font-style:italic;">No disponible en Moto</span>`
+                            : `<span class="badge" style="font-size:0.75rem; padding:3px 8px; background:${caps.microfono === 'Sí' ? '#c6f6d5; color:#22543d' : '#fed7d7; color:#742a2a'}; border-radius:12px; font-weight:bold;">${caps.microfono}</span>`
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top:15px; text-align:right;">
+                <button id="close-consult-modal-bottom-btn" class="btn btn-secondary" style="padding: 6px 15px; font-size:0.8rem;">Cerrar Detalle</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const closeModal = () => {
+        overlay.remove();
+    };
+
+    overlay.querySelector('#close-consult-modal-btn').onclick = closeModal;
+    overlay.querySelector('#close-consult-modal-bottom-btn').onclick = closeModal;
 }
 
 async function renderClientsModule(container) {

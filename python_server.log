@@ -1,1 +1,16 @@
-127.0.0.1 - - [31/Jul/2026 18:29:53] "GET /migracion.html HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 11:01:17] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 11:01:17] "GET /Interfaces/vistas/style.css HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 11:01:17] "GET /main.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 11:01:18] "GET /Utilidades/api-config.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 11:01:18] "GET /Utilidades/helpers.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 11:01:18] "GET /Motores%20de%20negocio/agenda.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 11:01:18] "GET /Motores%20de%20negocio/planificacion.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 11:01:18] "GET /Motores%20de%20negocio/busqueda.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 11:01:18] "GET /Motores%20de%20negocio/consultas.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 11:01:18] "GET /Motores%20de%20negocio/sincronizacion.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 11:01:18] "GET /Motores%20de%20negocio/autenticacion.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 11:01:18] "GET /Motores%20de%20negocio/reportes.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 11:01:18] "GET /service-worker.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 11:01:18] "GET /index.html HTTP/1.1" 200 -
+127.0.0.1 - - [05/Aug/2026 11:01:18] code 404, message File not found
+127.0.0.1 - - [05/Aug/2026 11:01:18] "GET /style.css HTTP/1.1" 404 -

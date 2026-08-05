@@ -341,3 +341,19 @@
   - Actualizado el renderizado de la agenda en `drawAgenda()` (Líneas 1003, 1015, 1073) para deshabilitar turnos transcurridos que no tengan órdenes confirmadas, renderizándolos como bloqueados con el texto "Turno Vencido" (sin emoticonos) y removiendo botones `+` y eventos de clic.
   - Agregada validación de seguridad de turnos caducados en el envío del formulario `'order-form'` (Línea 2394) y en `bookSlot`/`bookExtraordinarySlot` (Líneas 1308, 1408) para bloquear cualquier agendamiento o borrador en franjas ya transcurridas.
   - Implementada la re-evaluación automática de día y re-estructuración de columnas de la agenda semanal en el temporizador en segundo plano (Líneas 1217-1224) para mantener la coherencia temporal sin requerir recarga manual.
+
+## [v1.1.2] - 2026-08-05
+### Módulo de Consulta Técnica por Vehículo y Saneamiento del Repositorio
+- **Módulo de Consulta Técnica (Motores de negocio/consultas.js):**
+  - Implementado el motor `ConsultasEngine` (Línea 1) desde cero para procesamiento, normalización de texto y análisis de búsquedas unificadas por marca, modelo y año.
+  - Implementado agrupamiento de resultados por versión y tipo de encendido cuando se especifica modelo, o por modelos cuando solo se busca la marca.
+  - Implementada la lógica de rango de años y fallback de aproximación por distancia absoluta al rango de años más cercano.
+  - Diseñada la lógica de capacidades técnicas `getTechnicalCapabilities()` para deshabilitar pánico y micrófono en motos, deshabilitar capacidades en vehículos de alta gama marcados con "no se recomienda", y omitir cualquier detalle técnico interno de cableado.
+- **Consulta Técnica (main.js):**
+  - Modificada la función `renderConsultationModule` (Línea 639) para cargar la base de datos de CATALOG de forma asíncrona mediante `routeAction` y cachearla en `AppState.catalog`.
+  - Diseñado el panel de búsqueda interactivo en tiempo real con exploración por tarjetas de marcas (mostrando logos desde Drive), exploración de modelos, listados agrupados por versión y encendido.
+  - Creada la función `openConsultationDetailModal` (Línea 882) para renderizar un modal de detalle proporcional, legión, con capacidades dinámicas y sin exposición de datos de cableado interno.
+- **Saneamiento del Repositorio y Eliminación de Duplicados (portal.html):**
+  - Modificados los archivos `portal.html` de la raíz (Línea 7, 55) e `Interfaces/HTML/portal.html` (Línea 7, 55) para apuntar directamente a sus recursos modulares `./Interfaces/vistas/style.css` y `./Utilidades/api-config.js`.
+  - Removidos permanentemente los archivos duplicados de la raíz `api-config.js` y `style.css` para limpiar la estructura del repositorio.
+  - Removido el directorio vacío `Motores/` para asegurar que no queden residuos de estructuras redundantes.
