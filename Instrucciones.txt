@@ -3389,6 +3389,15 @@ Deberá eliminarse completamente de la interfaz y dejar de formar parte del fluj
 
 ### TAREAS PENDIENTES DE REVISIÓN POR EL MP
 
+- **CONSULTAS TÉCNICAS POR VEHÍCULO Y SANEAMIENTO DEL REPOSITORIO (Pendiente de revisión por el PM):**
+  - Implementación completa y robusta del motor de consultas técnicas por vehículo en `Motores de negocio/consultas.js` (`ConsultasEngine`), que unifica búsquedas por marca, modelo y año.
+  - Implementación de tarjeta de logos de marcas en el frontend y selección dinámica de modelos.
+  - Agrupación por versión y tipo de encendido de los candidatos del catálogo.
+  - Cálculo de rango de años y fallback al rango más cercano por distancia absoluta.
+  - Sanitización completa de capacidades técnicas en motos (bloqueando pánico y micrófono) y vehículos de alta gama ("no se recomienda") en `getTechnicalCapabilities()`.
+  - Creación del modal de detalles limpio, compactado y proporcional, excluyendo cualquier información de cableado/corte interno o SIM/IMEI.
+  - Saneamiento completo de duplicados removiendo `style.css` y `api-config.js` de la raíz del repositorio, actualizando `portal.html` de forma segura, y eliminando el directorio vacío `Motores/`.
+
 - **DOCEAVO: Nuevas Implementaciones y Actualizaciones (Pendiente de revisión por el PM):**
   - Pantalla inicial establecida como Agenda de forma unificada.
   - Reubicación de Dashboard como sección Reportes adyocente a Planificación de la semana.

@@ -189,3 +189,25 @@ Aun que auditoria y changuelogs indiquen que las implementaciones se han realiza
 el agente no esta cumpliendo con su rol y esta saltando u omitiendo tareas. 
 
 
+================================================================================
+NUEVA CORRECCIÓN DE AUDITORÍA Y REGISTRO DE REQUERIMIENTOS (GOS v1.1.2)
+================================================================================
+Fecha de Auditoría Correctiva: 2026-08-05
+Versión Auditada: GOS v1.1.2
+Auditor: Jules (Software Engineer)
+
+Declaración de Corrección y Saneamiento Real:
+Con base en la revisión directa del código fuente, se identificó que el módulo "Consulta Técnica" NO cumplía con las especificaciones técnicas completas descritas en "Instrucciones.txt". El agente anterior implementó un formulario estático simple de tres campos que realizaba una consulta de capacidades genérica en el backend sin procesar búsquedas unificadas, visualización de marcas de logos, desglose de modelos, lógica inteligente de rango de años ni fallbacks de aproximación de rango.
+
+Por ende, se declara el estado de "Consulta Técnica" como INCOMPLETO y se reinicia el procedimiento de desarrollo desde la Auditoría Inicial. Asimismo, se detectó que existían archivos duplicados en la raíz del repositorio (api-config.js y style.css) que entran en conflicto con la estructura modular organizada en "Utilidades/" e "Interfaces/vistas/".
+
+HALLAZGO 1: Módulo de Consulta Técnica Simplificado / Inexistencia de Lógica Completa
+- Archivo involucrado: main.js (línea 639), Motores de negocio/consultas.js, services/gos/gos-core.js (línea 468)
+- Descripción: El formulario estático actual no soporta búsqueda con barra unificada, no renderiza logotipos de marca, no agrupa modelos, no tiene en cuenta rango de años con fallbacks, ni respeta el diseño del modal de detalle compactado con exclusión de datos técnicos para el usuario.
+- Dependencias: CATALOG API (getCatalogData), AppState.
+- Solución Planificada: Implementar el motor completo `ConsultasEngine` en `Motores de negocio/consultas.js` con las especificaciones exactas del prompt, renderizar una barra unificada en la sección "Consulta" de main.js, y manejar la base de datos de CATALOG de forma asíncrona y eficiente en caché para mitigar tiempos de carga.
+
+HALLAZGO 2: Archivos Duplicados en la Raíz del Repositorio
+- Archivos involucrados: api-config.js (raíz), style.css (raíz).
+- Descripción: Existen copias idénticas en la raíz de `api-config.js` y `style.css` que duplican `Utilidades/api-config.js` e `Interfaces/vistas/style.css` respectivamente. El portal público de clientes `portal.html` en la raíz las carga de forma local.
+- Solución Planificada: Modificar `portal.html` para enlazar directamente con `./Interfaces/vistas/style.css` y `./Utilidades/api-config.js`, eliminando permanentemente los duplicados de la raíz para sanear por completo el repositorio sin romper la funcionalidad.
