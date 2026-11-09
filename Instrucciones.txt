@@ -5191,3 +5191,19 @@ La plataforma GOS (GPS Operations Suite) operará con total independencia técni
 - **Navegación Móvil:** Integrar menú hamburguesa o barra inferior fija para uso con una mano por técnicos en campo.
 - **Saneamiento de Estilos Inline:** Migrar más de 480 estilos inline desde las cadenas de texto de `main.js` hacia clases CSS reutilizables.
 - **Saneamiento del Repositorio:** Unificar `portal.html` y eliminar duplicados de `despachador.js`, asegurando un repositorio limpio y estructurado.
+
+
+================================================================================
+### DIECISIETEAVO
+
+# Solicitud de Auditoría de Verificación de Auditoria.txt y Creación de tareas_pendientes.txt
+
+## Redacción Original del Usuario
+"bien, ahora necesito que hagas una auditoria para verificar si los requerimientos indicados en Auditoria.txt se han cumplido, agrega un nuevo archivo llamado "tareas_pendientes.txt" y en el enlista los hallazgos que has encontrado."
+
+---
+
+## Alcance de la Tarea
+1. Realizar una auditoría técnica exhaustiva, módulo por módulo y línea por línea, contrastando cada requerimiento reportado en `Auditoria.txt` con la realidad del código fuente.
+2. Identificar qué requerimientos están verdaderamente cumplidos, cuáles están a medias o con fallbacks deficientes, y cuáles fueron declarados falsamente como cumplidos cuando en realidad están pendientes, rotos o simulados.
+3. Crear el archivo `tareas_pendientes.txt` con el catálogo completo de hallazgos objetivos, estado de cumplimiento y tareas pendientes priorizadas.

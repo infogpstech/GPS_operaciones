@@ -1,14 +1,17 @@
-const CACHE_NAME = 'gos-pwa-cache-v1';
+const CACHE_NAME = 'gos-pwa-cache-v2';
 const urlsToCache = [
   './',
   './index.html',
-  './style.css',
+  './Interfaces/vistas/style.css',
   './main.js',
-  './api-config.js',
+  './Utilidades/api-config.js',
+  './Utilidades/helpers.js',
+  './Motores de negocio/consultas.js',
+  './Motores de negocio/despachador.js',
   './manifest.json',
-  './logo-gos.svg',
-  './icon-gos-192.svg',
-  './icon-gos-512.svg'
+  './Recursos/logo-gos.svg',
+  './Recursos/icon-gos-192.svg',
+  './Recursos/icon-gos-512.svg'
 ];
 
 self.addEventListener('install', event => {

@@ -9,14 +9,24 @@
   "scope": "./",
   "icons": [
     {
-      "src": "icon-gos-192.svg",
+      "src": "./Recursos/icon-gos-192.svg",
       "sizes": "192x192",
       "type": "image/svg+xml"
     },
     {
-      "src": "icon-gos-512.svg",
+      "src": "./Recursos/icon-gos-512.svg",
       "sizes": "512x512",
       "type": "image/svg+xml"
+    },
+    {
+      "src": "./Recursos/icon-pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./Recursos/icon-pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
     }
   ]
 }

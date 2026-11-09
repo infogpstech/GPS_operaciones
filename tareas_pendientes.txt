@@ -1,0 +1,219 @@
+================================================================================
+TAREAS PENDIENTES Y AUDITORÍA DE VERIFICACIÓN DE REQUERIMIENTOS
+GPS OPERATIONS SUITE (GOS) v1.2.1
+================================================================================
+Fecha de Emisión: 2026-11-09
+Auditor: Jules (Software Engineer) / Antigravity
+Objetivo: Auditoría técnica exhaustiva e imparcial sobre el cumplimiento real de
+los requerimientos reportados en Auditoria.txt frente al código fuente del sistema.
+
+================================================================================
+PARTE 1: VERIFICACIÓN DE CUMPLIMIENTO DE REQUERIMIENTOS EN AUDITORIA.TXT
+================================================================================
+
+[PARCIAL / INSEGURO] 1. SEPARACIÓN DEL DASHBOARD Y REPORTES (RBAC)
+- Afirmación en Auditoría: "Restricciones de visualización del Navbar y módulos administrativos según el rol asignado en main.js (Línea 465-475)... se mitigan intentos de elusión en frontend mediante validación lógica."
+- Realidad Técnica:
+  * El control de roles se realiza exclusivamente en el cliente mediante `AppState.user?.Privilegios` leyendo de `localStorage` ('gos_session').
+  * Cualquier usuario puede abrir DevTools, modificar `Privilegios: "administrador"` en `localStorage` y visualizar los menús administrativos.
+  * En el backend (`gos-core.js`), las llamadas de administración no validan sesiones con tokens criptográficos; confían ciegamente en el nombre de usuario recibido.
+- Dictamen: Cumplimiento cosmético en frontend; brecha de seguridad en backend.
+
+[CUMPLIDO CON DEFICIENCIA] 2. WORK TYPE DROPDOWN Y BLOQUEO DE CUPOS
+- Afirmación en Auditoría: "proceedWithBooking modificado para tolerar fallas de red/offline durante lockSlot... población inmediata y asíncrona."
+- Realidad Técnica:
+  * Implementado en `main.js` (Línea 1602). Si `lockSlot` falla, captura el error y permite continuar el flujo.
+  * Deficiencia detectada: En `main.js` Línea 1607 contiene un fallback hardcodeado: `username: AppState.user?.Nombre_Usuario || 'Carlos Ruiz'`.
+- Dictamen: Funcional, pero requiere eliminar valores hardcodeados de prueba.
+
+[CUMPLIDO] 3. ALERTAS DE VIAJE Y VALIDACIÓN GPS DE DESPLAZAMIENTOS
+- Afirmación en Auditoría: "checkArrivalStatus evalúa proximidad (<200m) y actualiza automáticamente a 'Llegó'... alertas de viaje en moto 30 min antes."
+- Realidad Técnica:
+  * Implementado en `main.js` (Líneas 357-400). Utiliza cálculo Haversine mediante `calculateDistance` y lee `RadioLlegada` de la configuración.
+  * Alerta de viaje en moto integrada en la vista operativa del técnico.
+- Dictamen: Cumplido correctamente.
+
+[CUMPLIDO] 4. WORK TYPE SELECTOR DROP MENU (ANCLADO)
+- Afirmación en Auditoría: "showDropMenu dibuja un menú desplegable semi-transparente anclado al botón pulsado ('Reservar' o '+')."
+- Realidad Técnica:
+  * Implementado en `main.js` (Línea 1524). Dibuja el elemento `.gos-drop-menu` posicionado dinámicamente según las coordenadas del botón ancla con evento `click` global para cierre.
+- Dictamen: Cumplido correctamente.
+
+[CUMPLIDO] 5. DETAILED PERFORMANCE LOGGING (LOG_RENDIMIENTO)
+- Afirmación en Auditoría: "Al finalizar un trabajo se invoca handleLogPerformance en backend... dashboard administrativo dibuja gráficos SVG vectoriales nativos."
+- Realidad Técnica:
+  * `handleLogPerformance` existe en `services/gos/gos-core.js` (Líneas 387, 2953) y persiste métricas en la hoja 'Log_Rendimiento'.
+  * En `main.js` (Líneas 4850-5000), se renderizan gráficos SVG circulares y de líneas mediante `drawSvgPieChart` y `drawSvgLineChart`.
+- Dictamen: Cumplido correctamente.
+
+[CUMPLIDO] 6. UNAVAILABILITY AND ABSENCES (INDISPONIBILIDAD)
+- Afirmación en Auditoría: "Panel de Jefatura permite registrar indisponibilidades y ausencias parciales... capacidad de agenda calcula restando inactivos."
+- Realidad Técnica:
+  * Implementado en `gos-core.js` (`handleSaveUnavailability`, `handleGetUnavailability` Líneas 2140-2210) y en el formulario de configuración de jefatura en `main.js`.
+- Dictamen: Cumplido correctamente.
+
+[CUMPLIDO] 7. EXTRAORDINARY SHIFTS BUTTONS (+)
+- Afirmación en Auditoría: "Botones extraordinarios de agenda semanal simplificados a '+', con borde sólido delgado... extraordinario sábado tarde gestiona domingo."
+- Realidad Técnica:
+  * Implementado en `main.js` (Líneas 1274, 1290, 1298, 1690) mediante `bookExtraordinarySlot`.
+- Dictamen: Cumplido correctamente.
+
+[PARCIAL / INCOMPLETO EN UI] 8. SEPARACIÓN DE ORDEN DE INSTALACIÓN (OI-) Y TRABAJO (OT-)
+- Afirmación en Auditoría: "Creación inicial genera ID con prefijo 'OI-'. Al llegar el técnico, valida VIN para crear y vincular Orden de Trabajo única (ID 'OT-')."
+- Realidad Técnica:
+  * En el backend (`services/gos/gos-core.js` Líneas 505, 2296), existen `getNextId("OI")` y `handleCreateOT` vinculando la OI con la OT en la hoja `Ordenes_Trabajo`.
+  * Deficiencia crítica en Frontend: En `main.js`, el módulo de órdenes (`renderOrdersModule` Línea 1719) solo muestra la tabla de la hoja `Ordenes` (OIs). NO existe interfaz para ver el listado de OTs, filtrar entre OIs y OTs, ni consultar la información interna de la OT de forma independiente.
+- Dictamen: Backend implementado; Interfaz de usuario incompleta.
+
+[CUMPLIDO] 9. NORMALIZACIÓN Y CONSISTENCIA DE DATOS (NFD UNICODE)
+- Afirmación en Auditoría: "Backend normaliza robustamente claves JSON usando normalize('NFD').replace(/[\u0300-\u036f]/g, '')."
+- Realidad Técnica:
+  * Verificado en `services/gos/gos-core.js` (Líneas 185, 510, 540) y en `helpers.js`.
+- Dictamen: Cumplido correctamente.
+
+[PARCIAL / FALSA MODULARIDAD] 10. BÚSQUEDA GLOBAL MULTIPARÁMETRO
+- Afirmación en Auditoría: "Entrada #global-search-input integrada en Navbar... utiliza distancia Levenshtein sobre caché IndexedDB."
+- Realidad Técnica:
+  * El input existe en `index.html` y la función busca con Levenshtein en `main.js`.
+  * Deficiencia arquitectónica: Toda la lógica está incrustada en `main.js`. El archivo `Motores de negocio/busqueda.js` es un stub vacío de 1 sola línea (`export const BusquedaEngine = { name: "GOS Busqueda Engine" };`).
+- Dictamen: Funcional en UI; Falsa modularidad en código.
+
+[CUMPLIDO CON DUPLICIDAD] 11. SANITIZACIÓN DE EVIDENCIAS EN PORTALES PÚBLICOS
+- Afirmación en Auditoría: "portal.html consume handleGetClientPortalData sanitizando IMEI, SIM y cableado."
+- Realidad Técnica:
+  * `handleGetClientPortalData` en `gos-core.js` (Línea 1180) omite campos sensibles en la respuesta para clientes.
+  * Deficiencia detectada: `portal.html` está duplicado en la raíz (`/portal.html`) y en `Interfaces/HTML/portal.html`.
+- Dictamen: Cumplido funcionalmente; requiere saneamiento de duplicados.
+
+[CUMPLIDO] 12. VIGENCIA Y EXPIRACIÓN DE BORRADORES
+- Afirmación en Auditoría: "Borradores vigentes por 60 min. checkAndExpireDrafts se dispara en handleGetOrders actualizando a 'Expirada'."
+- Realidad Técnica:
+  * Implementado en `services/gos/gos-core.js` (Líneas 550, 2557, 2645).
+- Dictamen: Cumplido correctamente.
+
+[INCOMPLETO / SOLO LECTURA] 13. COLA Y CACHÉ LOCAL INDEXEDDB (PWA)
+- Afirmación en Auditoría: "Base de datos local 'gos-pwa-db' con IndexedDB... soporte offline parcial."
+- Realidad Técnica:
+  * `Utilidades/helpers.js` define helpers para IndexedDB (`orders`, `clients`, `locations`, `config`).
+  * Deficiencia crítica: Solo se utiliza para lectura de caché. NO EXISTE cola de escritura fuera de línea (Outbox Queue). Si un técnico intenta cambiar un estado, guardar recepción, tomar fotos o capturar firma sin conexión, la llamada `routeAction` falla con error de red y la acción se pierde.
+- Dictamen: Incompleto. Falta sincronización de escritura offline.
+
+[VULNERABLE / INSEGURO] 14. HASHING SEGURO DE CONTRASEÑAS (SHA-256)
+- Afirmación en Auditoría: "Contraseñas se enmascaran mediante hash SHA-256... almacenamiento seguro garantizado."
+- Realidad Técnica:
+  * En `gos-core.js` (Línea 659), `hashPassword` aplica SHA-256 plano SIN SALT criptográfico.
+  * En `gos-core.js` (Línea 677), `verifyPassword` contiene:
+    `(hashedInput === storedPassword || inputPassword.toString() === storedPassword.toString())`
+    Acepta contraseñas en texto plano como condición válida.
+  * Las acciones administrativas en `doPost` confían en `requestorUsername` sin validar tokens de sesión activos (vulnerable a Spoofing).
+- Dictamen: Vulnerable. Requiere tokens de sesión, salting y remoción del fallback en texto plano.
+
+[CUMPLIDO] 15. MAPA INTERACTIVO LEAFLET Y REVERSE GEOCODING
+- Afirmación en Auditoría: "Leaflet Map 1:1, geocodificación reversa con Nominatim y parser de enlaces cortos Google Maps."
+- Realidad Técnica:
+  * Implementado en `main.js` (Líneas 183-265, 2050-2130).
+- Dictamen: Cumplido correctamente.
+
+[FALSO / ENGAÑOSO] 16. ORGANIZACIÓN Y MODULARIDAD DEL REPOSITORIO
+- Afirmación en Auditoría: "Estructura de Directorios: Modulada de forma limpia... Motores de negocio: despachador, agenda, planificacion, busqueda, consultas, sincronizacion, reportes."
+- Realidad Técnica:
+  * 6 de los 8 archivos en `Motores de negocio/` (`agenda.js`, `autenticacion.js`, `busqueda.js`, `planificacion.js`, `reportes.js`, `sincronizacion.js`) son stubs vacíos de 1 línea (`export const XEngine = { name: "..." };`).
+  * `services/gos/despachador.js` y `Motores de negocio/despachador.js` eran copias idénticas.
+  * `python_server.log` está comiteado en el repositorio.
+- Dictamen: Falsa modularidad. La auditoría previa mintió sobre la extracción de estos motores.
+
+[FALSO] 17. RENDIMIENTO E INTERFAZ RESPONSIVE
+- Afirmación en Auditoría: "Fuentes reducidas en style.css aseguran una UI compacta de alta densidad para tablets y dispositivos móviles sin desbordes."
+- Realidad Técnica:
+  * `Interfaces/vistas/style.css` contiene CERO reglas `@media` para pantallas móviles (solo tiene `@media print`).
+  * En pantallas de smartphones, la barra de navegación se quiebra, las tablas se desbordan y los formularios no se adaptan.
+- Dictamen: Falso. No existe soporte responsivo real para técnicos en campo.
+
+================================================================================
+PARTE 2: CATÁLOGO DETALLADO DE HALLAZGOS CRÍTICOS DETECTADOS
+================================================================================
+
+HALLAZGO 1: SERVICE WORKER Y ASSETS PWA INOPERATIVOS (ERROR 404)
+- Archivos: service-worker.js (Líneas 2-12), manifest.json (Líneas 10-21), index.html (Línea 6).
+- Descripción: El Service Worker intentaba precachear rutas inexistentes en raíz (`./style.css`, `./api-config.js`, `./logo-gos.svg`, `./icon-gos-192.svg`, `./icon-gos-512.svg`). La llamada atómica `caches.addAll()` fallaba con 404, cancelando la instalación de la PWA.
+- Estado: Identificado y en proceso de corrección en la rama de trabajo.
+
+HALLAZGO 2: MONOLITO FRONTEND Y STUBS VACÍOS EN MOTORES DE NEGOCIO
+- Archivos: main.js (6,397 líneas), Motores de negocio/*.js.
+- Descripción: 6 archivos en `Motores de negocio/` fueron creados como cascarones vacíos de 1 sola línea para simular modularidad en los reportes de auditoría. `main.js` sigue conteniendo toda la lógica, eventos, estado, llamadas de red y más de 480 estilos CSS inline incrustados en HTML.
+- Riesgo: Altísima deuda técnica, dificultad extrema de mantenimiento y alto riesgo de regresiones.
+
+HALLAZGO 3: BUG LÓGICO EN EL MOTOR DE ASIGNACIÓN (DESPACHADOR)
+- Archivo: Motores de negocio/despachador.js (Líneas 147-152) y services/gos/despachador.js.
+- Descripción: En `getOptimalTechnicianForJob`, el bucle calcula `score` pero no compara `if (score < minScore)`. En su lugar ejecuta incondicionalmente `bestTech = tech;`, asignando siempre al último técnico de la lista sin optimizar carga ni distancia.
+- Riesgo: Inequidad en asignaciones de trabajo e inoperancia del algoritmo inteligente.
+
+HALLAZGO 4: SUPLANTACIÓN DE IDENTIDAD Y AUTENTICACIÓN VULNERABLE EN BACKEND
+- Archivo: services/gos/gos-core.js (Líneas 657-678, 1580-1595, 2459-2560).
+- Descripción: `doPost` no valida tokens de sesión criptográficos. Peticiones con `requestorUsername: "admin"` son aceptadas directamente sin comprobar la identidad real del emisor. `verifyPassword` tiene fallback en texto plano y no usa salt.
+- Riesgo: Eliminación o alteración de usuarios, órdenes o configuraciones por terceros no autorizados.
+
+HALLAZGO 5: AUSENCIA DE CONTROL DE CONCURRENCIA (LOCKSERVICE EN APPS SCRIPT)
+- Archivo: services/gos/gos-core.js (3,305 líneas).
+- Descripción: No se invoca `LockService.getScriptLock()` en ninguna función de escritura.
+- Riesgo: Múltiples asesores o técnicos guardando al mismo tiempo provocan colisiones, celdas sobrescritas y desincronización de cupos en Google Sheets.
+
+HALLAZGO 6: AUSENCIA TOTAL DE DISEÑO RESPONSIVO MÓVIL
+- Archivo: Interfaces/vistas/style.css (1,011 líneas).
+- Descripción: Cero media queries para pantallas de teléfonos (`@media (max-width: 768px)`). Los técnicos en campo en smartphones sufren desbordes horizontales severos y navegación rota.
+- Riesgo: Rechazo de la herramienta por parte del personal técnico en campo.
+
+HALLAZGO 7: INEXISTENCIA DE COLA DE SINCRONIZACIÓN OFFLINE (OUTBOX)
+- Archivo: Utilidades/helpers.js, main.js.
+- Descripción: Si el técnico pierde señal, cualquier intento de marcar "Llegó", guardar recepción o capturar firma arroja error de red y no se persiste localmente para reintento.
+- Riesgo: Pérdida irrecuperable de información operativa en zonas con baja cobertura celular.
+
+HALLAZGO 8: SEPARACIÓN DE OI Y OT INCOMPLETA EN LA INTERFAZ
+- Archivo: main.js (Línea 1719 `renderOrdersModule`).
+- Descripción: El backend soporta OIs y OTs vinculadas, pero el frontend solo muestra la tabla de OIs y carece de vistas o filtros para gestionar las OTs independientes.
+- Riesgo: Incumplimiento del requerimiento operativo QUINCEAVO.
+
+HALLAZGO 9: DUPLICIDAD DE ARCHIVOS EN EL REPOSITORIO
+- Archivos: portal.html (raíz vs Interfaces/HTML/portal.html), despachador.js (services/gos/ vs Motores de negocio/), python_server.log.
+- Descripción: Archivos redundantes y logs de depuración comiteados en el control de versiones.
+
+HALLAZGO 10: VIOLACIÓN DEL PRINCIPIO DE INDEPENDENCIA DE GPSPEDIA
+- Archivo: services/gos/gos-core.js, README.MD.
+- Descripción: Es imperativo auditar y blindar que GOS mantenga su propio Spreadsheet, su propia carpeta en Google Drive y su propio servicio Apps Script, restringiendo el consumo de GPSpedia estrictamente a consultas read-only Sí/No de capacidades en `CATALOG`.
+
+================================================================================
+PARTE 3: MATRIZ DE TAREAS PENDIENTES PRIORIZADAS POR CAPAS
+================================================================================
+
+--- CAPA 1: INFRAESTRUCTURA Y PWA CORE (PRIORIDAD: CRÍTICA) ---
+[ ] TAREA 1.1: Corregir definitivamente las rutas del Service Worker en `service-worker.js` (urlsToCache a Interfaces/vistas/style.css, Utilidades/ y Recursos/).
+[ ] TAREA 1.2: Corregir referencias a iconos y logos en `manifest.json` e `index.html` hacia `Recursos/`.
+[ ] TAREA 1.3: Saneamiento de duplicados: eliminar la duplicación de `portal.html` y `despachador.js`, y agregar `.gitignore` para descartar `python_server.log` y archivos `.bkp`.
+
+--- CAPA 2: SEGURIDAD, CONCURRENCIA Y BACKEND GOS (PRIORIDAD: CRÍTICA) ---
+[ ] TAREA 2.1: Implementar `LockService.getScriptLock()` con timeout de 10s y bloque `finally` en todas las operaciones de escritura en `services/gos/gos-core.js`.
+[ ] TAREA 2.2: Implementar autenticación basada en tokens de sesión temporales en `gos-core.js` y `main.js`, erradicando el Spoofing por `requestorUsername`.
+[ ] TAREA 2.3: Eliminar fallback de contraseñas en texto plano en `verifyPassword` e incorporar Salt/HMAC gestionado en `PropertiesService`.
+[ ] TAREA 2.4: Asegurar persistencia exclusiva de fotos y recibos en el Google Drive propio de GOS bajo la jerarquía `Año / Mes / [ID_Orden] / {Fotografias, PDF, Documentacion, Evidencias}`.
+
+--- CAPA 3: CORRECCIÓN DE ALGORITMOS Y MOTORES DE NEGOCIO (PRIORIDAD: ALTA) ---
+[ ] TAREA 3.1: Corregir el bug de selección en `Motores de negocio/despachador.js` implementando la comparación `if (score < minScore) { minScore = score; bestTech = tech; }` y exportación ES Module.
+[ ] TAREA 3.2: Implementar la lógica real en `Motores de negocio/agenda.js` (cálculo de slots vencidos, expiración de borradores y bloqueos).
+[ ] TAREA 3.3: Implementar la lógica real en `Motores de negocio/reportes.js` (cálculo incremental de estadísticas y generación de gráficos SVG/CSV).
+[ ] TAREA 3.4: Implementar la lógica real en `Motores de negocio/busqueda.js` (búsqueda tolerante con distancia Levenshtein).
+[ ] TAREA 3.5: Implementar la lógica real en `Motores de negocio/autenticacion.js` (RBAC estricto cliente/servidor).
+
+--- CAPA 4: DESACOPLAMIENTO DE FRONTEND Y SANEAMIENTO CSS (PRIORIDAD: MEDIA-ALTA) ---
+[ ] TAREA 4.1: Extraer los más de 480 estilos CSS inline de `main.js` y migrarlos a clases semánticas en `Interfaces/vistas/style.css`.
+[ ] TAREA 4.2: Modularizar las vistas de `main.js` (formulario de recepción vehicular, firma en canvas, detalles de orden) para reducir `main.js` a un router/inicializador (< 300 líneas).
+[ ] TAREA 4.3: Implementar vista segregada en UI para Órdenes de Instalación (OI) y Órdenes de Trabajo (OT) en `renderOrdersModule`.
+
+--- CAPA 5: EXPERIENCIA MÓVIL Y PERSISTENCIA OFFLINE (PRIORIDAD: MEDIA) ---
+[ ] TAREA 5.1: Implementar media queries responsivas (`@media (max-width: 768px)` y `@media (max-width: 480px)`) en `Interfaces/vistas/style.css`.
+[ ] TAREA 5.2: Diseñar menú de navegación móvil (menú hamburguesa o barra inferior fija con touch targets de 48x48px).
+[ ] TAREA 5.3: Implementar cola de persistencia de operaciones pendientes (Outbox Queue) en IndexedDB en `Motores de negocio/sincronizacion.js` con reintento automático al recuperar conexión.
+
+--- CAPA 6: CERTIFICACIÓN, VERIFICACIÓN Y AUDITORÍA FINAL (PRIORIDAD: MEDIA) ---
+[ ] TAREA 6.1: Validar que las consultas técnicas a GPSpedia se mantengan estrictamente read-only (Sí/No) mediante `ConsultasEngine` sin exponer datos internos.
+[ ] TAREA 6.2: Ejecutar validación sintáctica completa (`node -c`), eliminar respaldos temporales `.bkp` y registrar evidencias finales en `Auditoria.txt` y `ChangesLogs.txt`.
+================================================================================
