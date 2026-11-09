@@ -1,0 +1,5127 @@
+Los promopts de tareas que deben ser verificadas si ya se implementaron:
+
+### PRIMERO
+
+# Procedimiento Obligatorio de Desarrollo
+
+> **IMPORTANTE**
+>
+> **PROHIBIDO agregar cualquier contenido antes de este bloque.**
+>
+> Este procedimiento es de **cumplimiento obligatorio** para toda tarea de desarrollo, mantenimiento, corrección, refactorización o documentación del proyecto.
+>
+> Ninguna etapa podrá omitirse, alterarse, reordenarse o darse por concluida sin completar las verificaciones correspondientes.
+
+---
+
+# Flujo Obligatorio de Trabajo
+
+## 1. Auditoría Inicial
+
+Antes de realizar cualquier modificación se deberá efectuar una auditoría técnica completa del alcance de la tarea.
+
+La auditoría deberá realizarse:
+
+- Archivo por archivo.
+- Línea por línea.
+- Función por función.
+- Bloque por bloque.
+
+Durante esta etapa se deberá identificar como mínimo:
+
+- Estado actual.
+- Dependencias directas e indirectas.
+- Relaciones entre módulos.
+- Flujo de ejecución.
+- Alcance real de la modificación.
+- Riesgos potenciales.
+- Posibles efectos colaterales.
+- Código relacionado que pueda verse afectado.
+
+La auditoría es exclusivamente de análisis.
+
+**Está estrictamente prohibido modificar código durante esta etapa.**
+
+---
+
+## 2. Registro de Hallazgos
+
+Todos los hallazgos deberán documentarse antes de iniciar cualquier cambio.
+
+Cada registro deberá indicar como mínimo:
+
+- Descripción objetiva.
+- Archivo involucrado.
+- Línea o bloque afectado.
+- Dependencias identificadas.
+- Funciones relacionadas.
+- Alcance estimado.
+- Riesgos detectados.
+
+No se permite eliminar información previamente registrada.
+
+No se realizarán correcciones durante el proceso de auditoría.
+
+---
+
+## 3. Conversión de Hallazgos en Tareas
+
+Finalizada la auditoría, cada hallazgo deberá transformarse en una tarea técnica claramente definida.
+
+Cada tarea deberá especificar:
+
+- Objetivo.
+- Alcance.
+- Restricciones.
+- Componentes afectados.
+- Resultado esperado.
+
+No se permitirá ejecutar cambios cuya finalidad no haya sido previamente documentada.
+
+---
+
+## 4. Hallazgos Fuera del Alcance
+
+Si durante la auditoría se detectan problemas ajenos a la tarea solicitada:
+
+- Solo podrán corregirse cuando el riesgo sea mínimo y no alteren el alcance del trabajo.
+- En cualquier otro caso deberán registrarse como tareas independientes para su futura atención.
+
+Bajo ninguna circunstancia se ampliará el alcance original sin autorización.
+
+---
+
+## 5. Respaldo Obligatorio
+
+Antes de editar cualquier archivo deberá generarse un respaldo íntegro.
+
+El respaldo deberá conservar exactamente:
+
+- Contenido.
+- Estructura.
+- Estado previo.
+
+Su única finalidad será permitir una comparación posterior y facilitar una eventual reversión.
+
+---
+
+## 6. Ejecución de la Tarea
+
+La implementación deberá limitarse exclusivamente al alcance aprobado.
+
+Está prohibido:
+
+- Modificar código no relacionado.
+- Reestructurar componentes sin justificación.
+- Cambiar estilos ajenos.
+- Introducir optimizaciones no solicitadas.
+- Alterar flujos existentes sin necesidad técnica.
+
+Toda modificación deberá estar directamente relacionada con la tarea documentada.
+
+---
+
+## 7. Comparación Contra el Respaldo
+
+Finalizada la implementación se realizará una comparación manual entre la versión modificada y el respaldo.
+
+Se verificará:
+
+- Líneas agregadas.
+- Líneas eliminadas.
+- Líneas modificadas.
+- Bloques reemplazados.
+
+Cada diferencia deberá justificarse por la tarea ejecutada.
+
+Si se detectan cambios fuera del alcance:
+
+- Deberán revertirse inmediatamente.
+- La comparación deberá repetirse hasta eliminar todas las modificaciones no justificadas.
+
+Las comparaciones automáticas no sustituyen esta revisión.
+
+---
+
+## 8. Verificación Funcional
+
+Se comprobará el correcto funcionamiento de:
+
+- La funcionalidad implementada.
+- Los flujos relacionados.
+- Las dependencias directas.
+- Las dependencias indirectas.
+- La compatibilidad con el resto del sistema.
+
+Las pruebas deberán incluir escenarios normales, límites y casos relacionados.
+
+Cuando sea posible deberán utilizarse entornos de prueba o mecanismos de *mocking* para evitar afectar información real.
+
+---
+
+## 9. Revisión de Integridad
+
+Antes de finalizar la tarea deberá verificarse que:
+
+- No existan regresiones.
+- No se hayan introducido efectos colaterales.
+- No existan inconsistencias lógicas.
+- No se hayan roto dependencias.
+- Se conserve la coherencia arquitectónica del proyecto.
+
+---
+
+## 10. Code Review Obligatorio
+
+Toda modificación deberá someterse obligatoriamente a un proceso de Code Review.
+
+El informe deberá analizarse completamente antes de continuar.
+
+No podrá omitirse ninguna observación.
+
+---
+
+# Tratamiento del Resultado del Code Review
+
+## Observaciones sin cambios requeridos
+
+Si el Code Review únicamente contiene recomendaciones, sugerencias o mejoras no obligatorias, estas podrán evaluarse sin reiniciar el proceso.
+
+---
+
+## Observaciones que requieren cambios
+
+Si el Code Review detecta:
+
+- Errores.
+- Riesgos.
+- Defectos.
+- Regresiones.
+- Observaciones bloqueantes.
+- Problemas de integración.
+- Merge Assessment desfavorable.
+- Flaws que impliquen modificaciones.
+
+Entonces deberá reiniciarse el procedimiento completo desde la **Auditoría Inicial**.
+
+No se permiten correcciones parciales.
+
+---
+
+## Solicitudes de Reversión
+
+Cuando el Code Review recomiende revertir cambios, deberá realizarse una verificación obligatoria.
+
+### Caso 1
+
+Si los cambios sugeridos para revertirse pertenecen a:
+
+- Commits anteriores.
+- Tareas previamente aprobadas.
+- Funcionalidades fuera del alcance actual.
+
+La solicitud deberá ignorarse y documentarse el motivo.
+
+No se modificarán trabajos previamente validados.
+
+### Caso 2
+
+Si los cambios fueron introducidos durante la tarea actual y no forman parte del alcance aprobado:
+
+- Deberán revertirse.
+- Se documentará el motivo.
+- Se repetirá el proceso completo de verificación.
+
+---
+
+## Repetición del Ciclo
+
+Después de aplicar cualquier corrección derivada del Code Review deberá ejecutarse nuevamente:
+
+1. Auditoría.
+2. Registro de hallazgos.
+3. Conversión en tareas.
+4. Respaldo.
+5. Implementación.
+6. Comparación.
+7. Verificación funcional.
+8. Revisión de integridad.
+9. Nuevo Code Review.
+
+El ciclo finalizará únicamente cuando el Code Review no reporte observaciones que requieran modificaciones.
+
+---
+
+## Limpieza del Repositorio
+
+Antes de finalizar el trabajo deberán eliminarse todos los archivos temporales generados durante el proceso, incluyendo, cuando corresponda:
+
+- Respaldos.
+- Scripts de verificación.
+- Capturas.
+- Archivos de prueba.
+- Recursos temporales.
+- Evidencias utilizadas únicamente durante el desarrollo.
+
+No deberán permanecer archivos temporales dentro del repositorio.
+
+---
+
+## Organización del Proyecto
+
+Toda nueva implementación deberá respetar la arquitectura establecida.
+
+Las funciones, módulos y componentes deberán permanecer organizados por responsabilidad, evitando mezclar áreas funcionales.
+
+La estructura del proyecto deberá favorecer:
+
+- Modularidad.
+- Bajo acoplamiento.
+- Alta cohesión.
+- Reutilización.
+- Escalabilidad.
+- Mantenibilidad.
+
+---
+
+# Principios Generales
+
+Durante todo el proceso deberán respetarse las siguientes reglas:
+
+- No asumir comportamientos del código.
+- No asumir dependencias.
+- No asumir el impacto de una modificación.
+- Verificar antes de modificar.
+- Documentar antes de implementar.
+- Justificar cada cambio realizado.
+- Mantener el menor impacto posible sobre el sistema existente.
+
+---
+
+# Regla Final
+
+**Si no se audita, no se modifica.**
+
+**Si no se documenta, no existe.**
+
+**Si no se verifica, no se considera terminado.**
+
+El incumplimiento de cualquiera de estas etapas invalida el proceso de desarrollo.
+
+
+### SEGUNDO
+
+# Nueva Implementación: Dashboard Inicial y Formulario Inteligente de Recepción de Vehículos
+
+## Dashboard Inicial
+
+Al iniciar sesión, la pantalla principal deberá mostrar un **dashboard operativo** en lugar de la página de inicio tradicional.
+
+El dashboard presentará exclusivamente los trabajos asignados al sector al que pertenece el usuario autenticado, utilizando la información de su sesión para determinar automáticamente su área operativa.
+
+Ejemplo de sectores:
+
+- San Pedro Sula
+- Tegucigalpa
+- La Ceiba
+- Choluteca
+- Occidente
+
+Cada usuario únicamente visualizará las órdenes de trabajo correspondientes a su sector. No deberá tener acceso a asignaciones pertenecientes a otras zonas, salvo que su rol o permisos lo autoricen expresamente.
+
+El dashboard deberá mostrar, como mínimo:
+
+- Trabajos pendientes.
+- Trabajos asignados para el día.
+- Estado de cada orden.
+- Prioridad.
+- Hora programada.
+- Técnico responsable.
+- Indicadores de avance cuando corresponda.
+
+La información deberá actualizarse automáticamente para reflejar cambios en las asignaciones y el estado de los trabajos.
+
+---
+
+# Nuevo Módulo: Recepción de Vehículos
+
+Se implementará un nuevo formulario destinado al proceso de recepción del vehículo antes de iniciar cualquier trabajo.
+
+Este formulario tendrá como objetivo documentar el estado físico del vehículo, validar la información de la orden de trabajo y registrar evidencia fotográfica previa a la intervención.
+
+---
+
+## Información del Cliente
+
+Los datos del cliente deberán obtenerse automáticamente desde la orden de trabajo existente.
+
+La información cargada deberá permitir validación visual por parte del técnico antes de continuar con el proceso.
+
+Cuando exista evidencia documental o fotográfica, el sistema deberá permitir su consulta como respaldo de la información mostrada.
+
+---
+
+## Información del Vehículo
+
+El formulario Include campos inteligentes con autocompletado y sugerencias en tiempo real para agilizar la captura de información.
+
+La información deberá validarse utilizando los datos disponibles en la orden de trabajo y otras fuentes autorizadas por el sistema.
+
+---
+
+## Validación Fotográfica Obligatoria
+
+Antes de iniciar la instalación o cualquier intervención, el sistema solicitará evidencia fotográfica del vehículo.
+
+Como mínimo deberá registrarse evidencia de:
+
+### Identificación
+
+- Número de chasis.
+- Odómetro.
+- Tablero de instrumentos.
+
+### Interior
+
+- Asientos delanteros.
+- Asientos traseros.
+- Techo interior.
+- Estribos.
+- Otras áreas definidas por el procedimiento operativo.
+
+### Exterior
+
+Se solicitarán fotografías de los cuatro ángulos principales:
+
+- Lado izquierdo.
+- Vista frontal.
+- Lado derecho.
+- Vista trasera.
+
+Estas imágenes constituirán el registro oficial del estado del vehículo previo al trabajo.
+
+---
+
+## Registro de Daños Existentes
+
+Cada fotografía deberá permitir marcar visualmente la ubicación exacta donde se detecten anomalías.
+
+Entre los daños que podrán registrarse se incluyen, entre otros:
+
+- Rayones.
+- Golpes.
+- Abolladuras.
+- Daños de pintura.
+- Piezas fracturadas.
+- Piezas faltantes.
+- Cristales o parabrisas fracturados.
+- Accesorios dañados.
+- Cualquier otra observación relevante.
+
+Cada anotación deberá quedar asociada exclusivamente a la fotografía donde fue registrada, conservando el contexto de la evidencia.
+
+---
+
+## Validación Automática de Calidad de Imagen
+
+El sistema deberá analizar automáticamente cada fotografía antes de aceptarla.
+
+Como mínimo deberá verificar:
+
+- Nitidez.
+- Nivel de desenfoque.
+- Iluminación suficiente.
+- Encuadre adecuado.
+- Visibilidad del área requerida.
+
+Si la calidad no cumple los criterios mínimos, el sistema solicitará repetir la captura antes de permitir continuar.
+
+---
+
+## Identificación del Técnico
+
+El sistema deberá identificar automáticamente al técnico mediante la sesión autenticada.
+
+No se permitirá la captura manual de esta información.
+
+Cada registro deberá almacenar automáticamente:
+
+- Técnico responsable.
+- Fecha y hora.
+- Sector operativo.
+- Orden de trabajo asociada.
+- Evidencia fotográfica.
+- Estado inicial del vehículo.
+
+Esta información formará parte del historial permanente de la orden de trabajo y deberá mantenerse disponible para auditorías y consultas posteriores.
+
+
+
+### TERCERO 
+
+# Integración Automática con la Orden de Trabajo
+
+El formulario de recepción deberá cargar automáticamente la información disponible desde la orden de trabajo asociada, evitando la captura manual de datos ya existentes.
+
+La información importada deberá mostrarse para su validación antes de iniciar el proceso de recepción del vehículo.
+
+Como mínimo, el sistema deberá recuperar:
+
+- Número de orden de trabajo.
+- Información del cliente.
+- Información del vehículo.
+- Servicios contratados.
+- Observaciones registradas en la orden.
+- Vendedor responsable.
+- Ubicación programada para la instalación.
+- Cualquier otro dato autorizado relacionado con la orden.
+
+El usuario únicamente podrá modificar aquellos campos expresamente permitidos por las reglas de negocio.
+
+---
+
+# Generación de Comprobante de Recepción
+
+Una vez finalizado el proceso de recepción, el sistema deberá generar automáticamente un comprobante digital de entrega y recepción del vehículo.
+
+Este comprobante servirá como evidencia del estado del vehículo antes de iniciar los trabajos y deberá quedar asociado permanentemente a la orden de trabajo.
+
+El comprobante deberá poder visualizarse, descargarse, imprimirse y compartirse desde el sistema.
+
+---
+
+# Código QR de Consulta para el Cliente
+
+El comprobante incluirá un código QR único vinculado exclusivamente a la orden de trabajo.
+
+Al escanear el código QR, el cliente accederá a una página de consulta donde podrá visualizar la información autorizada de su servicio sin necesidad de autenticarse.
+
+El enlace generado deberá ser único para cada orden y mantenerse disponible mientras la política de retención de información lo permita.
+
+---
+
+# Portal de Consulta para el Cliente
+
+La página accesible mediante el código QR deberá presentar la información de forma clara, ordenada y optimizada para dispositivos móviles.
+
+Como mínimo deberá mostrar:
+
+## Información del Vehículo
+
+- Marca.
+- Modelo.
+- Año.
+- Color.
+- Placa, cuando esté autorizada para su visualización.
+- Número de orden de trabajo.
+- Estado del servicio.
+
+---
+
+## Información del Instalador
+
+Se mostrarán únicamente los datos autorizados por la empresa.
+
+Como mínimo:
+
+- Primer nombre.
+- Primer apellido.
+- Puesto o cargo.
+
+No deberán exponerse datos personales adicionales ni información sensible del colaborador.
+
+---
+
+## Información del Vendedor
+
+Se mostrarán únicamente los siguientes datos:
+
+- Primer nombre.
+- Primer apellido.
+
+---
+
+## Información del Servicio
+
+El cliente podrá consultar:
+
+- Lugar donde se realizó la instalación.
+- Fecha de recepción.
+- Fecha de instalación, cuando corresponda.
+- Tipo de servicio realizado.
+- Observaciones autorizadas.
+- Estado actual de la orden de trabajo.
+
+---
+
+## Evidencia Fotográfica
+
+La página incorporará un carrusel interactivo con todas las fotografías registradas durante la recepción e instalación del vehículo.
+
+Las imágenes deberán organizarse por categorías para facilitar su consulta.
+
+Como mínimo:
+
+- Exterior.
+- Interior.
+- Identificación del vehículo.
+- Estado previo.
+- Estado posterior, cuando exista.
+
+Cada fotografía deberá conservar su fecha, hora y contexto dentro del proceso de recepción e instalación.
+
+---
+
+# Seguridad de la Información
+
+El portal accesible mediante el código QR únicamente mostrará la información autorizada para el cliente.
+
+No deberá exponer información interna, operativa o administrativa del sistema.
+
+El acceso deberá limitarse exclusivamente a la consulta de la orden asociada al código QR generado, impidiendo el acceso o la enumeración de órdenes distintas mediante la modificación manual del enlace o de sus identificadores.
+
+
+### CUARTO
+
+# Integración de Gestión de Órdenes, Recepción, Historial del Vehículo y Dashboard Operativo
+
+## Integración del Ticket de Trabajo con el Rol de Recepción
+
+El sistema deberá permitir que el rol de **asistente de recepción de clientes** tenga acceso al ticket generado para su impresión y entrega correspondiente.
+
+El ticket deberá generarse desde la orden de trabajo y deberá contener la información necesaria para el proceso operativo y de atención al cliente.
+
+El sistema deberá diferenciar claramente:
+
+- Ticket previo a instalación.
+- Evidencia posterior a instalación.
+
+---
+
+# Flujo de Estados de Instalación
+
+La orden de trabajo deberá manejar estados operativos visibles para el cliente mediante la página asociada al código QR.
+
+Estados mínimos requeridos:
+
+- **Iniciando**
+- **Instalando**
+- **Haciendo pruebas**
+- **Instalación completada**
+
+El estado actual deberá actualizarse conforme avance el proceso y deberá reflejarse automáticamente en la consulta del cliente mediante el código QR.
+
+---
+
+# Firma Digital del Cliente
+
+El formulario de recepción del vehículo deberá incluir un espacio para captura de firma digital del cliente.
+
+La firma deberá registrarse únicamente en el momento correspondiente:
+
+## Pre instalación
+
+Generación del ticket de recepción del vehículo.
+
+Debe incluir:
+
+- Información del vehículo.
+- Información de la orden.
+- Evidencia inicial del estado del vehículo.
+- Datos necesarios para la recepción.
+
+## Post instalación
+
+Al momento de entregar el vehículo al cliente:
+
+- Captura de firma digital.
+- Confirmación de entrega.
+- Registro de finalización del servicio.
+
+La firma deberá quedar asociada permanentemente a la orden de trabajo correspondiente.
+
+---
+
+# Memoria Histórica del Vehículo
+
+El sistema deberá mantener un historial permanente asociado al número de chasis del vehículo.
+
+Cuando se ingrese un chasis previamente registrado, el sistema deberá identificar automáticamente el vehículo y cargar la información histórica disponible.
+
+Esta función aplicará para procesos como:
+
+- Mantenimiento.
+- Revisión por falla.
+- Desinstalación.
+- Reinstalación.
+- Nuevas instalaciones.
+
+---
+
+# Carga Automática de Información Histórica
+
+Al detectar un vehículo existente, el sistema deberá mostrar:
+
+## Datos del vehículo
+
+- Información general registrada.
+- Historial de servicios.
+- Trabajos realizados anteriormente.
+
+## Historial operativo
+
+Cada registro histórico deberá contener:
+
+- Tipo de trabajo realizado.
+- Fecha.
+- Técnico responsable.
+- Lugar de ejecución.
+- División o sector operativo.
+
+Ejemplo de sectores:
+
+- San Pedro Sula.
+- Tegucigalpa.
+- La Ceiba.
+- Choluteca.
+- Occidente.
+
+---
+
+# Validación de Vehículo con GPS Existente
+
+Durante el registro de una nueva orden de trabajo, al ingresar el número de chasis, el sistema deberá consultar automáticamente el historial.
+
+Si el vehículo ya posee registros previos de instalación, deberá informar al asistente de ventas antes de continuar.
+
+La información deberá permitir distinguir:
+
+- Vehículo nuevo.
+- Vehículo usado.
+
+Esta validación deberá realizarse dentro del formulario existente de registro de orden de trabajo.
+
+No deberá crearse un formulario independiente.
+
+---
+
+# Actualización del Formulario de Orden de Trabajo Existente
+
+El formulario actual de registro de órdenes deberá incluir:
+
+## Clasificación del vehículo
+
+Campos obligatorios:
+
+- Vehículo nuevo.
+- Vehículo usado.
+
+## Tipo de trabajo
+
+Implementar un selector desplegable para clasificar la operación.
+
+Ejemplos:
+
+- Instalación.
+- Revisión por falla.
+- Mantenimiento.
+- Desinstalación.
+- Reinstalación.
+- Otros servicios definidos por la operación.
+
+---
+
+# Separación de Información Operativa y Administrativa
+
+La información mostrada en el dashboard principal deberá limitarse exclusivamente a los trabajos registrados y programados.
+
+No deberán mostrarse en el dashboard operativo tarjetas administrativas como:
+
+- Trabajos pendientes generales.
+- Trabajos asignados.
+- Vehículos recibidos.
+
+Estas métricas deberán pertenecer a una sección administrativa independiente con acceso restringido.
+
+---
+
+# Dashboard según Rol de Usuario
+
+## Técnicos y usuarios operativos
+
+El dashboard principal deberá mostrar únicamente:
+
+- Instalaciones asignadas.
+- Trabajos programados.
+- Estado de las órdenes correspondientes.
+
+La información deberá filtrarse según el sector asignado al usuario.
+
+---
+
+## Jefe de tienda y gerente
+
+El dashboard principal deberá mostrar únicamente la planificación de instalaciones programadas.
+
+Vista requerida:
+
+- Instalaciones de la semana.
+- Fechas programadas.
+- Estado de ejecución.
+- Distribución de trabajos.
+
+Las métricas administrativas deberán permanecer en módulos separados.
+
+---
+
+# Sistema de Prioridades
+
+La prioridad no deberá mostrarse como una columna de texto dentro del dashboard.
+
+La representación deberá ser exclusivamente visual mediante etiquetas de color.
+
+Estados permitidos:
+
+| Prioridad | Representación |
+|---|---|
+| Normal | Verde |
+| Alta | Naranja |
+| Máxima | Rojo |
+
+Reglas:
+
+- La prioridad predeterminada será **Normal**.
+- No deberá existir ningún nivel inferior a Normal.
+- El dashboard no deberá mostrar textos como "Normal", "Alta" o "Máxima".
+- Únicamente deberá mostrarse el indicador visual correspondiente.
+
+La prioridad deberá permitir identificar rápidamente la urgencia del trabajo sin agregar ruido visual a la interfaz.
+
+
+### QUINTO
+
+
+# Nueva Implementación: PWA Independiente para GOS
+
+## Separación de Aplicación PWA
+
+Actualmente la plataforma utiliza un **Service Worker heredado**, provocando que el sistema operativo identifique y cargue la misma aplicación progresiva correspondiente al catálogo GPS de GPSpedia.
+
+Se requiere separar completamente la aplicación **GOS** del catálogo GPS de GPSpedia.
+
+La plataforma GOS deberá contar con su propia implementación PWA independiente, evitando compartir:
+
+- Service Worker.
+- Caché.
+- Manifest.
+- Iconos.
+- Identidad visual.
+- Configuración de instalación.
+- Datos almacenados localmente.
+
+La nueva PWA deberá funcionar como una aplicación independiente dentro del dispositivo del usuario.
+
+---
+
+# Configuración de Identidad PWA
+
+La aplicación GOS deberá contar con sus propios recursos de identidad:
+
+- Nombre de aplicación.
+- Icono de instalación.
+- Favicon.
+- Recursos gráficos propios.
+- Configuración independiente del manifest.
+- Gestión independiente de caché.
+
+La instalación de GOS no deberá reemplazar ni interferir con la PWA del catálogo GPS de GPSpedia.
+
+Ambas aplicaciones deberán coexistir de forma independiente en el mismo dispositivo.
+
+---
+
+# Identidad Visual GOS
+
+Crear la identidad gráfica oficial para la aplicación GOS.
+
+## Logotipo
+
+Características requeridas:
+
+- Texto: **GOS**
+- La última letra deberá escribirse en minúscula:
+  - **GOs**
+- Color de letras:
+  - Azul.
+- Fondo:
+  - Transparente.
+
+El diseño deberá estar optimizado para uso digital y visualización en diferentes tamaños.
+
+---
+
+# Recursos Gráficos Requeridos
+
+Generar los recursos necesarios para la aplicación:
+
+## Favicon
+
+Debe utilizar la identidad visual de GOS y estar preparado para su uso como icono del navegador.
+
+## Icono de acceso directo PWA
+
+Debe utilizarse como icono principal al instalar la aplicación en dispositivos móviles y escritorios compatibles.
+
+Debe contemplar:
+
+- Buena legibilidad en tamaños pequeños.
+- Fondo transparente.
+- Compatibilidad con diferentes densidades de pantalla.
+
+---
+
+# Reglas de Implementación
+
+La implementación deberá garantizar:
+
+- Separación total entre GOS y GPSpedia.
+- Eliminación de dependencias heredadas del catálogo.
+- No reutilización accidental de archivos PWA existentes.
+- No mezcla de cachés entre aplicaciones.
+- Correcta instalación como aplicación independiente.
+
+Antes de finalizar deberá verificarse:
+
+- Instalación limpia de GOS.
+- Instalación simultánea con GPSpedia.
+- Actualización independiente de cada PWA.
+- Funcionamiento correcto del Service Worker propio.
+- Carga correcta del favicon e iconos de acceso directo.
+
+
+
+### SEXTO 
+
+# Nueva Implementación: Dashboard de Agenda Operativa y Gestión de Cupos
+
+## Optimización del Dashboard para Escritorio y Web
+
+El dashboard deberá aprovechar eficientemente el espacio disponible en pantallas de escritorio y dispositivos con orientación horizontal o vertical.
+
+La interfaz deberá priorizar:
+
+- Uso eficiente del espacio horizontal.
+- Distribución clara de información.
+- Lectura rápida de la agenda.
+- Evitar saturación visual.
+- Separación adecuada entre información operativa y administrativa.
+
+No deberá mostrarse información innecesaria que reduzca la visibilidad de la agenda principal.
+
+---
+
+# Estructura del Calendario Semanal
+
+El dashboard deberá mostrar una vista semanal basada en columnas.
+
+Cada columna representará un día con su fecha correspondiente.
+
+La primera columna siempre deberá corresponder al día actual del usuario.
+
+La última columna deberá cerrar el ciclo semanal mostrando nuevamente el mismo día de la semana actual, correspondiente a la siguiente semana.
+
+Ejemplo:
+
+## Si el día actual es lunes:
+
+| Lunes | Martes | Miércoles | Jueves | Viernes | Sábado | Domingo | Lunes |
+|---|---|---|---|---|---|---|---|
+
+## Si el día actual es martes:
+
+| Martes | Miércoles | Jueves | Viernes | Sábado | Domingo | Lunes | Martes |
+|---|---|---|---|---|---|---|---|
+
+## Si el día actual es miércoles:
+
+| Miércoles | Jueves | Viernes | Sábado | Domingo | Lunes | Martes | Miércoles |
+|---|---|---|---|---|---|---|---|
+
+La distribución deberá generarse dinámicamente según la fecha actual.
+
+---
+
+# Visualización de Trabajos por Día
+
+Cada columna deberá mostrar:
+
+- Fecha.
+- Citas programadas.
+- Horario asignado.
+- Información necesaria del trabajo.
+- Estado de la cita.
+- Indicador visual de prioridad.
+
+La información deberá organizarse mediante tarjetas o bloques visuales evitando tarjetas saturadas.
+
+---
+
+# Horarios Normales de Atención
+
+Los horarios normales estarán disponibles para asignación estándar.
+
+## Lunes a viernes
+
+Cupos disponibles:
+
+- 8:00 AM - 10:00 AM
+- 10:00 AM - 12:00 PM
+- 1:00 PM - 3:00 PM
+- 3:00 PM - 5:00 PM
+
+## Sábados
+
+Cupos disponibles:
+
+- 8:00 AM - 10:00 AM
+- 10:00 AM - 12:00 PM
+
+---
+
+# Horarios Extraordinarios por Prioridad
+
+Los horarios fuera de jornada normal permanecerán ocultos por defecto.
+
+Únicamente podrán habilitarse cuando la prioridad del trabajo sea superior a **Normal**.
+
+Horarios especiales permitidos:
+
+## Todos los días
+
+Antes de las 8:00 AM.
+
+## Lunes a viernes
+
+- 12:00 PM - 2:00 PM.
+- Después de las 5:00 PM.
+
+## Sábados
+
+Después de las 12:00 PM.
+
+## Domingos
+
+Cualquier horario.
+
+---
+
+# Restricción de Horarios Especiales
+
+Los cupos extraordinarios deberán permanecer:
+
+- Ocultos.
+- No seleccionables.
+- No visibles en la agenda estándar.
+
+Solo podrán habilitarse cuando:
+
+- La prioridad sea Alta o Máxima.
+- El usuario tenga permisos suficientes.
+- El sistema valide la disponibilidad.
+
+---
+
+# Actualización Dinámica del Dashboard
+
+El dashboard deberá actualizarse automáticamente cuando un usuario registre una nueva orden de trabajo.
+
+Los cambios deberán reflejar:
+
+- Nuevo cupo solicitado.
+- Horario seleccionado.
+- Estado de confirmación.
+- Usuario responsable de la solicitud.
+
+La actualización deberá evitar recargas completas innecesarias.
+
+---
+
+# Reserva Temporal de Cupo durante Creación de Orden
+
+Durante la creación de una orden de trabajo, el horario seleccionado deberá marcarse como reservado temporalmente.
+
+La reserva deberá representarse visualmente mediante un color amarillo suave con transparencia.
+
+El objetivo es indicar:
+
+- Cupo seleccionado.
+- Pendiente de confirmación.
+- Reserva temporal.
+
+---
+
+# Estado de Borrador y Apartado de Lugar
+
+El asistente de ventas o jefe de división autorizado podrá guardar una orden como borrador y reservar temporalmente el horario seleccionado.
+
+La reserva tendrá una vigencia máxima de:
+
+**15 minutos después de la hora establecida para la cita.**
+
+Después de ese tiempo:
+
+- El cupo deberá liberarse automáticamente.
+- La reserva deberá cambiar de estado.
+- Otro usuario podrá disponer del horario.
+
+---
+
+# Límite de Reservas Temporales
+
+El sistema permitirá como máximo:
+
+- Dos vendedores simultáneamente solicitando apartar un mismo lugar.
+- Ambas solicitudes deberán permanecer identificadas individualmente.
+- Ninguna será considerada confirmada hasta completar el proceso correspondiente.
+
+El dashboard deberá mostrar claramente que el cupo está pendiente de confirmación.
+
+---
+
+# Estados Visuales de Citas
+
+La interfaz deberá diferenciar visualmente:
+
+## Confirmado
+
+Trabajo aprobado y asignado.
+
+## Reservado temporalmente
+
+Trabajo guardado como borrador o apartado.
+
+Debe mostrarse mediante:
+
+- Amarillo suave.
+- Transparencia.
+- Baja saturación.
+
+## Disponible
+
+Horario libre.
+
+---
+
+# Diseño Visual
+
+Los colores utilizados para estados, prioridades y reservas deberán cumplir:
+
+- Tonalidades suaves.
+- Transparencias.
+- Bajo contraste agresivo.
+- Buena legibilidad.
+- Evitar colores intensos o saturados.
+
+La representación visual deberá facilitar la lectura rápida sin generar fatiga visual.
+
+---
+
+# Prioridades
+
+La prioridad deberá representarse exclusivamente mediante indicadores visuales.
+
+No deberá ocupar espacio mediante columnas de texto.
+
+Valores permitidos:
+
+- Normal.
+- Alta.
+- Máxima.
+
+La prioridad Normal será la predeterminada.
+
+No deberá existir un nivel inferior a Normal.
+
+La prioridad deberá influir en:
+
+- Disponibilidad de horarios extraordinarios.
+- Gestión de cupos especiales.
+- Visualización del trabajo en la agenda.
+
+
+### SEXTIMO
+
+# Nueva Implementación: Gestión Inteligente de Turnos, Seguimiento Operativo y Retroalimentación del Técnico
+
+# Gestión de Turnos
+
+La agenda deberá administrarse mediante turnos con capacidad limitada para garantizar una distribución adecuada de la carga de trabajo.
+
+## Capacidad por turno
+
+Cada turno tendrá la siguiente capacidad máxima:
+
+- **4 trabajos programados.**
+- **1 cupo extraordinario**, reservado exclusivamente para trabajos con prioridad superior a **Normal**.
+
+No deberán asignarse más trabajos una vez alcanzada la capacidad máxima del turno.
+
+---
+
+# Duración Estimada por Tipo de Trabajo
+
+Cada tipo de servicio deberá tener una duración estimada para permitir la planificación automática de la agenda.
+
+## Instalación nueva
+
+Tiempo estimado:
+
+- Instalación: **90 minutos**.
+- Tiempo adicional para traslado y espera: **30 minutos**.
+
+**Tiempo total estimado: 120 minutos.**
+
+---
+
+## Revisión por falla
+
+La revisión por falla tendrá una duración variable según el diagnóstico realizado.
+
+Toda revisión iniciará obligatoriamente con una etapa de **Diagnóstico**, cuyo tiempo será indeterminado.
+
+Una vez concluido el diagnóstico, el técnico deberá seleccionar el tipo de trabajo que continuará.
+
+---
+
+# Tipos de Trabajo Posteriores al Diagnóstico
+
+## Cambio de unidad
+
+Si la sustitución corresponde al mismo modelo o a un modelo compatible que no requiera modificar la instalación existente, únicamente deberá realizarse la reprogramación o sustitución de la unidad.
+
+Si el nuevo modelo requiere modificar el cableado o la instalación existente, el sistema deberá tratar el servicio como una instalación completa.
+
+Ejemplo:
+
+- Sustitución de una **GV300W** por una **GV310LAU**: reutiliza la instalación existente cuando sea técnicamente compatible.
+- Sustitución por una **GV58LAU**: requiere instalación completa.
+
+Tiempo estimado cuando aplique instalación completa:
+
+- **60 minutos.**
+
+---
+
+## Cambio de arnés
+
+Cuando la falla corresponda al arnés principal.
+
+Tiempo estimado:
+
+- **60 minutos.**
+
+---
+
+## Reparación de conexiones
+
+Aplica para fallas menores, por ejemplo:
+
+- Cable de alimentación dañado.
+- Tierra o negativo con falso contacto.
+- Conexiones defectuosas.
+
+Tiempo estimado:
+
+- **30 a 40 minutos.**
+
+---
+
+# Control Automático de Retrasos
+
+El sistema deberá monitorear continuamente el tiempo transcurrido de cada trabajo.
+
+Cuando el tiempo real supere el tiempo estimado para la etapa actual, deberá:
+
+- Notificar al técnico que el trabajo presenta retraso.
+- Cambiar visualmente el estado del trabajo a **Retrasado**.
+- Registrar el evento en el historial de la orden.
+
+---
+
+# Reasignación Inteligente de Trabajos
+
+Si el técnico tiene otra asignación programada después del trabajo actual, el sistema deberá consultar si podrá cumplir con la siguiente cita.
+
+## Si responde que sí
+
+La agenda permanecerá sin cambios.
+
+## Si responde que no
+
+El sistema deberá buscar automáticamente otro técnico disponible para asumir el siguiente trabajo.
+
+Si existe disponibilidad:
+
+- Reasignar la siguiente orden.
+- Actualizar automáticamente ambos dashboards.
+- Notificar a los involucrados.
+
+Si no existe otro técnico disponible:
+
+- No se solicitará confirmación.
+- El sistema únicamente mostrará un recordatorio indicando que existe un retraso y que el siguiente trabajo podría verse afectado.
+
+---
+
+# Actualización Dinámica del Dashboard
+
+Toda interacción realizada por cualquier usuario deberá reflejarse inmediatamente en el dashboard compartido de la división o sector correspondiente.
+
+Entre otros eventos:
+
+- Creación de órdenes.
+- Cambios de estado.
+- Reasignaciones.
+- Recepción de vehículos.
+- Finalización de trabajos.
+- Cancelaciones.
+- Retrasos.
+
+La actualización deberá realizarse en tiempo real, sin necesidad de recargar la página.
+
+---
+
+# Retroalimentación Obligatoria del Técnico
+
+Durante toda la ejecución del servicio, el técnico deberá mantener actualizado el estado del trabajo.
+
+Cada cambio formará parte del historial permanente de la orden.
+
+---
+
+# Flujo de una Instalación Nueva
+
+## Traslado al lugar
+
+El sistema detectará automáticamente el desplazamiento del técnico utilizando la ubicación obtenida mediante el GPS del dispositivo.
+
+Cuando el técnico se encuentre dentro del radio definido del destino, el sistema deberá:
+
+- Notificar al dashboard que el técnico llegó al sitio.
+- Registrar automáticamente el evento.
+- Mostrar las acciones correspondientes.
+
+---
+
+## Recepción del Vehículo
+
+Al llegar al lugar, el sistema presentará únicamente dos opciones:
+
+### A. Se recibió el vehículo
+
+Permite continuar con el proceso de instalación.
+
+### B. Vehículo no disponible
+
+Inicia el flujo de gestión de indisponibilidad del vehículo.
+
+---
+
+# Flujo de Instalación
+
+Una vez recibido el vehículo, el sistema deberá guiar automáticamente al técnico por las siguientes etapas:
+
+1. Comenzando el trabajo.
+2. Instalando GPS.
+3. Pruebas con monitoreo.
+4. Terminando la instalación.
+5. Trabajo finalizado.
+
+Cada etapa actualizará automáticamente el estado visible para los demás usuarios.
+
+---
+
+# Integración con Monitoreo
+
+Durante la etapa **Instalando GPS**, el sistema deberá mostrar un acceso directo a los medios de contacto definidos para el centro de monitoreo.
+
+Al iniciar esta acción, el estado cambiará automáticamente a:
+
+- **Pruebas con monitoreo.**
+
+Una vez finalizadas las pruebas, el técnico deberá confirmarlo para continuar con la siguiente etapa.
+
+---
+
+# Finalización del Trabajo
+
+Cuando el técnico marque el trabajo como finalizado:
+
+- La orden cambiará automáticamente de estado.
+- Se actualizará el dashboard.
+- Si existen más trabajos asignados, el sistema mostrará inmediatamente la información del siguiente servicio programado.
+
+---
+
+# Vehículo No Disponible
+
+Si el técnico indica que el vehículo no está disponible, el sistema solicitará el motivo.
+
+## Alistamiento
+
+Opciones:
+
+- Lavado.
+- Polarizado.
+- Instalación de accesorios.
+- Otros procesos de preparación.
+
+Después de seleccionar el motivo, el sistema solicitará registrar la hora estimada en que el vehículo estará disponible.
+
+---
+
+## Taller
+
+El técnico deberá indicar si:
+
+- Esperará el vehículo.
+- El tiempo de espera es excesivo y conviene continuar con el siguiente trabajo.
+
+---
+
+# Gestión Inteligente de Esperas
+
+## Espera prudente
+
+Tiempo máximo recomendado:
+
+**40 minutos.**
+
+Estado visual:
+
+- Amarillo.
+
+---
+
+## Espera prolongada
+
+Cuando el tiempo supere los **40 minutos**:
+
+- El estado cambiará a naranja.
+- El dashboard enviará una notificación al jefe de tienda y al asistente de ventas.
+- El sistema ofrecerá las siguientes acciones:
+
+- Mantener al técnico en espera.
+- Adelantar el siguiente trabajo programado.
+- Reasignar automáticamente el siguiente servicio al técnico disponible más cercano o con menor carga de trabajo.
+
+---
+
+# Estados Operativos del Técnico
+
+Como mínimo deberán existir los siguientes estados:
+
+- Moviéndose al lugar.
+- Técnico en el lugar.
+- Vehículo recibido.
+- Vehículo no disponible.
+- Trabajo iniciado.
+- Diagnóstico realizado.
+- Esperando autorización.
+- En proceso.
+- Instalando GPS.
+- Pruebas con monitoreo.
+- Pruebas realizadas.
+- Terminando el trabajo.
+- Trabajo finalizado.
+- Trabajo retrasado.
+- Observaciones.
+
+Cada transición deberá registrarse con:
+
+- Fecha.
+- Hora.
+- Técnico responsable.
+- Ubicación, cuando corresponda.
+- Observaciones registradas.
+
+---
+
+# Historial de la Orden
+
+Todas las acciones ejecutadas durante el ciclo de vida del servicio deberán incorporarse automáticamente al historial permanente de la orden de trabajo.
+
+El historial deberá incluir, como mínimo:
+
+- Cambios de estado.
+- Retrasos.
+- Reasignaciones.
+- Esperas.
+- Diagnósticos.
+- Pruebas realizadas.
+- Observaciones del técnico.
+- Evidencia generada durante el proceso.
+
+Este historial deberá permanecer disponible para consulta, auditoría y seguimiento posterior del vehículo y del servicio realizado.
+
+
+### OCTAVO
+
+# Auditoría Integral de Cobertura de Implementaciones
+
+> **OBLIGATORIO**
+>
+> Antes de considerar finalizada cualquier implementación, deberá ejecutarse una auditoría integral cuyo único objetivo será verificar que **todos los requerimientos definidos para el proyecto hayan sido implementados completamente**, sin omisiones parciales o totales.
+
+---
+
+# Objetivo
+
+Esta auditoría no tiene como finalidad buscar errores de programación, sino comprobar la **cobertura funcional completa** de todas las implementaciones solicitadas.
+
+Se deberá verificar que **ningún requerimiento funcional, operativo, visual, arquitectónico o documental haya quedado pendiente**.
+
+No se permitirá asumir que una funcionalidad fue implementada únicamente porque existe código relacionado.
+
+Toda implementación deberá verificarse mediante evidencia objetiva.
+
+---
+
+# Alcance de la Auditoría
+
+La revisión deberá abarcar la totalidad de los requerimientos definidos durante el proceso de desarrollo.
+
+Como mínimo deberá comprobarse:
+
+- Funcionalidades.
+- Reglas de negocio.
+- Flujos completos.
+- Interfaz de usuario.
+- Experiencia de usuario.
+- Arquitectura.
+- Integraciones.
+- Seguridad.
+- Permisos.
+- Validaciones.
+- Automatizaciones.
+- Dashboards.
+- Formularios.
+- Historiales.
+- Reportes.
+- Notificaciones.
+- Gestión de estados.
+- PWA.
+- Service Worker.
+- Recursos gráficos.
+- Documentación.
+- Cualquier otro requerimiento solicitado.
+
+No deberá excluirse ninguna implementación por considerarla menor.
+
+---
+
+# Revisión Punto por Punto
+
+Cada requerimiento deberá compararse individualmente contra su implementación.
+
+Para cada uno deberá responderse de forma objetiva:
+
+- ¿Fue implementado?
+- ¿Fue implementado completamente?
+- ¿Respeta exactamente el alcance solicitado?
+- ¿Existen implementaciones parciales?
+- ¿Existe alguna diferencia entre lo solicitado y lo implementado?
+- ¿Existen funcionalidades omitidas?
+- ¿Se alteró el comportamiento solicitado?
+- ¿La integración con el resto del sistema es correcta?
+
+No se permite responder utilizando estimaciones o suposiciones.
+
+---
+
+# Validación de Cobertura
+
+El desarrollador deberá confirmar expresamente que:
+
+- Ningún requisito quedó sin revisar.
+- Ninguna funcionalidad quedó pendiente.
+- Ninguna regla de negocio fue omitida.
+- Ninguna implementación quedó incompleta.
+- Ninguna interfaz quedó sin validar.
+- Ninguna automatización quedó pendiente.
+- Ninguna integración quedó sin comprobar.
+
+---
+
+# Detección de Omisiones
+
+Si durante la auditoría se detecta cualquier implementación faltante, parcial o inconsistente, deberá:
+
+1. Registrarse inmediatamente.
+2. Clasificarse según su impacto.
+3. Incorporarse como tarea pendiente.
+4. Implementarse.
+5. Reiniciar nuevamente la auditoría completa de cobertura.
+
+No se permitirá validar el proyecto mientras exista al menos un requerimiento pendiente.
+
+---
+
+# Verificación Cruzada
+
+La auditoría deberá realizarse comparando directamente los requerimientos originales contra la implementación final.
+
+No deberá verificarse únicamente el código.
+
+También deberán validarse:
+
+- El comportamiento funcional.
+- La experiencia del usuario.
+- La lógica operativa.
+- Los flujos completos.
+- La interacción entre módulos.
+- La coherencia con la arquitectura del sistema.
+
+---
+
+# Prohibiciones
+
+Durante esta auditoría queda estrictamente prohibido:
+
+- Asumir que una funcionalidad existe.
+- Dar por implementado un requerimiento sin verificarlo.
+- Marcar tareas como completas sin evidencia.
+- Omitir requerimientos considerados menores.
+- Ignorar funcionalidades por depender de otras.
+- Validar implementaciones parciales como completas.
+
+---
+
+# Criterios de Aprobación
+
+El desarrollo únicamente podrá considerarse finalizado cuando se cumplan simultáneamente las siguientes condiciones:
+
+- El 100 % de los requerimientos han sido revisados.
+- El 100 % de los requerimientos han sido implementados.
+- No existen implementaciones parciales.
+- No existen funcionalidades omitidas.
+- No existen diferencias entre lo solicitado y lo implementado.
+- No existen tareas pendientes derivadas de esta auditoría.
+
+---
+
+# Regla Final
+
+**Todo requerimiento escrito durante el análisis del proyecto forma parte del alcance del desarrollo.**
+
+La ausencia de una implementación, independientemente de su tamaño o complejidad, deberá considerarse una omisión del desarrollo y obligará a reiniciar el proceso de validación hasta alcanzar una cobertura funcional completa.
+
+
+
+### Noveno 
+
+
+# AUDITORÍA OBLIGATORIA DE COBERTURA TOTAL DE REQUERIMIENTOS
+
+> **IMPORTANTE**
+>
+> Antes de declarar la implementación como finalizada, el desarrollador deberá ejecutar una auditoría de cobertura total comparando **cada uno de los requerimientos definidos durante esta conversación** contra la implementación realizada.
+>
+> El objetivo de esta auditoría es demostrar que **ningún requerimiento quedó sin implementar**, aunque se trate de un detalle visual, una regla de negocio, una validación, un flujo secundario o una condición específica.
+
+---
+
+# PROHIBICIONES
+
+Durante esta auditoría queda estrictamente prohibido:
+
+- Asumir que un requerimiento quedó implementado.
+- Marcar una implementación como completa sin verificarla.
+- Validar parcialmente una funcionalidad.
+- Omitir requisitos por considerarlos "implícitos".
+- Ignorar reglas de negocio pequeñas.
+- Dar por concluido el desarrollo si existe al menos un punto pendiente.
+
+---
+
+# COBERTURA OBLIGATORIA
+
+La auditoría deberá comprobar, uno por uno, todos los requerimientos definidos durante esta conversación, incluyendo, entre otros:
+
+## Dashboard
+
+Verificar que se implementó correctamente:
+
+- Dashboard inicial como pantalla principal.
+- Filtrado automático por división o sector.
+- Dashboard específico según el rol del usuario.
+- Separación entre dashboard operativo y dashboard administrativo.
+- Agenda semanal dinámica.
+- Inicio siempre desde el día actual.
+- Última columna correspondiente al mismo día de la semana siguiente.
+- Visualización correcta de fechas.
+- Aprovechamiento del espacio horizontal y vertical.
+- Actualización dinámica en tiempo real.
+- Indicadores visuales de prioridad.
+- Ocultamiento de horarios extraordinarios.
+- Habilitación automática de horarios extraordinarios únicamente cuando la prioridad sea superior a Normal.
+- Cupos máximos por turno.
+- Cupo extraordinario.
+- Colores suaves y con transparencia.
+- Reservas temporales.
+- Expiración automática de reservas.
+- Actualización inmediata del dashboard cuando otro usuario interactúe con la plataforma.
+
+---
+
+## Gestión de Agenda
+
+Verificar:
+
+- Duración de cada tipo de trabajo.
+- Cálculo automático del tiempo disponible.
+- Validación de disponibilidad.
+- Restricciones de horarios.
+- Reglas de prioridad.
+- Gestión de retrasos.
+- Reasignación automática.
+- Consulta al técnico.
+- Recordatorios.
+- Disponibilidad de técnicos.
+
+---
+
+## Recepción del Vehículo
+
+Comprobar que se implementó:
+
+- Carga automática desde la orden de trabajo.
+- Validación visual.
+- Captura de fotografías.
+- Validación automática de imágenes borrosas.
+- Fotografías del interior.
+- Fotografías del exterior.
+- Fotografías del chasis.
+- Marcado de daños sobre las imágenes.
+- Asociación del daño con la fotografía correspondiente.
+- Firma digital del cliente.
+- Ticket previo a la instalación.
+
+---
+
+## Historial del Vehículo
+
+Verificar:
+
+- Consulta automática por número de chasis.
+- Recuperación automática del historial.
+- Historial de trabajos.
+- Historial de técnicos.
+- Historial de fechas.
+- Historial de ubicaciones.
+- Historial por división.
+- Soporte para mantenimiento.
+- Soporte para revisión por falla.
+- Soporte para desinstalación.
+- Soporte para reinstalación.
+
+---
+
+## Orden de Trabajo
+
+Verificar:
+
+- Clasificación de vehículo nuevo.
+- Clasificación de vehículo usado.
+- Detección automática de GPS instalado.
+- Consulta automática del historial.
+- Selector de tipo de trabajo.
+- Integración con el historial.
+
+---
+
+## Flujo del Técnico
+
+Verificar:
+
+- Detección automática de llegada mediante GPS.
+- Actualización automática del estado.
+- Recepción del vehículo.
+- Vehículo no disponible.
+- Flujo de instalación.
+- Diagnóstico.
+- Pruebas.
+- Finalización.
+- Observaciones.
+- Historial de estados.
+- Integración con monitoreo.
+- Apertura automática del siguiente trabajo.
+
+---
+
+## Gestión de Esperas
+
+Verificar:
+
+- Tiempo prudente de espera.
+- Cambio automático de estado.
+- Notificaciones.
+- Reasignaciones.
+- Decisiones del jefe de tienda.
+- Adelanto automático de trabajos.
+
+---
+
+## Código QR
+
+Verificar:
+
+- Generación automática.
+- Página pública.
+- Datos permitidos.
+- Estado del trabajo.
+- Carrusel de imágenes.
+- Datos del vehículo.
+- Datos del técnico.
+- Datos del vendedor.
+- Lugar de instalación.
+
+---
+
+## Tickets
+
+Verificar:
+
+- Ticket de recepción.
+- Ticket asociado al rol correspondiente.
+- Ticket previo a instalación.
+- Evidencia posterior.
+- Firma digital del cliente.
+
+---
+
+## PWA
+
+Verificar:
+
+- Separación completa respecto al catálogo.
+- Service Worker independiente.
+- Manifest independiente.
+- Caché independiente.
+- Identidad independiente.
+- Instalación independiente.
+- Favicon propio.
+- Icono propio.
+- Logotipo GOs.
+- Correcta convivencia con la PWA del catálogo.
+
+---
+
+# COMPARACIÓN OBLIGATORIA
+
+La auditoría deberá comparar uno por uno los requerimientos escritos durante esta conversación contra la implementación realizada.
+
+No deberá validarse por módulos.
+
+No deberá validarse por archivos.
+
+No deberá validarse por funcionalidades generales.
+
+La comparación deberá hacerse **requerimiento por requerimiento**.
+
+---
+
+# DETECCIÓN DE OMISIONES
+
+Si durante la auditoría se identifica **un solo requerimiento** que no haya sido implementado exactamente como fue solicitado, deberá:
+
+1. Registrarse.
+2. Clasificarse como implementación pendiente.
+3. Implementarse.
+4. Reiniciar nuevamente la auditoría completa desde el inicio.
+
+No se permitirá validar únicamente el módulo afectado.
+
+La auditoría deberá repetirse sobre **todos los requerimientos**.
+
+---
+
+# CRITERIO DE APROBACIÓN
+
+La implementación únicamente podrá considerarse finalizada cuando exista evidencia de que **el 100 % de los requerimientos definidos durante esta conversación fueron implementados**, incluyendo reglas de negocio, restricciones, automatizaciones, validaciones, interfaces, estados, notificaciones, integraciones, comportamiento visual y cualquier detalle funcional solicitado.
+
+La existencia de una sola omisión, por pequeña que sea, invalidará la auditoría y obligará a continuar el desarrollo hasta alcanzar una cobertura funcional completa.
+
+
+### DECIMO 
+
+
+# Nueva Implementación: Sistema de Roles, Privilegios, Administración y Control Operativo
+
+# Sistema de Roles y Permisos
+
+La plataforma deberá implementar un sistema de control de acceso basado en roles y privilegios.
+
+Cada rol tendrá permisos específicos y deberá visualizar únicamente las funciones autorizadas.
+
+Los controles de interfaz deberán ocultar botones, acciones y módulos para usuarios que no tengan permisos.
+
+La restricción deberá aplicarse tanto visualmente como a nivel lógico, evitando accesos directos mediante rutas, solicitudes o modificaciones externas.
+
+---
+
+# Roles del Sistema
+
+## Rol: Desarrollador
+
+Permisos:
+
+- Acceso total a la plataforma.
+- Todos los privilegios administrativos.
+- Acceso a todas las divisiones.
+- Configuración completa del sistema.
+- Gestión completa de usuarios.
+- Modificación de cualquier configuración.
+
+---
+
+# Rol: Jefe de División
+
+Existe un jefe asignado para cada división mayor.
+
+Divisiones mayores:
+
+- San Pedro Sula.
+- Tegucigalpa.
+
+El jefe de división tendrá privilegios administrativos dentro de su división y permisos especiales sobre operaciones generales.
+
+---
+
+## Privilegios del Jefe de División
+
+Puede:
+
+- Visualizar dashboards de otras divisiones.
+- Crear cuentas de usuarios.
+- Aprobar instalaciones extraordinarias.
+- Crear cupos con órdenes de trabajo.
+- Crear cupos de órdenes de trabajo en cualquier división.
+- Eliminar cupos de órdenes de trabajo.
+- Modificar cupos de órdenes de trabajo.
+- Autorizar cupos solicitados por asesores de otras divisiones.
+- Autorizar cupos extraordinarios.
+- Administrar configuraciones locales de su división.
+- Consultar métricas de desempeño.
+- Consultar reportes mensuales.
+
+Restricción:
+
+No puede editar los cupos de asesores de venta pertenecientes a otras divisiones.
+
+---
+
+# Rol: Asesor de Venta
+
+El asesor de venta tendrá permisos relacionados con la creación y gestión de citas u órdenes propias.
+
+---
+
+## Privilegios del Asesor de Venta
+
+Puede:
+
+- Crear cupos de trabajos dentro de su propia división.
+- Crear órdenes de trabajo.
+- Apartar cupos mediante órdenes en borrador.
+- Solicitar cupos extraordinarios.
+- Cancelar sus propios cupos extraordinarios.
+- Modificar sus propios cupos extraordinarios.
+- Eliminar sus propios cupos extraordinarios.
+
+---
+
+## Restricciones del Asesor de Venta
+
+No puede:
+
+- Eliminar cupos creados por otros asesores.
+- Modificar cupos creados por otros asesores.
+- Crear cupos de otras divisiones sin autorización.
+
+---
+
+## Cupos en otras divisiones
+
+Si un asesor necesita crear un cupo en una división diferente:
+
+Debe:
+
+1. Solicitar apartar el cupo.
+2. Guardar la orden de trabajo como borrador.
+3. Esperar autorización del jefe de división correspondiente.
+
+---
+
+# Rol: Técnico
+
+El técnico tiene permisos exclusivamente operativos.
+
+No tiene permisos para:
+
+- Crear cupos.
+- Modificar cupos.
+- Eliminar cupos.
+- Editar órdenes de trabajo.
+
+Su función principal es ejecutar las órdenes asignadas.
+
+Puede:
+
+- Consultar sus órdenes asignadas.
+- Actualizar estados de trabajo.
+- Registrar avances.
+- Registrar observaciones.
+- Modificar únicamente su propia contraseña desde información personal.
+
+---
+
+# División y Alcance de Información
+
+## Divisiones mayores
+
+- San Pedro Sula.
+- Tegucigalpa.
+
+## Divisiones menores
+
+- Choluteca.
+- La Ceiba.
+- Occidente.
+
+Las divisiones menores funcionan bajo gestión local.
+
+---
+
+# Control de Acciones en Dashboard
+
+Los botones de:
+
+- Crear cupo.
+- Modificar cupo.
+- Eliminar cupo.
+- Autorizar cupo.
+- Autorizar cupo extraordinario.
+
+Deberán aparecer únicamente para usuarios con privilegios.
+
+Usuarios sin permisos:
+
+- No deberán visualizar los botones.
+- No deberán poder ejecutar las acciones mediante acceso directo.
+
+---
+
+# Gestión de Cupos
+
+Un cupo representa:
+
+- Una cita.
+- Una orden de trabajo.
+- Un espacio reservado dentro de un turno.
+
+Cada cupo deberá estar asociado obligatoriamente a una orden de trabajo.
+
+---
+
+# Acceso al Dashboard por Rol
+
+## Técnicos
+
+Solo podrán visualizar:
+
+- Dashboard de su propia división.
+- Sus trabajos asignados.
+- Su agenda operativa.
+
+---
+
+## Técnicos y Cupos Extraordinarios
+
+Los técnicos podrán ser consultados para asignaciones extraordinarias fuera del horario normal:
+
+Horario normal:
+
+- 8:00 AM a 5:00 PM.
+
+Los turnos extraordinarios deberán considerar:
+
+- Prioridad del trabajo.
+- Autorización del jefe de división.
+- Disponibilidad del técnico.
+
+---
+
+# Gestión de Turnos Extraordinarios
+
+Los horarios irregulares deberán manejarse como turnos extraordinarios.
+
+Ejemplo:
+
+Un turno de 9:00 AM a 11:00 AM se procesa como horario normal.
+
+Sin embargo, si existe conflicto con:
+
+- Hora de almuerzo.
+- Retrasos.
+- Trabajos extendidos.
+
+El sistema deberá aplicar las reglas de compensación definidas.
+
+---
+
+# Control Automático de Almuerzo por Retrasos
+
+Cuando un retraso afecte el horario del técnico, el sistema deberá garantizar una hora completa de almuerzo.
+
+Condición:
+
+Si el trabajo termina después de las 12:00 PM debido a retrasos o disponibilidad del vehículo, deberá liberarse automáticamente:
+
+**60 minutos de descanso.**
+
+---
+
+# Ejemplo de Cálculo
+
+Cita original:
+
+10:00 AM
+
+Cliente llega:
+
+11:00 AM
+
+Instalación:
+
+90 minutos
+
+Finalización:
+
+12:30 PM
+
+Resultado:
+
+- Técnico termina a las 12:30 PM.
+- Sistema reserva 60 minutos de almuerzo.
+- Próxima asignación inicia a la 1:30 PM.
+
+---
+
+# Reorganización Automática de Agenda
+
+Si el técnico tenía otra asignación a la 1:00 PM:
+
+El sistema deberá:
+
+1. Buscar técnico disponible.
+2. Reasignar la orden si existe disponibilidad.
+3. Actualizar dashboards.
+4. Notificar usuarios involucrados.
+
+Si no existe técnico disponible:
+
+- Mantener la asignación.
+- Recalcular la agenda posterior.
+- Ajustar horarios siguientes.
+
+---
+
+# Ejemplo de Agenda Ajustada
+
+11:00 AM  
+Recepción del vehículo.
+
+12:30 PM  
+Trabajo finalizado.
+
+12:30 PM - 1:30 PM  
+Hora de almuerzo.
+
+1:30 PM  
+Inicio de siguiente asignación.
+
+3:30 PM  
+Siguiente trabajo originalmente programado a las 3:00 PM.
+
+---
+
+# Cálculo de Horas Extra
+
+El sistema deberá calcular automáticamente las horas extraordinarias acumuladas por técnico.
+
+El cálculo será mensual.
+
+Cada día primero del mes deberá generarse automáticamente:
+
+- Reporte mensual de horas extras.
+- Disponible para consulta del jefe de división.
+
+---
+
+# Reglas de Horas Extra
+
+Solo se contabilizan:
+
+## Lunes a viernes
+
+- Trabajo realizado después de las 5:00 PM.
+- Trabajo iniciado antes de las 8:00 AM.
+
+## Sábados
+
+- Antes de las 8:00 AM.
+- Después de las 12:00 PM.
+
+## Domingos
+
+Todo horario trabajado.
+
+---
+
+# Dashboard Administrativo
+
+El jefe de división tendrá acceso a un dashboard administrativo llamado:
+
+## Administración
+
+---
+
+# Métricas Administrativas
+
+Debe mostrar tarjetas configurables con:
+
+- Instalaciones nuevas.
+- Desinstalaciones.
+- Revisiones por falla.
+- Mantenimiento preventivo.
+- Reinstalaciones.
+
+Las tarjetas deberán permitir generación de gráficos comparativos por mes.
+
+---
+
+# Gráficos Administrativos
+
+Debe incluir:
+
+## Gráfico de línea
+
+Cantidad de instalaciones por mes.
+
+---
+
+# Configuración Local por División
+
+El dashboard administrativo deberá incluir pestañas para:
+
+- Configuración.
+- Preferencias locales.
+- Administración de usuarios.
+- Reportes.
+- Desempeño.
+
+Restricción:
+
+Un jefe de división no podrá modificar configuraciones locales de otra división.
+
+---
+
+# Dashboard de Desempeño
+
+Debe incluir un tablero con filas y columnas para medir productividad.
+
+---
+
+# Productividad de Asesores
+
+Debe mostrar:
+
+- Cantidad de trabajos asignados.
+- Tipo de trabajo asignado.
+- Comparación mensual.
+
+---
+
+# Productividad de Técnicos
+
+Debe mostrar:
+
+- Cantidad de trabajos realizados.
+- Tipo de trabajo realizado.
+- Comparación mensual.
+
+---
+
+# Gráficos de Distribución
+
+Debe permitir:
+
+## Asesores
+
+Gráfico circular:
+
+- Total de trabajos del mes.
+- Porcentaje correspondiente a cada asesor.
+
+## Técnicos
+
+Gráfico circular:
+
+- Total de trabajos realizados.
+- Distribución por técnico.
+
+Debe permitir dividir los gráficos por tipo de trabajo.
+
+---
+
+# Dashboard Personal del Técnico
+
+Cada técnico tendrá un dashboard generado automáticamente.
+
+Debe mostrar:
+
+- Trabajos asignados.
+- Estados actuales.
+- Próximas órdenes.
+- Información necesaria para ejecutar el trabajo.
+
+---
+
+# Acceso al Dashboard por Rol
+
+Cada cupo deberá contener una orden de trabajo asociada.
+
+Podrán visualizarla:
+
+- Técnico asignado.
+- Asesor creador.
+- Jefe de división.
+
+---
+
+# Modificación de Orden de Trabajo
+
+Solo podrán modificar una orden:
+
+- Asesor que creó la orden.
+- Jefe de división.
+
+---
+
+# Flujo del Técnico desde su Dashboard
+
+Cuando el técnico seleccione una orden asignada deberá visualizar:
+
+- Información del trabajo.
+- Datos del vehículo.
+- Estado actual.
+- Acciones disponibles.
+
+Debe poder interactuar directamente con:
+
+- Recibí el vehículo.
+- Vehículo no disponible.
+- Estados del proceso.
+- Observaciones.
+- Finalización del trabajo.
+
+Toda interacción deberá quedar registrada en el historial de la orden.
+
+
+### ONCEAVI 
+
+# Nueva Implementación: Geolocalización, Persistencia, Gestión de Cupos, Arquitectura de Datos y Separación de Servicios GOS
+
+# Detección Automática de Finalización de Instalación
+
+El sistema deberá detectar automáticamente cuando un técnico abandone el lugar de trabajo.
+
+Esta validación aplicará únicamente después de completar la etapa:
+
+**Pruebas con monitoreo.**
+
+Si el sistema detecta que:
+
+- El técnico ya realizó las pruebas con monitoreo.
+- El técnico se retiró de la ubicación del trabajo.
+- No existe una declaración manual de finalización.
+
+Entonces el sistema deberá asumir que la instalación fue completada satisfactoriamente.
+
+Acciones automáticas:
+
+- Cambiar el estado de la orden a **Instalación completada**.
+- Registrar el evento en el historial.
+- Guardar fecha, hora y ubicación del evento.
+- Notificar la actualización en los dashboards correspondientes.
+
+---
+
+# Persistencia y Gestión Inteligente de Ubicaciones
+
+El sistema deberá garantizar persistencia de ubicaciones sin depender del ingreso manual de coordenadas geográficas.
+
+Está prohibido crear un campo de texto para ingresar coordenadas manualmente.
+
+Las coordenadas deberán obtenerse mediante selección visual en mapa.
+
+---
+
+# Sistema de Ubicaciones Guardadas
+
+Cuando un asesor registre una ubicación de trabajo, el sistema deberá permitir almacenarla asociada a un nombre identificativo.
+
+La ubicación deberá guardar:
+
+- Nombre asignado.
+- Dirección.
+- Coordenadas.
+- División asociada.
+- Cantidad de usos.
+- Historial de utilización.
+
+---
+
+# Reutilización Inteligente de Ubicaciones
+
+Si otro asesor registra una dirección existente, el sistema deberá sugerir automáticamente la ubicación previamente almacenada.
+
+Las ubicaciones más utilizadas deberán tener mayor prioridad en las sugerencias.
+
+Ejemplo:
+
+Agencias de vehículos:
+
+- Excel Tienda.
+- Excel Taller.
+- Excel Fuso.
+- Excel Usados.
+
+---
+
+# Búsqueda Inteligente de Ubicaciones
+
+En el campo de ubicación, si el asesor escribe:
+
+```
+Excel
+```
+
+El sistema deberá mostrar un selector con las ubicaciones almacenadas relacionadas.
+
+Ejemplo:
+
+```
+Excel Tienda
+Excel Taller
+Excel Fuso
+Excel Usados
+```
+
+Al seleccionar una opción:
+
+- La dirección deberá cargarse automáticamente.
+- Las coordenadas deberán recuperarse automáticamente.
+- El enlace de navegación deberá generarse automáticamente.
+
+---
+
+# Selector de Mapa
+
+El sistema deberá mostrar un mapa correspondiente a la ciudad o división seleccionada.
+
+El usuario podrá:
+
+- Ubicar manualmente el punto del trabajo.
+- Seleccionar la ubicación en el mapa.
+- Confirmar la dirección.
+
+El sistema deberá obtener automáticamente:
+
+- Coordenadas geográficas.
+- Dirección asociada.
+- Enlace de Google Maps.
+
+---
+
+# Integración con Google Maps
+
+La plataforma deberá permitir:
+
+- Visualizar la ubicación dentro de GOS.
+- Abrir la ubicación en la aplicación Google Maps del dispositivo.
+
+La integración no deberá interrumpir la sesión activa de GOS.
+
+---
+
+# Permisos de Dispositivo
+
+La PWA GOS deberá solicitar los permisos necesarios para su funcionamiento.
+
+Permisos requeridos:
+
+## Ubicación
+
+Para:
+
+- Seguimiento del técnico.
+- Detección de llegada al lugar.
+- Detección de retiro del lugar.
+- Validación de ubicación del trabajo.
+
+## Archivos
+
+Para:
+
+- Carga de imágenes.
+- Evidencias fotográficas.
+- Documentos asociados.
+
+---
+
+# Persistencia de Conexión de la PWA
+
+La PWA deberá solicitar permisos necesarios para evitar suspensión por ahorro de batería del dispositivo.
+
+Objetivo:
+
+Mantener la comunicación activa mientras exista una operación en curso.
+
+Debe evitar:
+
+- Suspensión automática.
+- Pérdida de conexión.
+- Interrupción del seguimiento operativo.
+
+La plataforma deberá mantener interacción continua mientras el usuario tenga procesos activos.
+
+---
+
+# Gestión Dinámica de Cupos por Cantidad de Técnicos
+
+La cantidad máxima de cupos disponibles por turno deberá determinarse automáticamente según la cantidad de técnicos activos pertenecientes a la división.
+
+Regla:
+
+```
+Cantidad de técnicos disponibles = Cantidad máxima de cupos por turno
+```
+
+Ejemplo:
+
+| Turno | Técnicos disponibles | Cupos permitidos |
+|---|---|---|
+| 8:00 - 10:00 | 4 | 4 |
+
+No deberán existir más cupos disponibles que técnicos capaces de ejecutar los trabajos.
+
+---
+
+# Gestión de Cupos Extraordinarios
+
+Los cupos extraordinarios deberán utilizar la misma lógica de control de tiempos y retrasos definida previamente.
+
+Deberán considerar:
+
+- Retrasos acumulados.
+- Hora de almuerzo.
+- Disponibilidad real del técnico.
+- Finalización estimada del trabajo actual.
+
+---
+
+# Cálculo Preventivo de Disponibilidad del Técnico
+
+Antes de asignar un nuevo trabajo, el sistema deberá calcular si el técnico podrá finalizar dentro del tiempo disponible.
+
+Ejemplo:
+
+Inicio del trabajo:
+
+```
+9:00 AM
+```
+
+Tiempo estimado:
+
+```
+90 minutos
+```
+
+Finalización estimada:
+
+```
+10:30 AM
+```
+
+Si se asigna otro trabajo, el sistema deberá considerar posibles extensiones hasta:
+
+```
+12:00 PM o después
+```
+
+La asignación deberá considerar:
+
+- Tiempo real.
+- Traslados.
+- Retrasos.
+- Descanso obligatorio.
+
+---
+
+# Restricción de Spreadsheet
+
+El desarrollador deberá utilizar exclusivamente la infraestructura de datos destinada para GOS.
+
+## PROHIBIDO
+
+Modificar:
+
+- Spreadsheet de GPSpedia.
+- Datos del catálogo GPS.
+- Configuraciones pertenecientes a otra plataforma.
+
+GOS deberá mantener separación total de datos.
+
+---
+
+# Gestión de Spreadsheets de GOS
+
+El desarrollador podrá crear nuevas spreadsheets si es necesario para separar responsabilidades.
+
+Ejemplos de separación:
+
+## Gestión de usuarios y configuración
+
+Uso:
+
+- Usuarios.
+- Autenticación.
+- Roles.
+- Permisos.
+- Configuraciones generales.
+
+## Registros históricos
+
+Uso:
+
+- Historial de vehículos.
+- Trabajos realizados.
+- Técnicos responsables.
+- Fechas.
+- Ubicaciones.
+- División.
+
+---
+
+# Organización de Datos
+
+Las hojas deberán mantenerse ordenadas y comprensibles.
+
+Requisitos:
+
+- Encabezados claros.
+- Nombres descriptivos.
+- Información agrupada correctamente.
+- Crear nuevas hojas cuando sea necesario.
+- Evitar estructuras difíciles de interpretar.
+
+El diseño deberá permitir mantenimiento humano sin depender exclusivamente del desarrollador.
+
+---
+
+# Escalabilidad de Datos
+
+El desarrollador deberá evaluar la distribución de información para evitar sobrecarga de una sola spreadsheet.
+
+La separación deberá garantizar:
+
+- Rendimiento.
+- Integridad de datos.
+- Conservación de configuraciones.
+- Seguridad de usuarios.
+- Facilidad de mantenimiento.
+
+---
+
+# Arquitectura de Microservicios GOS
+
+El desarrollador deberá evaluar si la plataforma requiere dividir funcionalidades en microservicios independientes.
+
+La separación deberá realizarse por responsabilidad funcional.
+
+Cuando se creen microservicios deberán utilizar el siguiente formato:
+
+```
+GOs-funcion
+```
+
+Ejemplos:
+
+```
+GOs-dashboard
+GOs-usuarios
+GOs-autenticacion
+GOs-historial
+GOs-reportes
+```
+
+---
+
+# Criterios para Separación de Servicios
+
+La división por microservicios deberá considerar:
+
+- Independencia funcional.
+- Escalabilidad.
+- Mantenimiento.
+- Seguridad.
+- Separación de responsabilidades.
+
+No deberán crearse servicios innecesarios únicamente por dividir código.
+
+Cada servicio deberá tener una responsabilidad clara dentro de la plataforma GOS.
+
+
+### DOCEAVO 
+# Nuevas Implementaciones y Actualizaciones
+
+## Actualización del Procedimiento de Auditoría
+
+### Nueva Regla Obligatoria
+
+Agregar el siguiente paso al procedimiento definido en este documento.
+
+### Registro de Solicitudes Previo a la Auditoría
+
+Durante la etapa de auditoría, **antes del registro de hallazgos**, el desarrollador deberá documentar todas las solicitudes que originan la auditoría, incluyendo, entre otras:
+
+- Nuevas implementaciones.
+- Reportes de errores.
+- Cambios funcionales.
+- Cambios visuales.
+- Cambios arquitectónicos.
+- Solicitudes de optimización.
+- Refactorizaciones.
+- Requerimientos de documentación.
+
+Este registro constituirá la justificación formal de la auditoría.
+
+---
+
+### Verificación de Solicitudes Pendientes
+
+Como parte obligatoria de cada nueva auditoría, el desarrollador deberá revisar el registro generado en la auditoría inmediatamente anterior y comprobar que **todas las solicitudes documentadas fueron implementadas correctamente**.
+
+La auditoría no podrá considerarse finalizada mientras exista al menos una solicitud registrada anteriormente que continúe pendiente, haya sido implementada parcialmente o no cumpla el alcance solicitado.
+
+---
+
+# Nuevas Implementaciones
+
+## Pantalla Inicial de la Plataforma
+
+La pantalla inicial para **todos los usuarios**, independientemente del rol, deberá ser la pestaña **Agenda**.
+
+La Agenda deberá mostrarse automáticamente al:
+
+- Iniciar sesión.
+- Abrir la aplicación.
+- Actualizar el navegador.
+- Recargar la PWA.
+
+No deberá mostrarse otra pantalla como vista inicial.
+
+---
+
+## Reubicación del Dashboard Actual
+
+El dashboard administrativo existente dejará de ser la pantalla principal.
+
+Toda la información estadística mostrada actualmente deberá trasladarse a una nueva sección denominada:
+
+**Reportes**
+
+Esta sección deberá ubicarse en el encabezado, junto a la pestaña **Planificación de la semana**, manteniendo el mismo estilo de navegación.
+
+---
+
+## Encabezado
+
+El mensaje:
+
+```
+Hola, Usuario
+```
+
+Deberá mantenerse, pero utilizando un tamaño de fuente menor para reducir el espacio ocupado en el encabezado.
+
+---
+
+# Agenda
+
+## Visibilidad de Columnas
+
+Las columnas correspondientes a:
+
+- Domingo.
+- Horarios posteriores al mediodía del sábado.
+
+Deberán permanecer ocultas por defecto.
+
+La columna del domingo únicamente deberá mostrarse cuando exista al menos un cupo reservado para ese día.
+
+---
+
+## Gestión de Cupos Extraordinarios
+
+Para los usuarios con rol:
+
+- Asesor.
+- Jefe de división.
+
+Cada columna del calendario deberá mostrar un botón **(+)** para gestionar cupos extraordinarios.
+
+Su ubicación será:
+
+- Antes del primer turno.
+- Después del último turno.
+
+En el caso del sábado también deberá existir un botón después del último horario normal para gestionar:
+
+- Turnos extraordinarios del sábado.
+- Reservas para el domingo.
+
+---
+
+## Reservas de Cupos
+
+### Asesor
+
+Únicamente podrá:
+
+- Reservar el cupo como borrador.
+
+No podrá confirmar reservas extraordinarias.
+
+### Jefe de División
+
+Podrá:
+
+- Aprobar la reserva.
+- Confirmar el cupo.
+- Autorizar cupos extraordinarios.
+
+---
+
+# Formulario de Agendamiento
+
+El formulario utilizado para agendar una instalación deberá ser el mismo utilizado para crear una orden de trabajo.
+
+No deberá existir un formulario independiente.
+
+---
+
+## Campo Fecha
+
+Al abrir el formulario:
+
+Si el día actual posee cupos normales disponibles:
+
+- La fecha deberá completarse automáticamente con la fecha actual.
+
+Si el día actual no posee cupos disponibles:
+
+- La fecha deberá completarse automáticamente con la siguiente fecha que tenga disponibilidad.
+
+---
+
+## Campo Hora
+
+Representará el turno seleccionado para la instalación.
+
+Si el usuario abre el formulario haciendo clic sobre un espacio disponible dentro de la Agenda:
+
+El sistema deberá completar automáticamente:
+
+- Fecha.
+- Hora.
+
+El usuario podrá modificar posteriormente ambos campos si lo considera necesario.
+
+---
+
+# Advertencias de Horario
+
+Si una reserva se realiza **10 minutos o más después del inicio del turno**, el sistema deberá mostrar un mensaje indicando que:
+
+- La instalación iniciará con retraso.
+- Existe la posibilidad de que el técnico finalice más tarde de lo previsto.
+
+Esta advertencia deberá mostrarse únicamente cuando el técnico tenga otra asignación programada posteriormente.
+
+---
+
+# Información del Cliente
+
+El campo:
+
+**Contacto**
+
+Deberá reemplazarse por:
+
+**Dirección del cliente**
+
+Esta dirección corresponde al domicilio del cliente y **no** al lugar donde se realizará la instalación.
+
+El campo:
+
+**Número de teléfono**
+
+Deberá mantenerse sin cambios.
+
+---
+
+# Gestión de Ubicaciones
+
+Los campos:
+
+- Buscar ubicación guardada.
+- Nombre de ubicación.
+
+Deberán unificarse en un único campo denominado:
+
+**Ubicación de la instalación**
+
+---
+
+## Autocompletado Inteligente
+
+Mientras el usuario escribe:
+
+Si existen ubicaciones almacenadas compatibles:
+
+- Deberán mostrarse inmediatamente como sugerencias seleccionables.
+
+Al seleccionar una sugerencia:
+
+- Se completará automáticamente toda la información asociada.
+
+---
+
+## Registro de Nueva Ubicación
+
+Si la ubicación ingresada no existe:
+
+Deberá mostrarse la opción:
+
+**Guardar ubicación**
+
+Al seleccionarla deberá abrirse un cuadro de diálogo solicitando:
+
+**Nombre de la ubicación**
+
+Después de guardar:
+
+- La ubicación quedará disponible para futuras búsquedas.
+
+---
+
+## Búsqueda Inteligente
+
+La búsqueda deberá ser:
+
+- Insensible a mayúsculas y minúsculas.
+- Tolerante a errores de escritura.
+- Capaz de sugerir coincidencias aproximadas.
+
+---
+
+# Vista del Mapa
+
+Junto al campo de ubicación deberá mostrarse un mapa de tamaño reducido.
+
+Si existe una ubicación seleccionada:
+
+- El mapa deberá mostrar dicha ubicación.
+
+Si aún no existe una ubicación:
+
+- El mapa deberá centrarse en la ubicación actual del usuario.
+
+---
+
+## Selección desde el Mapa
+
+El usuario podrá seleccionar cualquier punto del mapa.
+
+Al hacerlo, el sistema deberá:
+
+- Obtener la dirección.
+- Completar automáticamente el campo de ubicación.
+- Capturar internamente las coordenadas.
+
+Las coordenadas no deberán mostrarse al usuario.
+
+---
+
+## Detección de Ubicaciones Existentes
+
+Cuando el usuario seleccione un punto en el mapa, el sistema deberá comprobar si ya existe una ubicación almacenada cercana.
+
+Si existe una coincidencia dentro de un margen aproximado entre **50 y 100 metros**, deberá considerarse la misma ubicación.
+
+En ese caso:
+
+- No deberá mostrarse la opción **Guardar ubicación**.
+
+Esta lógica permitirá reutilizar ubicaciones correspondientes a agencias o establecimientos cercanos entre si.
+
+---
+
+## Instalaciones Locales
+
+Debajo del campo de ubicación deberá mostrarse el mensaje:
+
+> Dejar vacío si el cliente llevará el vehículo a la oficina.
+
+---
+
+## Enlaces de Google Maps
+
+El campo de ubicación deberá aceptar también enlaces de Google Maps.
+
+El sistema deberá:
+
+- Obtener automáticamente la dirección.
+- Calcular las coordenadas.
+- Mostrar la ubicación en el mapa.
+
+Posteriormente:
+
+- El enlace no deberá almacenarse como dato visible.
+- El campo del enlace no deberá mostrarse al usuario.
+
+---
+
+# Servicio de Mapas
+
+Se deberán evaluar alternativas como:
+
+- OpenStreetMap.
+
+O cualquier otra solución que permita reducir la dependencia de servicios externos.
+
+Siempre que sea posible, el seguimiento del técnico deberá realizarse utilizando la propia PWA mediante la ubicación del dispositivo, evitando depender de un servicio de mapas para el seguimiento continuo.
+
+---
+
+# Coordenadas
+
+El campo:
+
+**Coordenadas**
+
+No deberá existir en la interfaz.
+
+Las coordenadas deberán obtenerse automáticamente a partir de:
+
+- La selección realizada en el mapa.
+- La dirección proporcionada.
+- El enlace de ubicación, cuando corresponda.
+
+Toda esta información deberá almacenarse de manera interna.
+
+---
+
+# Información Oculta para el Usuario
+
+Los siguientes campos no deberán mostrarse:
+
+- Coordenadas.
+- Enlace de Google Maps.
+- División o sector.
+- Categoría del vehículo.
+
+---
+
+## División
+
+La división deberá determinarse automáticamente utilizando la división asociada al usuario autenticado.
+
+No deberá solicitarse manualmente en el formulario.
+
+---
+
+## Categoría del Vehículo
+
+El campo:
+
+**Categoría del vehículo**
+
+Deberá eliminarse completamente de la interfaz y dejar de formar parte del flujo de creación de órdenes de trabajo.
+
+### TRECEAVO
+
+# Implementaciones Estratégicas Recomendadas para una Plataforma de Gestión Operativa Escalable
+
+> **Objetivo**
+>
+> Además de los requerimientos funcionales definidos para GOS, el desarrollador deberá evaluar e implementar las siguientes capacidades cuando aporten valor a la operación, mejoren la productividad, reduzcan tiempos de ejecución y favorezcan la escalabilidad y mantenibilidad de la plataforma.
+
+---
+
+# Agenda
+
+## Visibilidad de Columnas
+
+Las columnas correspondientes a:
+
+- Domingo.
+- Horarios posteriores al mediodía del sábado.
+
+Deberán permanecer ocultas por defecto.
+
+La columna del domingo únicamente deberá mostrarse cuando exista al menos un cupo reservado para ese día.
+
+---
+
+## Gestión de Cupos Extraordinarios
+
+Para los usuarios con rol:
+
+- Asesor.
+- Jefe de división.
+
+Cada columna del calendario deberá mostrar un botón **(+)** para gestionar cupos extraordinarios.
+
+Su ubicación será:
+
+- Antes del primer turno.
+- Después del último turno.
+
+En el caso del sábado también deberá existir un botón después del último horario normal para gestionar:
+
+- Turnos extraordinarios del sábado.
+- Reservas para el domingo.
+
+---
+
+## Reservas de Cupos
+
+### Asesor
+
+Únicamente podrá:
+
+- Reservar el cupo como borrador.
+
+No podrá confirmar reservas extraordinarias.
+
+### Jefe de División
+
+Podrá:
+
+- Aprobar la reserva.
+- Confirmar el cupo.
+- Autorizar cupos extraordinarios.
+
+---
+
+# Formulario de Agendamiento
+
+El formulario utilizado para agendar una instalación deberá ser el mismo utilizado para crear una orden de trabajo.
+
+No deberá existir un formulario independiente.
+
+---
+
+## Campo Fecha
+
+Al abrir el formulario:
+
+Si el día actual posee cupos normales disponibles:
+
+- La fecha deberá completarse automáticamente con la fecha actual.
+
+Si el día actual no posee cupos disponibles:
+
+- La fecha deberá completarse automáticamente con la siguiente fecha que tenga disponibilidad.
+
+---
+
+## Campo Hora
+
+Representará el turno seleccionado para la instalación.
+
+Si el usuario abre el formulario haciendo clic sobre un espacio disponible dentro de la Agenda:
+
+El sistema deberá completar automáticamente:
+
+- Fecha.
+- Hora.
+
+El usuario podrá modificar posteriormente ambos campos si lo considera necesario.
+
+---
+
+# Advertencias de Horario
+
+Si una reserva se realiza **10 minutos o más después del inicio del turno**, el sistema deberá mostrar un mensaje indicando que:
+
+- La instalación iniciará con retraso.
+- Existe la posibilidad de que el técnico finalice más tarde de lo previsto.
+
+Esta advertencia deberá mostrarse únicamente cuando el técnico tenga otra asignación programada posteriormente.
+
+---
+
+# Información del Cliente
+
+El campo:
+
+**Contacto**
+
+Deberá reemplazarse por:
+
+**Dirección del cliente**
+
+Esta dirección corresponde al domicilio del cliente y **no** al lugar donde se realizará la instalación.
+
+El campo:
+
+**Número de teléfono**
+
+Deberá mantenerse sin cambios.
+
+---
+
+# Gestión de Ubicaciones
+
+Los campos:
+
+- Buscar ubicación guardada.
+- Nombre de ubicación.
+
+Deberán unificarse en un único campo denominado:
+
+**Ubicación de la instalación**
+
+---
+
+## Autocompletado Inteligente
+
+Mientras el usuario escribe:
+
+Si existen ubicaciones almacenadas compatibles:
+
+- Deberán mostrarse inmediatamente como sugerencias seleccionables.
+
+Al seleccionar una sugerencia:
+
+- Se completará automáticamente toda la información asociada.
+
+---
+
+## Registro de Nueva Ubicación
+
+Si la ubicación ingresada no existe:
+
+Deberá mostrarse la opción:
+
+**Guardar ubicación**
+
+Al seleccionarla deberá abrirse un cuadro de diálogo solicitando:
+
+**Nombre de la ubicación**
+
+Después de guardar:
+
+- La ubicación quedará disponible para futuras búsquedas.
+
+---
+
+## Búsqueda Inteligente
+
+La búsqueda deberá ser:
+
+- Insensible a mayúsculas y minúsculas.
+- Tolerante a errores de escritura.
+- Capaz de sugerir coincidencias aproximadas.
+
+---
+
+# Vista del Mapa
+
+Junto al campo de ubicación deberá mostrarse un mapa de tamaño reducido.
+
+Si existe una ubicación seleccionada:
+
+- El mapa deberá mostrar dicha ubicación.
+
+Si aún no existe una ubicación:
+
+- El mapa deberá centrarse en la ubicación actual del usuario.
+
+---
+
+## Selección desde el Mapa
+
+El usuario podrá seleccionar cualquier punto del mapa.
+
+Al hacerlo, el sistema deberá:
+
+- Obtener la dirección.
+- Completar automáticamente el campo de ubicación.
+- Capturar internamente las coordenadas.
+
+Las coordenadas no deberán mostrarse al usuario.
+
+---
+
+## Detección de Ubicaciones Existentes
+
+Cuando el usuario seleccione un punto en el mapa, el sistema deberá comprobar si ya existe una ubicación almacenada cercana.
+
+Si existe una coincidencia dentro de un margen aproximado entre **50 y 100 metros**, deberá considerarse la misma ubicación.
+
+En ese caso:
+
+- No deberá mostrarse la opción **Guardar ubicación**.
+
+Esta lógica permitirá reutilizar ubicaciones correspondientes a agencias o establecimientos cercanos entre sí.
+
+---
+
+## Instalaciones Locales
+
+Debajo del campo de ubicación deberá mostrarse el mensaje:
+
+> Dejar vacío si el cliente llevará el vehículo a la oficina.
+
+---
+
+## Enlaces de Google Maps
+
+El campo de ubicación deberá aceptar también enlaces de Google Maps.
+
+El sistema deberá:
+
+- Obtener automáticamente la dirección.
+- Calcular las coordenadas.
+- Mostrar la ubicación en el mapa.
+
+Posteriormente:
+
+- El enlace no deberá almacenarse como dato visible.
+- El campo del enlace no deberá mostrarse al usuario.
+
+---
+
+# Servicio de Mapas
+
+Se deberán evaluar alternativas como:
+
+- OpenStreetMap.
+
+O cualquier otra solución que permita reducir la dependencia de servicios externos.
+
+Siempre que sea posible, el seguimiento del técnico deberá realizarse utilizando la propia PWA mediante la ubicación del dispositivo, evitando depender de un servicio de mapas para el seguimiento continuo.
+
+---
+
+# Coordenadas
+
+El campo:
+
+**Coordenadas**
+
+No deberá existir en la interfaz.
+
+Las coordenadas deberán obtenerse automáticamente a partir de:
+
+- La selección realizada en el mapa.
+- La dirección proporcionada.
+- El enlace de ubicación, cuando corresponda.
+
+Toda esta información deberá almacenarse de manera interna.
+
+---
+
+# Información Oculta para el Usuario
+
+Los siguientes campos no deberán mostrarse:
+
+- Coordenadas.
+- Enlace de Google Maps.
+- División o sector.
+- Categoría del vehículo.
+
+---
+
+## División
+
+La división deberá determinarse automáticamente utilizando la división asociada al usuario autenticado.
+
+No deberá solicitarse manualmente en el formulario.
+
+---
+
+## Categoría del Vehículo
+
+El campo:
+
+**Categoría del vehículo**
+
+Deberá eliminarse completamente de la interfaz y dejar de formar parte del flujo de creación de órdenes de trabajo.
+
+
+### TAREAS PENDIENTES DE REVISIÓN POR EL MP
+
+- **CONSULTAS TÉCNICAS POR VEHÍCULO Y SANEAMIENTO DEL REPOSITORIO (Pendiente de revisión por el PM):**
+  - Implementación completa y robusta del motor de consultas técnicas por vehículo en `Motores de negocio/consultas.js` (`ConsultasEngine`), que unifica búsquedas por marca, modelo y año.
+  - Implementación de tarjeta de logos de marcas en el frontend y selección dinámica de modelos.
+  - Agrupación por versión y tipo de encendido de los candidatos del catálogo.
+  - Cálculo de rango de años y fallback al rango más cercano por distancia absoluta.
+  - Sanitización completa de capacidades técnicas en motos (bloqueando pánico y micrófono) y vehículos de alta gama ("no se recomienda") en `getTechnicalCapabilities()`.
+  - Creación del modal de detalles limpio, compactado y proporcional, excluyendo cualquier información de cableado/corte interno o SIM/IMEI.
+  - Saneamiento completo de duplicados removiendo `style.css` y `api-config.js` de la raíz del repositorio, actualizando `portal.html` de forma segura, y eliminando el directorio vacío `Motores/`.
+
+- **DOCEAVO: Nuevas Implementaciones y Actualizaciones (Pendiente de revisión por el PM):**
+  - Pantalla inicial establecida como Agenda de forma unificada.
+  - Reubicación de Dashboard como sección Reportes adyocente a Planificación de la semana.
+  - Compactación de saludo de bienvenida en el encabezado.
+  - Visibilidad selectiva de columnas de Agenda (Domingo oculto si no hay citas, sábado tarde oculto por defecto).
+  - Botones (+) de agendamiento extraordinario para Asesores/Jefes.
+  - Restricción de agendamiento extraordinario para Asesores (solo Borrador).
+  - Autocompletado inteligente de Fecha y Hora en Formulario.
+  - Banner de advertencia de inicio retrasado (10+ min tarde con citas subsecuentes).
+  - Reemplazo de Contacto por Dirección del cliente.
+  - Unificación de ubicaciones, mapa interactivo Leaflet (OpenStreetMap), reverse geocoding con Nominatim, parser de Google Maps y regla de proximidad de 50-100m.
+  - Ocultación de coordenadas, link de maps, división y categoría de vehículo.
+
+- **CATORCEAVO: Nuevas Implementaciones: Formulario de Orden de Trabajo e Instalación (Pendiente de revisión por el PM):**
+  - El formulario de Nueva Instalación y el formulario de Orden de Trabajo deberán unificarse en un único formulario.
+  - El formulario deberá permitir guardar órdenes de trabajo en estado Borrador, aun cuando no se haya completado toda la información requerida para confirmar el cupo.
+  - Únicamente serán obligatorios los siguientes campos para guardar un borrador: Fecha, Hora y Nombre del cliente.
+  - Los borradores tendrán una vigencia limitada y se eliminarán automáticamente 60 minutos después del inicio del turno reservado, liberando el cupo automáticamente.
+  - Un cupo únicamente se considerará confirmado cuando la orden de trabajo se guarde con toda la información obligatoria (Fecha, Hora, Nombre del cliente, Marca, Modelo, Color, Año, Número de motor, Número de chasis, Servicio, Tipo de servicio cuando corresponda).
+  - El campo de Número de Inventario deberá convertirse automáticamente en obligatorio si la operación del cliente utiliza número de inventario. En los demás casos permanecerá opcional.
+  - El campo Placa se mostrará dinámicamente si el año del vehículo es menor al año actual (opcional, puede dejarse vacío), y permanecerá oculto si corresponde al año actual.
+  - La selección del servicio se realizará mediante casillas de verificación (Tracklink y Controlcar).
+  - El campo Tipo de servicio (dropdown con opciones Básico (Roadlink) y Full (Transtrack)) se mostrará únicamente cuando se seleccione Tracklink.
+  - Se mostrará un selector de tipo de trabajo (Instalación nueva, Revisión por falla, Desinstalación, Mantenimiento, Traspaso) antes de abrir el formulario al hacer clic en Reservar o (+).
+  - Para "Instalación nueva" se autocompletará automáticamente Fecha y Hora según el cupo seleccionado.
+  - Para trabajos sobre vehículos existentes (Revisión por falla, Desinstalación, Mantenimiento, Traspaso) se buscará automáticamente el cliente en tiempo real:
+    - Si tiene exactamente un vehículo, se autocompleta cliente y vehículo.
+    - Si tiene múltiples vehículos, se autocompleta cliente y se deja vacío el vehículo.
+    - Al escribir la marca de vehículo se mostrará un autocompletado con los vehículos registrados a su nombre en formato "Marca | Modelo | Placa | Chasis (últimos 6 dígitos)" y al seleccionar se completará toda su información.
+
+- **QUINCEAVO: Nuevas Implementaciones: Separación entre Orden de Instalación y Orden de Trabajo (Pendiente de revisión por el PM):**
+  - Separación conceptual, visual y lógica de Órdenes de Instalación y Órdenes de Trabajo.
+  - Creación automática de OI con prefijo OI-.
+  - Asignación automática de OI respetando las reglas operativas y de prioridad.
+  - Vista completa de la OI para el técnico con datos de contacto, vehículo, motor, inventario y dirección local/remota.
+  - Ticket de OI imprimible con QR Code de portal del cliente.
+  - Validación de VIN obligatoria de 17 caracteres previo a la recepción para autogenerar la OT vinculada.
+  - Sistema híbrido de numeración de OTs y configuraciones de administración para Jefes de división.
+  - Gestión de firmas digitales del técnico con almacenamiento único en backend y confirmación bajo contraseña.
+  - Segregación estricta de campos y sanitización del portal de clientes (portal.html) y de tickets de impresión.
+
+### QUINCEAVO
+
+# Nuevas Implementaciones: Separación entre Orden de Instalación y Orden de Trabajo
+
+## Separación de Conceptos
+
+La plataforma deberá diferenciar claramente entre una **Orden de Instalación** y una **Orden de Trabajo**, ya que representan etapas distintas del proceso operativo.
+
+Aunque ambas estarán relacionadas, tendrán objetivos, responsables y flujos independientes.
+
+---
+
+# Orden de Instalación
+
+La **Orden de Instalación** será el documento generado por el usuario con rol de:
+
+- Asesor de ventas.
+- Jefe de división.
+
+Esta orden se creará automáticamente al completar el formulario abierto desde la opción **Reservar cupo** en la Agenda.
+
+La Orden de Instalación será el documento que contiene toda la información comercial y de planificación necesaria para programar el trabajo.
+
+---
+
+## Asignación Automática
+
+Una vez confirmada la Orden de Instalación, el sistema deberá asignarla automáticamente a un técnico considerando las reglas previamente definidas.
+
+Como mínimo deberá respetar:
+
+- Disponibilidad del técnico.
+- División correspondiente.
+- Horario del turno.
+- Carga de trabajo.
+- Reglas de prioridad.
+- Reasignaciones automáticas.
+- Horarios extraordinarios.
+- Descansos obligatorios.
+- Orden cronológico de asignaciones.
+
+---
+
+## Información Disponible para el Técnico
+
+Cuando una Orden de Instalación sea asignada, el técnico deberá visualizar toda la información registrada por el asesor de ventas o el jefe de división.
+
+Como mínimo deberá incluir:
+
+### Información del Cliente
+
+- Nombre del cliente.
+- Dirección del cliente.
+- Número telefónico del cliente.
+
+---
+
+### Información del Servicio
+
+- Servicio contratado.
+- Nombre del servicio.
+- Tipo de servicio (cuando corresponda).
+
+Ejemplo:
+
+- Tracklink.
+- Controlcar.
+
+Si el servicio es **Tracklink**, deberá mostrarse también el tipo de servicio seleccionado.
+
+---
+
+### Información de la Instalación
+
+- Dirección donde se realizará la instalación.
+
+Si la instalación es local, este campo permanecerá vacío y el sistema deberá interpretar que el trabajo se realizará en la oficina correspondiente a la división del usuario que creó la orden.
+
+---
+
+### Información del Vehículo
+
+La Orden de Instalación deberá contener:
+
+- Marca.
+- Modelo.
+- Año.
+- Color.
+- Número de placa (si existe).
+- Número de inventario (cuando aplique).
+- Número de motor.
+- Número de VIN o chasis.
+
+---
+
+### Persona de Contacto
+
+Además del cliente, deberá registrarse la persona que entregará el vehículo al técnico.
+
+Como mínimo deberá incluir:
+
+- Nombre del contacto.
+- Número telefónico del contacto.
+
+---
+
+# Impresión de la Orden de Instalación
+
+Cada Orden de Instalación deberá poder imprimirse.
+
+La impresión deberá incluir:
+
+- Código QR.
+- Información del cliente.
+- Información del vehículo.
+- Información del servicio.
+- Información de la instalación.
+
+---
+
+# Recepción del Vehículo
+
+La Orden de Instalación deberá incluir la opción:
+
+**Recibir vehículo**
+
+Al seleccionarla, el técnico iniciará el proceso de recepción.
+
+---
+
+## Validación del Vehículo
+
+Como parte de la recepción, el técnico deberá ingresar manualmente el número VIN completo del vehículo.
+
+El sistema utilizará esta información para validar que el vehículo recibido corresponde a la Orden de Instalación.
+
+Una vez validado el VIN, toda la información de la Orden de Instalación deberá transferirse automáticamente a la Orden de Trabajo del técnico.
+
+---
+
+# Identificador de la Orden de Trabajo
+
+Cada Orden de Trabajo deberá tener un identificador único.
+
+El identificador podrá:
+
+- Generarse automáticamente por el sistema.
+- Ser asignado manualmente cuando la operación así lo requiera.
+
+---
+
+# Sistema Híbrido de Numeración
+
+Durante la transición hacia el nuevo sistema, la plataforma deberá soportar un esquema híbrido de numeración.
+
+Deberá permitir:
+
+- Continuar utilizando números de orden existentes.
+- Generar automáticamente nuevas órdenes consecutivas a partir de un número base definido por la empresa.
+
+Esta funcionalidad deberá ser configurable.
+
+---
+
+## Configuración de Numeración
+
+Los usuarios con rol de **Jefe de división** deberán poder configurar desde el panel administrativo:
+
+- Número inicial.
+- Método de generación.
+- Activación o desactivación de la numeración automática.
+
+---
+
+# Firma Digital del Técnico
+
+La Orden de Trabajo deberá incluir la firma digital del técnico.
+
+Cada técnico podrá registrar su firma una única vez.
+
+La firma quedará almacenada para usos posteriores.
+
+---
+
+## Eliminación de la Firma
+
+La firma registrada únicamente podrá eliminarse desde el panel administrativo por un usuario con rol de Jefe de división.
+
+---
+
+## Firma Automática
+
+Cuando el técnico deba firmar una Orden de Trabajo, el sistema deberá ofrecer la opción de utilizar la firma previamente registrada.
+
+Antes de aplicarla deberá solicitar una confirmación de identidad.
+
+La autenticación deberá seguir el siguiente orden de prioridad:
+
+1. Autenticación biométrica del dispositivo.
+2. Contraseña del usuario cuando el dispositivo no disponga de autenticación biométrica.
+
+---
+
+# Estados de la Orden de Trabajo
+
+La Orden de Trabajo estará compuesta por dos etapas principales.
+
+## Recepción del Vehículo
+
+Corresponde al momento en que el técnico recibe el vehículo antes de iniciar el trabajo.
+
+Esta etapa deberá incluir:
+
+- Formulario de recepción.
+- Inspección visual.
+- Evidencias fotográficas.
+- Firma del técnico.
+- Firma del cliente.
+
+Al finalizar deberá generarse un documento imprimible con código QR.
+
+El código QR permitirá al cliente consultar:
+
+- Resultados de la inspección.
+- Carrusel de evidencias.
+- Información autorizada del trabajo.
+
+---
+
+## Post Instalación
+
+Corresponde al proceso de entrega del vehículo.
+
+Esta etapa deberá incluir:
+
+- Firma del técnico.
+- Firma del cliente.
+- Confirmación de entrega.
+- Documento imprimible actualizado.
+- Código QR actualizado.
+
+---
+
+# Información Compartida entre Ambos Estados
+
+Tanto en la recepción como en la entrega deberán mostrarse:
+
+## Cliente
+
+- Nombre.
+- Dirección.
+- Teléfono.
+
+## Vehículo
+
+- Marca.
+- Modelo.
+- Año.
+- Color.
+- Placa.
+- Número de inventario.
+- Número de motor.
+- VIN.
+
+## Servicio
+
+- Servicio contratado.
+- Tipo de servicio.
+
+## Instalación
+
+- Dirección donde se realizó.
+- Fecha y hora de recepción.
+
+La fecha y hora de recepción deberán obtenerse automáticamente cuando el técnico abra la Orden de Instalación y comience el proceso de recepción.
+
+---
+
+# Evidencias
+
+La Orden de Trabajo deberá almacenar:
+
+- Fotografías.
+- Observaciones.
+- Resultados de la inspección.
+
+Esta información formará parte del historial de la orden.
+
+---
+
+# Información Exclusiva para Uso Interno
+
+La siguiente información deberá estar disponible únicamente para usuarios autorizados y no deberá incluirse en el código QR destinado al cliente:
+
+- IMEI del dispositivo GPS.
+- SIM instalada.
+- Información técnica interna.
+- Datos de programación.
+
+---
+
+# Información Visible para el Cliente
+
+El cliente únicamente podrá visualizar las funcionalidades instaladas en su vehículo.
+
+Como mínimo deberá mostrarse:
+
+- Dispositivo GPS.
+- Segundo dispositivo GPS (cuando exista).
+- Bloqueo remoto.
+- Apertura de puertas.
+- Botón de pánico.
+- Micrófono.
+- Parlante.
+- Funcionalidades adicionales instaladas.
+
+No deberá mostrarse información técnica sobre el método utilizado para implementar cada función.
+
+---
+
+# Segundo Dispositivo GPS
+
+La Orden de Trabajo deberá permitir indicar que el vehículo recibió un segundo dispositivo GPS.
+
+Al activar esta opción, el sistema deberá habilitar automáticamente un segundo bloque para registrar la información correspondiente.
+
+---
+
+# Registro de Funcionalidades Instaladas
+
+Antes de iniciar las pruebas con monitoreo, el sistema deberá solicitar al técnico que indique las funcionalidades instaladas durante el trabajo.
+
+Las opciones disponibles serán:
+
+- Dispositivo GPS.
+- Segundo dispositivo GPS.
+- Apagado remoto.
+- Apertura de puertas.
+- Botón de pánico.
+- Micrófono.
+- Parlante.
+- Otra funcionalidad.
+
+---
+
+## Tipos de Apagado Remoto
+
+Cuando el técnico seleccione **Apagado remoto**, el sistema deberá solicitar el tipo implementado.
+
+Opciones disponibles:
+
+- Corte por ignición.
+- Corte por bomba de combustible.
+- Bloqueo de arranque.
+
+Esta información será exclusivamente para uso interno.
+
+En la información visible para el cliente únicamente deberá mostrarse un indicador que confirme que el vehículo dispone de la funcionalidad **Bloqueo remoto**, sin especificar el método utilizado.
+
+---
+
+# Funcionalidades Adicionales
+
+La opción:
+
+**Otra funcionalidad**
+
+Deberá habilitar un campo de texto libre.
+
+El técnico registrará el nombre exacto de la funcionalidad instalada.
+
+Ese mismo texto será el que visualizará el cliente, evitando mostrar etiquetas genéricas como "Otras funcionalidades".
+
+---
+
+# Registro Automático de Eventos
+
+La Orden de Trabajo deberá registrar automáticamente las siguientes marcas de tiempo:
+
+- Fecha y hora de recepción del vehículo.
+- Fecha y hora de inicio del trabajo.
+- Fecha y hora de pruebas con monitoreo.
+- Fecha y hora de finalización del trabajo.
+- Fecha y hora en que el técnico abandonó el lugar de instalación.
+- Fecha y hora de entrega del vehículo al cliente.
+
+Todas estas marcas deberán almacenarse automáticamente sin requerir captura manual.
+
+---
+
+# Almacenamiento del Número de Orden
+
+El identificador único de la Orden de Trabajo deberá almacenarse automáticamente como parte del historial permanente del sistema.
+
+Este identificador deberá utilizarse para relacionar:
+
+- Orden de Instalación.
+- Orden de Trabajo.
+- Evidencias.
+- Historial.
+- Reportes.
+- Auditoría.
+- Documentación generada.
+```
+
+
+================================================================================
+# NUEVAS IMPLEMENTACIONES Y CAMBIOS - PROMPT DE INICIO (REGISTRO OBLIGATORIO)
+================================================================================
+
+# Agenda y Gestión de Cupos
+
+## Simplificación del botón de cupos extraordinarios
+
+Se deberá simplificar la interfaz de creación de cupos extraordinarios.
+
+### Cambios requeridos
+
+- El botón actualmente identificado como:
+
+  ```
+  + Cupo extraordinario temprano
+  ```
+
+  deberá mostrar únicamente el símbolo:
+
+  ```
+  +
+  ```
+
+- Se deberá eliminar completamente cualquier texto descriptivo relacionado con el tipo de cupo.
+
+- El botón deberá conservar únicamente el icono **"+"**.
+
+- El borde deberá utilizar el mismo estilo de los cupos normales:
+
+  - borde sólido
+  - grosor delgado
+  - mismo radio de borde
+  - misma ancho
+  - mismo estilo visual
+  - altura minima, del tamaño del símbolo *+* actual.
+
+- Este mismo comportamiento deberá aplicarse a:
+
+  - cupos extraordinarios antes de horario
+  - cupos extraordinarios después del horario laboral
+  - cupos extraordinarios de sábado por la tarde
+
+- No deberá existir un botón independiente para domingo.
+
+- El botón extraordinario del sábado deberá permitir gestionar tanto:
+
+  - sábado por la tarde
+  - domingo
+
+según el horario seleccionado posteriormente.
+
+---
+
+# Menú de selección de tipo de trabajo
+
+Actualmente las opciones aparecen mediante un modal.
+
+Este comportamiento deberá reemplazarse.
+
+Al hacer clic sobre:
+
+- Reservar
+- +
+
+deberá abrirse un **menú desplegable (Drop Menu)**.
+
+El menú deberá:
+
+- aparecer anclado al botón seleccionado
+- mantener fondo semitransparente
+- respetar el estilo visual de la plataforma
+- permanecer abierto hasta que el usuario haga clic fuera del menú
+- cerrarse automáticamente al seleccionar una opción
+- no utilizar modales para esta acción
+
+---
+
+# Actualización silenciosa
+
+Actualmente la plataforma realiza actualizaciones visibles.
+
+La sincronización deberá ser completamente transparente para el usuario.
+
+La actualización deberá ejecutarse en segundo plano evitando:
+
+- parpadeos
+- recargas visibles
+- reconstrucción completa del dashboard
+- pérdida de foco
+- interrupciones de la interacción
+
+La interfaz deberá actualizar únicamente los elementos modificados.
+
+---
+
+# Bloqueo temporal de cupos
+
+Para evitar reservas simultáneas, deberá implementarse un mecanismo de bloqueo temporal.
+
+Cuando un usuario comience a crear una Orden de Instalación:
+
+- el cupo quedará bloqueado inmediatamente
+- ningún otro usuario podrá reservarlo mientras permanezca abierto el formulario
+
+Durante este estado:
+
+- el cupo utilizará un color café claro
+- el texto cambiará automáticamente a:
+
+```
+Reservando...
+```
+
+El bloqueo finalizará cuando ocurra cualquiera de las siguientes condiciones:
+
+- el usuario cancela el formulario
+- el usuario confirma la reserva
+- el sistema detecta abandono de la operación
+- expira el tiempo máximo permitido
+
+Siempre tendrá prioridad el usuario que ocupó primero el cupo.
+
+---
+
+# Estados visuales del cupo
+
+Cada cupo deberá mostrar uno de los siguientes estados.
+
+## Disponible
+
+Color:
+
+Verde claro.
+
+Condición:
+
+No existe ninguna Orden de Instalación asociada.
+
+Texto mostrado:
+
+```
+Disponible
+```
+
+---
+
+## Reservando
+
+Color:
+
+Café claro.
+
+Condición:
+
+Existe otro usuario creando una Orden de Instalación.
+
+Texto mostrado:
+
+```
+Reservando...
+```
+
+---
+
+## Reservado
+
+Color:
+
+Amarillo suave.
+
+Condición:
+
+Existe una Orden de Instalación guardada como borrador.
+
+Texto mostrado:
+
+```
+Reservado
+```
+
+---
+
+## Confirmado
+
+Color:
+
+Celeste suave.
+
+Condición:
+
+La Orden de Instalación ya fue confirmada y generó su correspondiente Orden de Trabajo.
+
+Texto mostrado:
+
+```
+Confirmado
+```
+
+---
+
+# Escalado dinámico de colores
+
+Los estados:
+
+- Reservado
+- Confirmado
+
+deberán evolucionar visualmente conforme transcurra el tiempo.
+
+Mientras el técnico aún no haya recibido el vehículo:
+
+- la tonalidad deberá desplazarse progresivamente hacia rojo
+
+La transición deberá ser gradual.
+
+No deberá cambiar bruscamente.
+
+El sistema deberá considerar el tiempo transcurrido desde la hora programada.
+
+Cuando hayan transcurrido cuarenta minutos sin recepción del vehículo:
+
+- el color deberá llegar a rojo.
+
+Si el técnico recibe el vehículo dentro del tiempo esperado:
+
+- el color permanecerá en su estado original.
+
+---
+
+# Componente del mapa
+
+El visor del mapa deberá utilizar una relación de aspecto cuadrada.
+
+No deberá mostrarse como un rectángulo horizontal.
+
+---
+
+# Detección automática de enlaces
+
+El campo de ubicación deberá aceptar indistintamente:
+
+- direcciones
+- enlaces de Google Maps
+- coordenadas geográficas
+
+Cuando el usuario pegue cualquiera de estos formatos:
+
+- el sistema deberá interpretar automáticamente la ubicación
+- posicionar el marcador
+- actualizar el mapa
+- almacenar internamente las coordenadas
+
+Sin requerir acciones adicionales.
+
+---
+
+# Vista del técnico
+
+La Orden de Trabajo mostrará un mapa con la ubicación de la instalación.
+
+Al hacer clic sobre dicho mapa:
+
+- deberá abrir automáticamente Google Maps
+- utilizando las coordenadas previamente almacenadas
+
+preferiblemente mediante la aplicación instalada en el dispositivo.
+
+---
+
+# Flexibilidad del número de chasis
+
+El sistema no deberá asumir que todos los VIN poseen exactamente diecisiete caracteres.
+
+El campo deberá permitir diferentes longitudes cuando el vehículo así lo requiera.
+
+La validación deberá adaptarse a distintos formatos sin impedir el registro del vehículo.
+
+---
+
+# Persistencia de información del vehículo
+
+El sistema deberá garantizar el almacenamiento correcto de:
+
+- marca
+- modelo
+- año
+- chasis
+- fotografías frontales
+- fotografías posteriores
+- fotografías del interior tomadas desde el lado derecho
+
+Toda esta información deberá mantenerse asociada permanentemente al historial del vehículo.
+
+---
+
+# Persistencia de información del cliente
+
+El sistema deberá asegurar la integridad de toda la información del cliente evitando pérdidas durante:
+
+- sincronización
+- edición
+- reconexión
+- recuperación desde caché
+
+---
+
+# Apertura de ubicación para el técnico
+
+Las coordenadas obtenidas desde un enlace de Google Maps deberán almacenarse y visualizarse correctamente.
+
+El técnico deberá poder abrir dicha ubicación directamente desde la aplicación Google Maps.
+
+---
+
+# Caché y sincronización
+
+La plataforma deberá utilizar IndexedDB para proporcionar una experiencia fluida.
+
+El uso de caché no deberá retrasar la sincronización.
+
+Cuando exista un cambio realizado por cualquier usuario:
+
+- el sistema deberá detectar la modificación
+- sincronizar inmediatamente la información
+- actualizar únicamente los elementos afectados
+
+---
+
+# Prioridad de bloqueo
+
+Cuando dos usuarios intenten utilizar el mismo cupo:
+
+- tendrá prioridad quien lo haya bloqueado primero
+
+El resto de usuarios deberá visualizar el estado:
+
+```
+Reservando...
+```
+
+hasta que el cupo quede disponible nuevamente.
+
+---
+# Mejoras al Motor de Asignación Automática de Técnicos
+
+## Asignación Inteligente Basada en Métricas
+
+La asignación automática deberá distribuir equitativamente la carga de trabajo entre los técnicos disponibles.
+
+Por defecto, el sistema **no deberá establecer preferencias fijas** por un técnico específico.
+
+Sin embargo, deberá registrar continuamente métricas de desempeño para optimizar futuras asignaciones sin intervención del usuario.
+
+Durante la fase inicial, mientras aún no existan datos históricos suficientes, el motor de asignación utilizará los tiempos predeterminados definidos por el sistema como referencia.
+
+Once exista un historial representativo, las asignaciones deberán calcularse utilizando dichas métricas históricas, reemplazando progresivamente los tiempos predeterminados cuando exista suficiente evidencia estadística.
+
+---
+
+# Métricas que deberán almacenarse
+
+El sistema deberá registrar, como mínimo:
+
+- Duración promedio por tipo de trabajo.
+- Puntualidad.
+- Cantidad de retrasos.
+- Tiempo promedio por vehículo.
+- Tiempo promedio según ubicación.
+- Tiempo promedio por tipo de servicio.
+- Tiempo promedio por técnico.
+
+---
+
+# Métrica por vehículo
+
+El cálculo deberá considerar el vehículo como una única unidad de análisis compuesta por:
+
+- Marca.
+- Modelo.
+- Rango de años.
+
+Ejemplo:
+
+```
+Ford Ranger 2024 - 2025
+```
+
+No deberán calcularse promedios independientes por marca, modelo o año.
+
+---
+
+# Ejemplo de métricas por técnico
+
+## Técnico
+
+```
+Byron López
+```
+
+### Vehículo con mejor tiempo promedio
+
+```
+Ford Ranger 2024 - 2025
+```
+
+Instalación en oficina (Local):
+
+```
+60 minutos
+```
+
+Instalación fuera de oficina:
+
+```
+70 minutos
+```
+
+---
+
+### Vehículo con mayor tiempo promedio
+
+```
+JAC T8 (HFC1037) 2022 - 2025
+```
+
+Instalación en oficina (Local):
+
+```
+90 minutos
+```
+
+Instalación fuera de oficina:
+
+```
+120 minutos
+```
+
+---
+
+# Dashboard de desempeño por técnico
+
+Cada técnico deberá disponer de un historial estadístico que permita visualizar su desempeño.
+
+El sistema deberá generar automáticamente los gráficos más adecuados para representar cada métrica.
+
+Entre ellos podrán incluirse:
+
+- Tiempo promedio por tipo de trabajo.
+- Tiempo promedio por vehículo.
+- Tiempo promedio por ubicación.
+- Evolución mensual de tiempos.
+- Puntualidad.
+- Retrasos.
+- Productividad.
+- Comparativo contra el promedio de la división.
+
+El tipo de gráfico deberá seleccionarse según la naturaleza de la información (líneas, barras, pastel, indicadores, entre otros).
+
+---
+
+# Evolución del motor de planificación
+
+Mientras no existan suficientes registros históricos, el sistema utilizará los tiempos base definidos en la plataforma.
+
+Cuando exista una cantidad representativa de registros, las asignaciones deberán calcularse utilizando las métricas reales registradas para:
+
+- Técnico.
+- Vehículo.
+- Tipo de trabajo.
+- Ubicación.
+
+El objetivo será optimizar continuamente la planificación y reducir retrasos.
+
+---
+
+# Tiempos base del sistema
+
+## Instalación nueva
+
+Tiempo base:
+
+```
+90 minutos
+```
+
+---
+
+## Desinstalación
+
+Tiempo base:
+
+```
+60 minutos
+```
+
+---
+
+## Revisión por falla (RxF)
+
+No tendrá un tiempo fijo total.
+
+El cálculo dependerá del resultado del diagnóstico.
+
+### Diagnóstico
+
+Tiempo inicial:
+
+```
+20 minutos
+```
+
+Posteriormente se añadirá el tiempo correspondiente según el resultado.
+
+### Cambio de unidad (mismo modelo de GPS)
+
+Tiempo adicional:
+
+```
+40 minutos
+```
+
+más el tiempo de diagnóstico.
+
+### Cambio a un modelo diferente de GPS
+
+Tiempo adicional:
+
+```
+60 a 80 minutos
+```
+
+más el tiempo de diagnóstico.
+
+### Reparación de conexiones
+
+Aplica para trabajos como:
+
+- positivo
+- negativo
+- botón de pánico
+- conexiones similares
+
+Tiempo adicional:
+
+```
+40 minutos
+```
+
+más el tiempo de diagnóstico.
+
+---
+
+## Traspaso
+
+Tiempo base:
+
+```
+3 horas
+```
+
+---
+
+## Mantenimiento preventivo
+
+Tiempo base:
+
+```
+30 minutos
+```
+
+---
+
+# Tiempo adicional por ubicación
+
+Los tiempos anteriores deberán incrementarse automáticamente cuando el trabajo no se realice en la oficina.
+
+---
+
+## Instalaciones dentro de la misma ciudad
+
+Cuando el trabajo tenga una ubicación distinta a la oficina, pero permanezca dentro de la ciudad correspondiente a la división, el sistema agregará automáticamente:
+
+```
+30 minutos
+```
+
+Ejemplo:
+
+Instalación nueva
+
+```
+90 + 30 = 120 minutos
+```
+
+---
+
+## Ciudades vecinas
+
+Cuando la instalación se realice en ciudades cercanas, como:
+
+- Villanueva
+- Choloma
+- Cofradía
+- Naco
+- El Progreso
+
+el sistema deberá agregar automáticamente:
+
+```
+60 minutos
+```
+
+adicionales por traslado.
+
+---
+
+## Trabajos foráneos
+
+Cuando la instalación se programe en localidades más alejadas, por ejemplo:
+
+- Tela
+- Puerto Cortés
+- La Entrada, Copán
+- Santa Rosa de Copán
+- Gracias, Lempira
+- Ocotepeque
+
+el tiempo adicional no será fijo.
+
+El sistema deberá calcular automáticamente la duración considerando:
+
+- distancia total
+- rutas disponibles
+- tiempo estimado de desplazamiento
+- cantidad de trabajos programados
+- ubicación exacta de la instalación
+- horario de las citas programadas
+
+Como referencia inicial podrá utilizar estimaciones equivalentes al tiempo promedio de desplazamiento por carretera o transporte terrestre, refinándolas posteriormente mediante las métricas históricas registradas.
+
+---
+
+# Disponibilidad de técnicos
+
+El panel de configuración deberá permitir al usuario con rol de **Jefe** indicar que un técnico no estará disponible temporalmente.
+
+Esta función permitirá gestionar situaciones como:
+
+- vacaciones
+- permisos
+- incapacidades
+- capacitaciones
+- cualquier otra ausencia programada
+
+---
+
+# Configuración de indisponibilidad
+
+La configuración deberá incluir:
+
+## Técnico
+
+Lista desplegable con los técnicos pertenecientes a la división del usuario.
+
+---
+
+## Fecha de inicio
+
+Selector de fecha.
+
+---
+
+## Fecha de finalización
+
+Selector de fecha.
+
+---
+
+# Ausencias parciales
+
+Si la fecha de inicio y la fecha de finalización corresponden al mismo día, el sistema deberá interpretar que se trata de una ausencia parcial.
+
+En ese caso deberá habilitar automáticamente un campo adicional para indicar la hora en que el técnico volverá a estar disponible.
+
+El límite máximo configurable será hasta el turno de:
+
+```
+3:00 PM - 5:00 PM
+```
+
+Esta funcionalidad permitirá registrar permisos de:
+
+- una hora
+- dos horas
+- medio día
+- cualquier ausencia parcial dentro de la jornada laboral.
+
+---
+
+# Ajuste automático de cupos
+
+La Agenda deberá ajustar dinámicamente la cantidad de cupos disponibles según el número de técnicos disponibles en cada división.
+
+Ejemplo:
+
+Si una división cuenta con cuatro técnicos activos, únicamente deberán habilitarse cuatro cupos por turno.
+
+Si uno de ellos es marcado como no disponible, la Agenda deberá reducir automáticamente la capacidad del turno para reflejar únicamente tres cupos disponibles.
+
+Esta actualización deberá aplicarse inmediatamente después de guardar la configuración y mantenerse vigente durante todo el período definido para la indisponibilidad.
+---
+
+# Especialización por técnico
+
+Desde el panel administrativo, un usuario con rol de Jefe podrá definir asignaciones preferenciales.
+
+Formulario:
+
+## Asignar técnico a trabajo específico
+
+Campos:
+
+- Seleccionar técnico (lista desplegable)
+- Buscar trabajo
+
+La búsqueda deberá realizar coincidencias únicamente entre los trabajos programados para la semana actual y las próximas fechas.
+
+No deberán incluirse trabajos históricos.
+
+El campo de búsqueda deberá incorporar un botón:
+
+```
+Seleccionar trabajo >
+```
+
+Al seleccionarlo deberá abrirse un modal con la agenda semanal mostrando únicamente:
+
+- cupos reservados
+- cupos confirmados
+
+Desde dicho modal el Jefe podrá:
+
+- seleccionar un trabajo existente
+- crear uno nuevo mediante el botón "+"
+- guardar como borrador
+- confirmar la reserva
+
+El sistema deberá Reorganizar automáticamente las asignaciones para garantizar que el técnico seleccionado disponga del turno correspondiente.
+
+---
+
+# Motor inteligente de despacho
+
+La planificación automática deberá considerar:
+
+- ubicación de la instalación
+- distancia desde la oficina
+- duración promedio del recorrido
+- rutas reales
+- velocidad promedio en motocicleta
+- tráfico esperado según el horario
+- duración histórica del tipo de trabajo
+- duración por marca
+- duración por modelo
+- duración por año
+- duración según ubicación
+- carga de trabajo del técnico
+- disponibilidad
+- horario laboral
+- hora de almuerzo
+- retrasos acumulados
+
+Como referencia inicial podrá utilizarse una velocidad promedio aproximada de **60 km/h**, ajustando posteriormente las estimaciones con base en las métricas históricas recopiladas.
+
+El objetivo será minimizar retrasos y optimizar la distribución de trabajos.
+
+---
+
+# Arquitectura del despachador
+
+Se recomienda separar la lógica de planificación en módulos independientes.
+
+Como mínimo deberá existir un módulo encargado de:
+
+- asignación automática
+- gestión de agenda
+- creación de Órdenes de Instalación
+- generación de Órdenes de Trabajo
+- cálculo de tiempos
+- redistribución de técnicos
+- reasignaciones automáticas
+
+Se propone implementarlo en un archivo dedicado denominado:
+
+```
+despachador.js
+```
+
+Podrán incorporarse módulos adicionales para:
+
+- consultas
+- métricas
+- sincronización
+- historial
+- geolocalización
+- optimización de rutas
+
+---
+
+# Microservicios
+
+Si la arquitectura lo requiere, podrán implementarse microservicios independientes para GOs.
+
+Todos deberán seguir la convención:
+
+```
+GOs-NombreFuncion
+```
+
+Ejemplos:
+
+- GOs-dashboard
+- GOs-despachador
+- GOs-usuarios
+- GOs-agenda
+- GOs-reportes
+
+---
+
+# Compatibilidad con GPSpedia
+
+Los servicios existentes de GPSpedia deberán considerarse únicamente como referencia.
+
+Está prohibido utilizarlos para:
+
+- modificación del catálogo
+- edición de registros
+- autenticación de GOs
+- administración de usuarios
+- nuevas funcionalidades
+
+Los servicios heredados deberán trasladarse al directorio:
+
+```
+legacy
+```
+
+y permanecer exclusivamente como material de consulta.
+
+---
+
+# Gestión de cuentas
+
+El sistema GOs deberá disponer de un servicio independiente para:
+
+- usuarios
+- autenticación
+- permisos
+- sesiones
+- configuración
+
+No deberá compartir la infraestructura de cuentas utilizada por GPSpedia.
+
+---
+
+# Consultas Técnicas por Vehículo
+
+La búsqueda deberá realizarse mediante una barra unificada.
+
+Parámetros admitidos:
+
+- marca
+- modelo
+- año
+
+El sistema interpretará automáticamente cualquier combinación válida.
+
+---
+
+## Búsqueda por marca
+
+Si únicamente se ingresa la marca:
+
+- deberán mostrarse tarjetas con los logotipos correspondientes.
+
+Al seleccionar una marca:
+
+- se visualizarán todos los modelos agrupados.
+
+---
+
+## Búsqueda por marca y modelo
+
+Cuando la búsqueda incluya marca y modelo:
+
+Ejemplo:
+
+```
+Toyota Hilux
+```
+
+Los resultados deberán mostrarse agrupados por:
+
+- versión
+- tipo de encendido
+
+---
+
+## Búsqueda únicamente por modelo
+
+Si el usuario introduce solo el modelo:
+
+- deberán mostrarse todos los registros coincidentes
+
+agrupados igualmente por versión o tipo de encendido.
+
+---
+
+## Búsqueda por marca, modelo y año
+
+Ejemplo:
+
+```
+Toyota Hilux 2022
+```
+
+El sistema deberá localizar el rango de años correspondiente.
+
+Si existe un registro:
+
+```
+2020 - 2024
+```
+
+el modelo deberá considerarse válido para el año buscado.
+
+---
+
+## Año fuera del rango
+
+Si el año solicitado no pertenece a ningún rango registrado:
+
+- deberá mostrarse automáticamente el registro cuyo rango sea más cercano.
+
+---
+
+## Búsqueda únicamente por año
+
+Si el usuario ingresa solamente un año:
+
+el sistema deberá mostrar el mensaje:
+
+```
+Ingrese el nombre del modelo.
+```
+
+---
+
+# Modal de detalle
+
+Al seleccionar una tarjeta únicamente deberá mostrarse:
+
+- imagen del vehículo
+- bloqueo
+- apertura
+- botón de pánico
+- micrófono
+
+Consideraciones:
+
+- Botón de pánico deberá aparecer deshabilitado por defecto en motocicletas.
+- Micrófono deberá aparecer deshabilitado por defecto en motocicletas.
+
+No deberá mostrarse información técnica adicional.
+
+---
+
+# Diseño del modal
+
+La imagen del vehículo deberá mantener un tamaño moderado.
+
+La tipografía utilizada en el modal deberá conservar una escala contenida, priorizando la legibilidad y evitando elementos sobredimensionados.
+
+================================================================================
+
+# REVISIÓN TÉCNICA INTEGRAL OBLIGATORIA — VALIDACIÓN TOTAL DE IMPLEMENTACIONES
+
+## Objetivo
+
+Realizar una auditoría técnica exhaustiva para verificar que **todas las implementaciones, cambios, correcciones, mejoras, reglas de negocio, requisitos funcionales, requisitos visuales, arquitectura, seguridad, rendimiento y organización del proyecto** definidos en **Instrucciones.md** y en los registros de auditoría se encuentren implementados correctamente.
+
+Esta revisión **no debe limitarse únicamente a la tarea actual**.
+
+Su propósito es garantizar que **ninguna implementación previamente solicitada haya quedado pendiente, incompleta, parcialmente implementada, olvidada o afectada por cambios posteriores.**
+
+---
+
+# PROHIBIDO
+
+Se prohíbe expresamente:
+
+- Dar por implementada una funcionalidad sin verificarla.
+- Asumir que una tarea fue realizada porque existe código relacionado.
+- Validar únicamente la parte visual.
+- Revisar únicamente los archivos modificados recientemente.
+- Omitir verificaciones por considerar una tarea "ya terminada".
+- Ignorar implementaciones antiguas.
+- Declarar éxito sin evidencia técnica.
+
+---
+
+# ALCANCE OBLIGATORIO
+
+La auditoría deberá abarcar absolutamente todo el proyecto.
+
+Entre otros aspectos deberá comprobar:
+
+- funcionalidades
+- interfaz
+- lógica
+- backend
+- frontend
+- persistencia
+- microservicios
+- seguridad
+- permisos
+- roles
+- arquitectura
+- estructura del repositorio
+- organización de archivos
+- integración entre módulos
+- rendimiento
+- compatibilidad
+- experiencia de usuario
+- documentación
+- hojas de cálculo
+- servicios
+- almacenamiento
+- sincronización
+- actualización dinámica
+- funcionamiento en PWA
+- funcionamiento Web
+- funcionamiento móvil
+
+---
+
+# VERIFICACIÓN OBLIGATORIA DE IMPLEMENTACIONES
+
+El desarrollador deberá revisar **una por una** todas las implementaciones descritas en:
+
+- Instrucciones.md
+- Auditoría
+- Registro de cambios
+- Solicitudes anteriores
+- Implementaciones registradas
+- Correcciones solicitadas
+- Nuevas funcionalidades
+- Cambios posteriores
+
+Cada implementación deberá clasificarse como:
+
+- Implementada correctamente.
+- Implementada parcialmente.
+- No implementada.
+- Implementada con errores.
+- Implementada pero afectada por regresiones.
+- Requiere ajustes.
+
+No se permite omitir ninguna.
+
+---
+
+# MATRIZ DE VERIFICACIÓN
+
+Para cada implementación deberá documentarse como mínimo:
+
+- Estado.
+- Evidencia técnica.
+- Archivos involucrados.
+- Componentes afectados.
+- Dependencias relacionadas.
+- Riesgos detectados.
+- Acciones requeridas.
+
+---
+
+# VALIDACIÓN FUNCIONAL
+
+Cada funcionalidad deberá comprobarse mediante pruebas reales.
+
+Se deberá verificar:
+
+- funcionamiento esperado
+- funcionamiento en escenarios límite
+- manejo de errores
+- validaciones
+- persistencia
+- sincronización
+- actualización dinámica
+- comportamiento entre usuarios simultáneos
+- funcionamiento después de recargar
+- comportamiento en dispositivos móviles
+- comportamiento en escritorio
+
+No se aceptan validaciones únicamente mediante inspección del código.
+
+---
+
+# DETECCIÓN DE REGRESIONES
+
+Después de revisar cada implementación deberá comprobarse que dicha implementación no haya provocado:
+
+- pérdida de funcionalidades
+- errores visuales
+- errores de navegación
+- cambios de comportamiento
+- pérdida de permisos
+- errores de sincronización
+- inconsistencias de datos
+- conflictos entre módulos
+- duplicidad de lógica
+- código muerto
+- dependencias rotas
+
+Toda regresión detectada deberá corregirse antes de continuar.
+
+---
+
+# VALIDACIÓN DE REPOSITORIO
+
+Verificar completamente la organización del proyecto.
+
+Comprobar:
+
+- estructura de directorios
+- módulos correctamente separados
+- eliminación de duplicados
+- eliminación de archivos obsoletos
+- eliminación de respaldos temporales
+- eliminación de capturas
+- eliminación de scripts temporales
+- eliminación de código experimental
+- eliminación de componentes heredados que ya no se utilizan
+
+Los componentes heredados deberán permanecer únicamente cuando exista una justificación técnica documentada.
+
+---
+
+# VALIDACIÓN DE ARQUITECTURA
+
+Confirmar que:
+
+- las responsabilidades estén correctamente separadas
+- no exista lógica duplicada
+- no existan módulos con múltiples responsabilidades
+- los componentes compartidos sean reutilizables
+- los motores especializados permanezcan independientes
+- la arquitectura sea escalable
+- la arquitectura facilite futuras migraciones
+
+---
+
+# VALIDACIÓN DE SEGURIDAD
+
+Verificar:
+
+- autenticación
+- autorización
+- privilegios por rol
+- protección de rutas
+- protección de acciones
+- almacenamiento seguro
+- hash de credenciales
+- protección de datos
+- validaciones del lado del cliente
+- validaciones del lado del servidor
+
+Ningún usuario deberá acceder a funcionalidades fuera de sus privilegios.
+
+---
+
+# VALIDACIÓN DE BASES DE DATOS Y SERVICIOS
+
+Confirmar que:
+
+- únicamente se utilicen los servicios autorizados
+- las hojas de cálculo correctas sean utilizadas
+- no existan referencias a servicios heredados cuando no corresponda
+- los identificadores se encuentren correctamente administrados
+- la estructura de almacenamiento permanezca organizada
+- los encabezados sean claros y consistentes
+
+---
+
+# VALIDACIÓN DE EXPERIENCIA DE USUARIO
+
+Revisar todos los formularios.
+
+Comprobar:
+
+- distribución
+- alineación
+- tamaños
+- espaciados
+- consistencia visual
+- comportamiento responsive
+- colores
+- contraste
+- iconografía
+- botones
+- mensajes
+- validaciones
+- accesibilidad
+
+No se permiten elementos desproporcionados, interfaces saturadas ni inconsistencias visuales.
+
+---
+
+# VALIDACIÓN DE RENDIMIENTO
+
+Confirmar que:
+
+- no existan consultas innecesarias
+- no existan renderizados repetitivos
+- no existan cálculos redundantes
+- la actualización dinámica sea eficiente
+- el almacenamiento local sea utilizado cuando corresponda
+- la sincronización mantenga consistencia
+
+---
+
+# VALIDACIÓN DE CÓDIGO
+
+Revisar nuevamente:
+
+- consistencia
+- legibilidad
+- modularidad
+- reutilización
+- complejidad
+- cohesión
+- acoplamiento
+- comentarios innecesarios
+- código duplicado
+- código muerto
+
+---
+
+# VALIDACIÓN DE DOCUMENTACIÓN
+
+Verificar que toda implementación realizada haya quedado registrada correctamente.
+
+Toda modificación deberá encontrarse reflejada en la documentación correspondiente.
+
+---
+
+# CRITERIO DE APROBACIÓN
+
+La auditoría únicamente podrá darse por finalizada cuando se cumplan simultáneamente las siguientes condiciones:
+
+- Todas las implementaciones registradas fueron verificadas.
+- No existe ninguna implementación pendiente.
+- No existen implementaciones parciales sin registrar.
+- No existen regresiones.
+- No existen inconsistencias funcionales.
+- No existen conflictos de arquitectura.
+- No existen errores de permisos.
+- No existen errores visuales relevantes.
+- No existen duplicidades.
+- No existen archivos obsoletos sin justificación.
+- Toda la documentación fue actualizada.
+
+---
+
+# REGLA FINAL
+
+**No podrá considerarse finalizada ninguna tarea mientras exista al menos una implementación definida en Instrucciones.md, en los registros de auditoría o en las solicitudes históricas que no haya sido verificada, validada y documentada individualmente. La aprobación del trabajo requiere evidencia objetiva de que cada requisito fue comprobado funcional y técnicamente, sin excepciones.**
+
+

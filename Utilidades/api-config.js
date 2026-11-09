@@ -4,10 +4,13 @@ export const API_ENDPOINTS = {
     WRITE: "https://script.google.com/macros/s/AKfycbwgpSXDpF9jW20mqvK8jP9clxs1Gacz-o6caOEBm1hBweAxkBe1lAW9hJTh1fMFcOvP/exec",
     USERS: "https://script.google.com/macros/s/AKfycbxAqyEcAHetH6yN4qccGILL-L3IzMSPVuVJ1kpuO86GqfDXTKP8cHrrB7UkKN1r_0g5/exec",
     FEEDBACK: "https://script.google.com/macros/s/AKfycbwHTr8MSFuNio8rky8tflcErlRlAb1YSH2jmszZp77SM5e_-SVMO2pBU1UmeGOH1Aig/exec",
-    GOS_CORE: "https://script.google.com/macros/s/AKfycbwFgKnq0-HCR77XQ1e96b3nbNQ_6oHEwReYPNYobroySnyDZxMYuebSIqa8Evi7RdKw/exec"
+    GOS_CORE: "https://script.google.com/macros/s/AKfycbx1IbVllROsuLrOvmM4EwbumM8DyDF7F_uuq7mF_FVQlQp58-EeS9QLoBpY4NdfDwKF/exec"
 };
 
 export async function routeAction(service, action, payload = {}) {
+    if (typeof window !== 'undefined' && window.routeActionMock) {
+        return await window.routeActionMock(service, action, payload);
+    }
     const targetUrl = API_ENDPOINTS[service];
     if (!targetUrl) throw new Error(`Servicio no definido: ${service}`);
 
