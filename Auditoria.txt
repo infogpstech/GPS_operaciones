@@ -314,3 +314,26 @@ Auditor: Antigravity / Jules (Software Engineer)
 - Se documenta con evidencia técnica objetiva qué requerimientos están verdaderamente implementados y cuáles fueron declarados falsamente como cumplidos o presentan deficiencias críticas.
 - Se genera el archivo `tareas_pendientes.txt` con la consolidación de todos los hallazgos, estado real y catálogo de pendientes.
 ================================================================================
+
+
+================================================================================
+AUDITORÍA GOS v1.2.2 - ACTUALIZACIÓN DEL PLAN DE ACCIÓN DE CORRECCIÓN
+================================================================================
+Fecha de Auditoría: 2026-11-09
+Versión Auditada: GOS v1.2.2
+Auditor: Antigravity / Jules (Software Engineer)
+
+1. SOLICITUD DEL USUARIO:
+- "actualiza el plan de accion para poder corregir estos hallazgos."
+
+2. INTERPRETACIÓN TÉCNICA DEL DESARROLLADOR:
+- Se actualiza el Plan de Acción ejecutable (`plan_de_trabajo_gos.md`) correlacionando de forma unívoca cada uno de los 10 hallazgos descubiertos en `tareas_pendientes.txt` con tareas técnicas precisas y accionables.
+- El plan se organiza en 6 Fases Arquitectónicas:
+  * Fase 1: PWA Core, Service Worker y Saneamiento Inmediato (Resuelve Hallazgo 1 y Hallazgo 9).
+  * Fase 2: Backend, Concurrencia (LockService) y Seguridad Transaccional (Resuelve Hallazgo 4, Hallazgo 5 y Hallazgo 10).
+  * Fase 3: Corrección Algorítmica y Lógica de Negocio Desacoplada (Resuelve Hallazgo 2 y Hallazgo 3).
+  * Fase 4: Desacoplamiento de Frontend, Estilos CSS y Segregación OI vs OT (Resuelve Hallazgo 2 y Hallazgo 8).
+  * Fase 5: Experiencia Móvil (UI/UX) y Modo Offline con Outbox Pattern (Resuelve Hallazgo 6 y Hallazgo 7).
+  * Fase 6: Certificación Técnica, Integración GPSpedia Read-Only y Cierre (Resuelve Hallazgo 10 y Validación Integral).
+- Se preserva el principio innegociable de independencia de GPSpedia (persistencia, almacenamiento y servicios propios de GOS; GPSpedia solo para validación binaria Sí/No).
+================================================================================
