@@ -211,3 +211,89 @@ HALLAZGO 2: Archivos Duplicados en la Raíz del Repositorio
 - Archivos involucrados: api-config.js (raíz), style.css (raíz).
 - Descripción: Existen copias idénticas en la raíz de `api-config.js` y `style.css` que duplican `Utilidades/api-config.js` e `Interfaces/vistas/style.css` respectivamente. El portal público de clientes `portal.html` en la raíz las carga de forma local.
 - Solución Planificada: Modificar `portal.html` para enlazar directamente con `./Interfaces/vistas/style.css` y `./Utilidades/api-config.js`, eliminando permanentemente los duplicados de la raíz para sanear por completo el repositorio sin romper la funcionalidad.
+
+
+================================================================================
+AUDITORÍA GOS v1.2.0 - REVISIÓN ARQUITECTÓNICA, INDEPENDENCIA Y PLAN EJECUTABLE
+================================================================================
+Fecha de Auditoría: 2026-11-09
+Versión Auditada: GOS v1.2.0
+Auditor: Antigravity / Jules (Software Engineer)
+
+1. REQUERIMIENTOS SOLICITADOS POR EL USUARIO:
+- "esta bie, agrega estas nuevas tareas, respeta el proceso de desarollo, y ademas indica esta instruccion, la plataforma sera independiente de GPSpedia eso significa que debe de tener su propio spreadsheet, su propia carpeta de driva y su propio servicio desplegado en appscript, las consultas a la spreadsheet de GPSpedia solo sera para consultar si un modelo tiene una funcion o no. lee los requerimientos en Auditoria.txt, y diseña un plan de trabajo ejecutable donde ordenes las tareas no solo en orden de prioridas, en orden de arquitectura, integracion, dependencias."
+
+2. INTERPRETACIÓN TÉCNICA DEL DESARROLLADOR:
+- Principio de Independencia Total:
+  * Persistencia: GOS operará únicamente contra su propio Spreadsheet (`SPREADSHEET_ID`), aislando por completo las hojas operativas de GPSpedia.
+  * Almacenamiento: GOS utilizará su propio Google Drive (`ROOT_FOLDER_ID`), con estructura jerárquica estricta `Año/Mes/ID_Orden/{Fotografias, PDF, Documentacion, Evidencias}`.
+  * Backend: El servicio central se ejecuta de forma desacoplada en Google Apps Script propio (`services/gos/gos-core.js`).
+  * Integración GPSpedia: El microservicio `CATALOG` se consumirá de forma estrictamente read-only para determinar capacidades binarias (Sí/No) para apagado remoto, apertura de puertas, botón de pánico y micrófono, sin exponer cableado, cortes o detalles técnicos internos del catálogo.
+- Plan de Trabajo Ejecutable:
+  * Ordenar tareas siguiendo estrictamente la cadena de capas arquitectónicas (Infraestructura -> Backend/Persistencia -> Motores de Negocio -> UI/Componentes -> Integración y Offline).
+  * Definir la matriz de dependencias directas e indirectas para garantizar cero regresiones y ejecución fluida.
+
+--------------------------------------------------------------------------------
+3. AUDITORÍA TÉCNICA Y HALLAZGOS LÍNEA POR LÍNEA
+--------------------------------------------------------------------------------
+
+HALLAZGO 1: Service Worker y Manifest Rotos (Falla de Instalación por 404)
+- Archivos involucrados: service-worker.js (líneas 2-12), manifest.json (líneas 10-21), index.html (línea 6).
+- Descripción: `service-worker.js` intenta precachear `./style.css`, `./api-config.js`, `./logo-gos.svg`, `./icon-gos-192.svg` e `./icon-gos-512.svg`. Estos archivos no residen en la raíz sino en `Interfaces/vistas/`, `Utilidades/` y `Recursos/`. Al devolver 404, la llamada atómica `caches.addAll()` rechaza la promesa y el navegador cancela la instalación de la PWA. El log del servidor confirma error 404 al solicitar `/style.css`.
+- Dependencias: Cache Storage API, PWA Lifecycle.
+- Solución Planificada: Normalizar todas las rutas relativas en `service-worker.js`, `manifest.json` e `index.html` hacia sus directorios reales.
+
+HALLAZGO 2: Falsa Modularidad y Monolito Frontend en main.js (6,397 líneas)
+- Archivos involucrados: main.js (líneas 1-6397), Motores de negocio/ (agenda.js, autenticacion.js, busqueda.js, planificacion.js, reportes.js, sincronizacion.js).
+- Descripción: Se identificó que 6 de los 8 motores en `Motores de negocio/` son cascarones vacíos de una sola línea (`export const AgendaEngine = { name: "GOS Agenda Engine" };`), creados para aparentar modularidad en auditorías previas. La lógica real de la agenda, reportes, búsqueda, RBAC y sincronización permanece concentrada en `main.js`, junto con 481 estilos CSS inline incrustados en literales de texto HTML.
+- Dependencias: ES Modules, AppState, DOM Engine.
+- Solución Planificada: Desacoplar gradualmente `main.js` extrayendo las funciones de lógica pura hacia los motores de negocio y componentes visuales dedicados, reduciendo `main.js` a un router/inicializador limpio.
+
+HALLAZGO 3: Vulnerabilidad de Seguridad y Suplantación de Identidad en Backend
+- Archivos involucrados: services/gos/gos-core.js (líneas 657-678, 1580-1595, 2459-2560), main.js (líneas 14-65, 283-290).
+- Descripción:
+  1. `doPost` en `gos-core.js` no valida tokens de sesión. Acciones destructivas (`handleDeleteUser`, `handleCreateUser`, `handleArchiveOldOrders`) confían en el campo `requestorUsername` provisto en el JSON sin verificar la autenticidad del emisor (Spoofing).
+  2. `verifyPassword` en `gos-core.js` incluye una condición de fallback que valida contraseñas en texto plano (`inputPassword.toString() === storedPassword.toString()`) y genera hashes SHA-256 sin salt criptográfico.
+  3. En el frontend, el control RBAC lee `AppState.user` desde `localStorage`, permitiendo eludir restricciones visuales mediante modificación local.
+- Dependencias: Google Apps Script Web App, Utilities.computeDigest, RBAC.
+- Solución Planificada: Implementar tokens de sesión en `gos-core.js` almacenados temporalmente con expiración, validar el rol asociado al token en cada acción de `doPost`, eliminar el fallback a texto plano en `verifyPassword` e incorporar HMAC/Salt con clave de script secreta en `PropertiesService`.
+
+HALLAZGO 4: Bug de Asignación en despachador.js (Selección Incondicional del Último Técnico)
+- Archivos involucrados: Motores de negocio/despachador.js (líneas 135-153), services/gos/despachador.js (líneas 135-153).
+- Descripción: En la función `getOptimalTechnicianForJob`, el bucle de técnicos calcula un puntaje `score`, pero omite la comparación condicional `if (score < minScore) { minScore = score; bestTech = tech; }`. En su lugar, ejecuta incondicionalmente `bestTech = tech;`, asignando siempre al último técnico de la lista sin importar carga de trabajo ni cercanía geográfica.
+- Dependencias: Motor de Asignación, Agenda, Clasificación de Viajes.
+- Solución Planificada: Corregir la lógica condicional de comparación de puntaje mínimo, unificar el archivo eliminando la copia redundante y asegurar exportación ES Module compatible.
+
+HALLAZGO 5: Ausencia de Control de Concurrencia (LockService) en Apps Script
+- Archivos involucrados: services/gos/gos-core.js (líneas 1-3305).
+- Descripción: `gos-core.js` no invoca `LockService.getScriptLock()` en ninguna de sus funciones de escritura (`createOrder`, `updateOrderStatus`, `lockSlot`, `handleUpdateStatistics`). En operaciones multi-usuario simultáneas (múltiples asesores agendando cupos o técnicos actualizando estados), Google Sheets sobrescribe rangos provocando inconsistencias y carreras de datos.
+- Dependencias: Google Apps Script LockService, Google Spreadsheet API.
+- Solución Planificada: Envolver todas las operaciones mutables en bloques protegidos por `LockService` con timeout de 10 segundos y liberación en bloque `finally`.
+
+HALLAZGO 6: Ausencia Total de Responsividad Móvil en Hojas de Estilo
+- Archivos involucrados: Interfaces/vistas/style.css (líneas 1-1011).
+- Descripción: La hoja de estilos carece por completo de `@media queries` para pantallas móviles (únicamente existen reglas `@media print`). El Navbar horizontal con 8 enlaces, buscador y campana de notificaciones se quiebra en smartphones, y las tablas operativas sufren desbordes horizontales severos, afectando el uso en campo por los técnicos instaladores.
+- Dependencias: CSS3, PWA Viewport, Dispositivos Móviles.
+- Solución Planificada: Implementar sistema de diseño responsive con breakpoints (`@media (max-width: 768px)`), menú de navegación accesible (menú hamburguesa o barra inferior fija) y tarjetas verticales (Card View) para tablas.
+
+HALLAZGO 7: Duplicidad y Desorganización de Archivos Residuales
+- Archivos involucrados: portal.html (raíz) vs Interfaces/HTML/portal.html, services/gos/despachador.js vs Motores de negocio/despachador.js, python_server.log.
+- Descripción: Persisten archivos duplicados en la estructura del proyecto y archivos de registro de servidor local comiteados en Git.
+- Solución Planificada: Centralizar `portal.html` en `Interfaces/HTML/portal.html` (o mantener enlace canónico único documentado), eliminar la copia de `despachador.js` bajo `services/gos/` y crear `.gitignore` para descartar logs y temporales.
+
+HALLAZGO 8: Carencia de Patrón Outbox para Persistencia Offline de Técnicos
+- Archivos involucrados: Utilidades/helpers.js (líneas 8-83), main.js.
+- Descripción: Aunque IndexedDB está inicializado para lectura, las acciones de campo (marcar llegada, registrar checklist de recepción, fotos y firmas de clientes) intentan comunicarse de inmediato por red. Si el técnico se encuentra en un sótano o carretera sin cobertura, la petición arroja error y se pierde la evidencia.
+- Dependencias: IndexedDB API, Background Sync / Outbox Queue.
+- Solución Planificada: Crear una cola de persistencia de operaciones pendientes (Outbox Queue) en IndexedDB que almacene acciones offline y las sincronice automáticamente con `routeAction` al detectar el evento `online`.
+
+--------------------------------------------------------------------------------
+4. MATRIZ DE TAREAS Y DEPENDENCIAS ARQUITECTÓNICAS
+--------------------------------------------------------------------------------
+- Capa 1: Infraestructura & PWA Core (Bloquea: PWA, Service Worker, Assets)
+- Capa 2: Backend, Seguridad & Persistencia GOS (Bloquea: Autenticación, Concurrencia, Sheets)
+- Capa 3: Motores de Negocio & Algoritmos (Bloquea: Asignación, Agenda, Reportes)
+- Capa 4: Interfaz Móvil, Estilos & Responsive (Bloquea: Usabilidad en Campo)
+- Capa 5: Desacoplamiento de Frontend & Modularización (Bloquea: Mantenibilidad)
+- Capa 6: Integración Exclusiva GPSpedia & Saneamiento (Bloquea: Despliegue Final)
+================================================================================

@@ -5125,3 +5125,69 @@ La auditoría únicamente podrá darse por finalizada cuando se cumplan simultá
 **No podrá considerarse finalizada ninguna tarea mientras exista al menos una implementación definida en Instrucciones.md, en los registros de auditoría o en las solicitudes históricas que no haya sido verificada, validada y documentada individualmente. La aprobación del trabajo requiere evidencia objetiva de que cada requisito fue comprobado funcional y técnicamente, sin excepciones.**
 
 
+
+
+================================================================================
+### DIECISEISAVO
+
+# Requerimientos de Independencia de GPSpedia, Auditoría y Plan de Trabajo Ejecutable
+
+## Redacción Original del Usuario
+"esta bie, agrega estas nuevas tareas, respeta el proceso de desarollo, y ademas indica esta instruccion, la plataforma sera independiente de GPSpedia eso significa que debe de tener su propio spreadsheet, su propia carpeta de driva y su propio servicio desplegado en appscript, las consultas a la spreadsheet de GPSpedia solo sera para consultar si un modelo tiene una funcion o no. lee los requerimientos en Auditoria.txt, y diseña un plan de trabajo ejecutable donde ordenes las tareas no solo en orden de prioridas, en orden de arquitectura, integracion, dependencias."
+
+---
+
+## 1. Principio Rector: Independencia Absoluta de GOS frente a GPSpedia
+La plataforma GOS (GPS Operations Suite) operará con total independencia técnica, estructural y de persistencia con respecto a GPSpedia:
+
+1. **Spreadsheet Propio de GOS:**
+   - Toda la información operativa (Roles, Estados, Prioridades, TiposTrabajo, Servicios, Turnos, Permisos, Auditoria, Logs, Sectores, Usuarios_Sectores, RecepcionVehiculos, UbicacionesGuardadas, Indisponibilidad, Ordenes_Trabajo, Firmas_Tecnicos) se almacenará exclusivamente en el Spreadsheet propio de GOS.
+   - Queda terminantemente prohibido escribir, modificar o alterar cualquier hoja o celda del Spreadsheet de GPSpedia.
+
+2. **Carpeta de Google Drive Propia:**
+   - GOS gestionará su propia estructura raíz en Google Drive (`ROOT_FOLDER_ID`), independiente del almacenamiento de GPSpedia.
+   - La jerarquía documental será obligatoriamente:
+     `Año / Mes / [ID_Orden] / {Fotografias, PDF, Documentacion, Evidencias}`.
+   - Todas las fotos de inspección vehicular, recibos digitales y firmas del cliente/técnico se guardarán en esta estructura propia.
+
+3. **Microservicio Propio Desplegado en Google Apps Script (`GOS_CORE`):**
+   - La lógica operativa del backend correrá en su propio despliegue independiente de Apps Script (`services/gos/gos-core.js`).
+   - No dependerá de scripts legacy de GPSpedia para operaciones de lectura o escritura de datos operativos.
+
+4. **Integración Exclusiva de Consulta Read-Only con GPSpedia:**
+   - La única interacción permitida con GPSpedia será mediante el microservicio `CATALOG` (`getCatalogData`).
+   - La consulta se limitará estrictamente a responder si el modelo de vehículo admite o no las funciones operativas:
+     * Apagado remoto: Sí / No
+     * Apertura de puertas: Sí / No
+     * Botón de pánico: Sí / No
+     * Micrófono: Sí / No
+   - Se prohíbe exponer cualquier detalle interno del catálogo técnico (rutas de cables, colores de cableado, notas internas de instalación, SIM o IMEI).
+
+---
+
+## 2. Requerimientos Técnicos y Arquitectónicos Derivados de la Auditoría
+
+### 2.1 Capa de Infraestructura y PWA
+- **Corrección de Rutas del Service Worker:** Corregir `urlsToCache` en `service-worker.js` apuntando a `Interfaces/vistas/style.css`, `Utilidades/api-config.js` y `Recursos/`, eliminando los errores 404 que abortan la instalación de la PWA.
+- **Normalización de Manifest y Favicon:** Apuntar los iconos de `manifest.json` e `index.html` a la carpeta `Recursos/`.
+- **Cola Offline (Outbox Pattern):** Implementar cola en IndexedDB para encolar cambios de estado ("Llegó", "Vehículo recibido", firmas, inspección) cuando no haya conexión a Internet, sincronizando automáticamente con el backend al recuperar señal.
+
+### 2.2 Capa de Persistencia y Concurrencia (Backend Apps Script)
+- **Control de Concurrencia con `LockService`:** Integrar `LockService.getScriptLock()` en todas las operaciones de escritura en `services/gos/gos-core.js` para evitar condiciones de carrera en Google Sheets.
+- **Autenticación con Session Tokens:** Erradicar la suplantación de identidad (`requestorUsername`) implementando tokens de sesión validados en cada acción de `doPost`.
+- **Criptografía Segura:** Eliminar el fallback de contraseñas en texto plano en `verifyPassword` y aplicar salting seguro.
+
+### 2.3 Capa de Lógica de Negocio (Motores de Negocio)
+- **Extracción Real del Monolito:** Extraer la lógica real de `main.js` (6,397 líneas) hacia sus respectivos motores funcionales en `Motores de negocio/`:
+  * `agenda.js`: Gestión de slots, validación de caducidad, bloqueos y asignación extraordinaria.
+  * `reportes.js`: Generación de estadísticas acumulativas y gráficos sin recalcular todo el historial.
+  * `busqueda.js`: Algoritmo tolerante a fallos (Levenshtein) para órdenes, clientes y VIN.
+  * `autenticacion.js`: Gestión de sesiones y permisos RBAC cliente/servidor.
+  * `despachador.js`: Corrección del bug de asignación óptima (evaluación contra `minScore`).
+  * `sincronizacion.js`: Gestión de sincronización silenciosa y colas offline.
+
+### 2.4 Capa de Interfaz y Experiencia de Usuario (UI/UX)
+- **Responsividad Móvil Completa:** Implementar media queries (`@media (max-width: 768px)`) en `Interfaces/vistas/style.css`.
+- **Navegación Móvil:** Integrar menú hamburguesa o barra inferior fija para uso con una mano por técnicos en campo.
+- **Saneamiento de Estilos Inline:** Migrar más de 480 estilos inline desde las cadenas de texto de `main.js` hacia clases CSS reutilizables.
+- **Saneamiento del Repositorio:** Unificar `portal.html` y eliminar duplicados de `despachador.js`, asegurando un repositorio limpio y estructurado.
